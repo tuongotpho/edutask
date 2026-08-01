@@ -1,5 +1,6 @@
 {
   "hosting": {
+    "site": "edutask",
     "public": "out",
     "ignore": [
       "firebase.json",

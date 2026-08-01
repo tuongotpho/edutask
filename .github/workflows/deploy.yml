@@ -39,5 +39,6 @@ jobs:
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
           firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_APP_FROM_AI || secrets.FIREBASE_SERVICE_ACCOUNT }}'
+          target: edutask
           channelId: live
           projectId: app-from-ai
