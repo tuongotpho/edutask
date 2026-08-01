@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { LeaveRequest, LEAVE_TYPE_LABELS, LEAVE_SESSION_LABELS, ApprovalStatus } from '@/Edu-task/types/leave';
 import { ROLE_LABELS } from '@/Edu-task/types/user';
@@ -16,39 +16,125 @@ import {
   MessageSquare, 
   Send,
   History,
-  FileCheck
+  FileCheck,
+  UserCheck,
+  Edit
 } from 'lucide-react';
 
 interface LeaveDetailModalProps {
   leave: LeaveRequest | null;
   onClose: () => void;
+  onEditLeave?: (leave: LeaveRequest) => void;
 }
 
-export function LeaveDetailModal({ leave, onClose }: LeaveDetailModalProps) {
-  const { currentUser, activeRole, processLeaveStep } = useApp();
+export function LeaveDetailModal({ leave, onClose, onEditLeave }: LeaveDetailModalProps) {
+  const { currentUser, activeRole, processLeaveStep, changeSubstituteTeacher, cancelLeaveRequest, deleteLeaveRequest, getTeacherLeaveConflict, users } = useApp();
   const [comment, setComment] = useState('');
+  const [selectedSubId, setSelectedSubId] = useState(leave?.substituteTeacherId || '');
+  const [newSubId, setNewSubId] = useState(leave?.substituteTeacherId || '');
+  const [isChangingSub, setIsChangingSub] = useState(false);
   const [isProcessing, setIsProcessing] = useState(false);
+  const [showCancelPrompt, setShowCancelPrompt] = useState(false);
+  const [cancelReasonInput, setCancelReasonInput] = useState('');
+
+  useEffect(() => {
+    if (leave) {
+      setSelectedSubId(leave.substituteTeacherId || '');
+      setNewSubId(leave.substituteTeacherId || '');
+    }
+  }, [leave]);
 
   if (!leave || !currentUser) return null;
 
+  const isSchoolLeadershipOrAdmin = 
+    activeRole === 'ADMIN' || 
+    activeRole === 'PRINCIPAL' || 
+    activeRole === 'VICE_PRINCIPAL' || 
+    activeRole === 'SECRETARY' || 
+    activeRole === 'INSPECTOR' ||
+    currentUser?.roles?.some(r => ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'SECRETARY', 'INSPECTOR'].includes(r));
+
+  const isDeptHeader = 
+    activeRole === 'HEAD_OF_DEPT' || 
+    activeRole === 'GROUP_LEADER' || 
+    currentUser?.roles?.some(r => ['HEAD_OF_DEPT', 'GROUP_LEADER'].includes(r));
+
+  const canViewLeave = 
+    isSchoolLeadershipOrAdmin || 
+    (isDeptHeader && leave.departmentId === currentUser.departmentId) || 
+    leave.applicantId === currentUser.id || 
+    leave.substituteTeacherId === currentUser.id;
+
+  if (!canViewLeave) {
+    return (
+      <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl p-6 max-w-md w-full text-center space-y-3 shadow-2xl border border-slate-200 animate-in fade-in duration-200">
+          <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center font-bold text-xl mx-auto">
+            🚫
+          </div>
+          <h3 className="font-bold text-slate-900 text-base">Truy Cập Bị Từ Chối</h3>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Tài khoản Giáo viên không có quyền xem đơn xin nghỉ phép của giáo viên thuộc tổ khác hoặc đơn không thuộc quyền quản lý.
+          </p>
+          <button onClick={onClose} className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors">
+            Đóng Cửa Sổ
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  const isDeptLeaderOrAdmin = 
+    isSchoolLeadershipOrAdmin || 
+    (isDeptHeader && leave.departmentId === currentUser?.departmentId);
+
   // Determine if active role can approve current pending step
   const currentPendingStep = leave.steps[leave.currentStepIndex];
-  const canApprove = 
-    leave.overallStatus === 'IN_REVIEW' &&
-    currentPendingStep &&
-    (
-      activeRole === currentPendingStep.level ||
-      activeRole === 'ADMIN' ||
-      activeRole === 'PRINCIPAL'
-    );
+  
+  let canApprove = false;
+
+  if (leave.overallStatus === 'IN_REVIEW' && currentPendingStep && currentPendingStep.status === 'PENDING') {
+    const isStepGroupLeader = currentPendingStep.level === 'GROUP_LEADER' || currentPendingStep.level === 'HEAD_OF_DEPT';
+    const isStepBGH = currentPendingStep.level === 'VICE_PRINCIPAL' || currentPendingStep.level === 'PRINCIPAL';
+
+    const isAdmin = activeRole === 'ADMIN' || currentUser?.roles?.includes('ADMIN');
+
+    if (isAdmin) {
+      canApprove = true;
+    } else if (isStepGroupLeader) {
+      // Step 0: Only Group Leader or HOD of the SAME department
+      const isDeptLeaderOfThisDept = 
+        (activeRole === 'GROUP_LEADER' || activeRole === 'HEAD_OF_DEPT') &&
+        currentUser?.departmentId === leave.departmentId;
+      if (isDeptLeaderOfThisDept) {
+        canApprove = true;
+      }
+    } else if (isStepBGH) {
+      // Step 1: Only Principal or Vice Principal
+      const isBGH = activeRole === 'PRINCIPAL' || activeRole === 'VICE_PRINCIPAL';
+      if (isBGH) {
+        canApprove = true;
+      }
+    }
+  }
+
+  const isStepGroupLeader = leave.currentStepIndex === 0;
 
   const handleAction = (decision: ApprovalStatus) => {
+    if (decision === 'APPROVED' && isStepGroupLeader) {
+      if (!selectedSubId && !leave.substituteTeacherId) {
+        alert('Vui lòng chọn Giáo viên dạy thay trước khi phê duyệt đơn!');
+        return;
+      }
+    }
+
     setIsProcessing(true);
     try {
-      processLeaveStep(leave.id, decision, comment);
+      processLeaveStep(leave.id, decision, comment, selectedSubId);
       setComment('');
-    } catch (e) {
-      alert('Có lỗi xảy ra khi xử lý đơn.');
+      onClose();
+    } catch (e: any) {
+      alert(e.message || 'Có lỗi xảy ra khi xử lý đơn.');
     } finally {
       setIsProcessing(false);
     }
@@ -79,12 +165,25 @@ export function LeaveDetailModal({ leave, onClose }: LeaveDetailModalProps) {
 
         <div className="p-6 space-y-6 text-xs max-h-[80vh] overflow-y-auto">
 
+          {/* Cancelled Banner */}
+          {leave.overallStatus === 'CANCELLED' && (
+            <div className="p-4 rounded-2xl bg-rose-50 border border-rose-200 text-rose-900 font-semibold space-y-1">
+              <div className="flex items-center gap-2 font-bold text-sm text-rose-700">
+                <XCircle className="w-5 h-5 text-rose-600" />
+                <span>ĐƠN XIN NGHỈ PHÉP ĐÃ BỊ HỦY</span>
+              </div>
+              <p className="text-xs text-rose-700 font-normal">
+                Giáo viên đã chủ động hủy đơn nghỉ phép này. Lịch dạy thay và thời gian của giáo viên đã được giải phóng hoàn toàn khỏi hệ thống.
+              </p>
+            </div>
+          )}
+
           {/* Workflow Stepper */}
           <div>
             <div className="text-[11px] font-bold uppercase text-slate-400 tracking-wider mb-3">
-              Luồng Duyệt Đa Cấp (Multi-stage Approval Workflow)
+              Luồng Duyệt Đa Cấp (Nhóm trưởng / Tổ trưởng → Ban Giám Hiệu)
             </div>
-            <div className="grid grid-cols-3 gap-2">
+            <div className="grid grid-cols-2 gap-3">
               {leave.steps.map((step, idx) => {
                 const isCurrent = leave.currentStepIndex === idx && leave.overallStatus === 'IN_REVIEW';
                 const isPassed = idx < leave.currentStepIndex || leave.overallStatus === 'APPROVED';
@@ -155,21 +254,171 @@ export function LeaveDetailModal({ leave, onClose }: LeaveDetailModalProps) {
                 </p>
               </div>
               <div>
-                <span className="text-slate-400 block text-[10px] font-semibold">Người dạy thay / Ghi chú</span>
+                <div className="flex items-center justify-between">
+                  <span className="text-slate-400 block text-[10px] font-semibold">Người dạy thay</span>
+                  {isDeptLeaderOrAdmin && (
+                    <button
+                      type="button"
+                      onClick={() => setIsChangingSub(!isChangingSub)}
+                      className="text-[10px] font-bold text-indigo-600 hover:underline flex items-center gap-1"
+                    >
+                      <Edit className="w-3 h-3" />
+                      <span>{isChangingSub ? 'Đóng' : 'Đổi người dạy thay'}</span>
+                    </button>
+                  )}
+                </div>
+
                 <div className="bg-white p-2.5 rounded-xl border border-slate-200/80 mt-1 text-slate-800 font-medium">
                   {leave.substituteTeacherName ? (
-                    <div className="flex items-center space-x-1.5">
-                      <User className="w-3.5 h-3.5 text-indigo-600" />
-                      <span>{leave.substituteTeacherName} (Xác nhận dạy thay)</span>
+                    <div className="flex items-center space-x-1.5 text-emerald-700">
+                      <UserCheck className="w-3.5 h-3.5" />
+                      <span>{leave.substituteTeacherName} (Đã phân công)</span>
                     </div>
                   ) : (
-                    <span className="text-slate-400">Không có thông tin dạy thay</span>
+                    <span className="text-amber-600 font-bold">⚠️ Chưa phân công dạy thay</span>
                   )}
                   {leave.notes && <p className="text-slate-500 text-[11px] mt-1 italic">{leave.notes}</p>}
                 </div>
+
+                {/* Inline Substitute Adjustment Box for Dept Leader / Admin */}
+                {isChangingSub && (
+                  <div className="mt-2 p-3 bg-amber-50 rounded-xl border border-amber-200 space-y-2 text-xs">
+                    <label className="block font-bold text-amber-900 text-[11px]">Chọn giáo viên dạy thay mới:</label>
+                    <select
+                      value={newSubId}
+                      onChange={(e) => setNewSubId(e.target.value)}
+                      className="w-full p-2 bg-white rounded-lg border border-amber-300 font-semibold text-slate-800 focus:outline-none text-xs"
+                    >
+                      <option value="">-- Chọn giáo viên dạy thay --</option>
+                      {users
+                        .filter(u => u.id !== leave.applicantId)
+                        .map(u => {
+                          const conflict = getTeacherLeaveConflict(u.id, leave.startDate, leave.endDate, leave.session, leave.id);
+                          return (
+                            <option key={u.id} value={u.id} disabled={conflict.hasConflict}>
+                              {conflict.hasConflict
+                                ? `🚫 ${u.fullName} (${u.departmentName}) - Đang xin nghỉ phép (${conflict.conflictDetail?.startDate} → ${conflict.conflictDetail?.endDate})`
+                                : `${u.fullName} (${u.departmentName} - ${u.subject || 'Chuyên môn'})`}
+                            </option>
+                          );
+                        })}
+                    </select>
+                    <button
+                      type="button"
+                      disabled={!newSubId}
+                      onClick={() => {
+                        if (newSubId) {
+                          try {
+                            changeSubstituteTeacher(leave.id, newSubId);
+                            setIsChangingSub(false);
+                          } catch (err: any) {
+                            alert(err.message || 'Không thể đổi người dạy thay.');
+                          }
+                        }
+                      }}
+                      className="w-full py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold text-xs shadow-2xs transition-colors"
+                    >
+                      Lưu Điều Chỉnh Dạy Thay (Ghi Log)
+                    </button>
+                  </div>
+                )}
               </div>
             </div>
           </div>
+
+          {/* Applicant Edit Option (If status is REQUEST_EDIT or IN_REVIEW) */}
+          {leave.applicantId === currentUser.id && (leave.overallStatus === 'REQUEST_EDIT' || leave.overallStatus === 'IN_REVIEW') && (
+            <div className="bg-amber-50 p-4 rounded-2xl border border-amber-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <div className="font-bold text-amber-900 text-xs">
+                  {leave.overallStatus === 'REQUEST_EDIT' 
+                    ? '⚠️ Đơn xin nghỉ được yêu cầu chỉnh sửa thông tin' 
+                    : 'Đơn đang trong luồng duyệt (Bạn có thể chỉnh sửa lại thông tin)'}
+                </div>
+                <div className="text-amber-800 text-[11px] mt-0.5">Bấm vào nút bên phải để cập nhật thời gian nghỉ, lý do và gửi lại cho Tổ trưởng.</div>
+              </div>
+              <button
+                onClick={() => {
+                  onClose();
+                  if (onEditLeave) onEditLeave(leave);
+                }}
+                className="px-4 py-2 rounded-xl bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs flex items-center gap-1.5 shadow-sm transition-colors flex-shrink-0"
+              >
+                <Edit className="w-3.5 h-3.5" />
+                <span>Chỉnh Sửa Đơn Xin Nghỉ</span>
+              </button>
+            </div>
+          )}
+
+          {/* Cancel Action Bar for Applicant / Admin */}
+          {(leave.applicantId === currentUser.id || activeRole === 'ADMIN' || currentUser.roles?.includes('ADMIN')) && leave.overallStatus !== 'CANCELLED' && (
+            <div className="p-4 bg-rose-50/60 rounded-2xl border border-rose-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
+              <div>
+                <span className="font-bold text-rose-900 block text-xs">Hủy Đơn & Giải Phóng Lịch Dạy Thay</span>
+                <span className="text-[11px] text-rose-700">Giáo viên có thể chủ động hủy đơn xin nghỉ phép. Hệ thống sẽ giải phóng lịch nghỉ và thông báo đến các bên.</span>
+              </div>
+
+              {!showCancelPrompt ? (
+                <button
+                  type="button"
+                  onClick={() => setShowCancelPrompt(true)}
+                  className="px-4 py-2 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm transition-all flex-shrink-0"
+                >
+                  🚫 Hủy Đơn Xin Nghỉ Phép
+                </button>
+              ) : (
+                <div className="w-full space-y-2 pt-1 border-t border-rose-200">
+                  <input
+                    type="text"
+                    value={cancelReasonInput}
+                    onChange={(e) => setCancelReasonInput(e.target.value)}
+                    placeholder="Nhập lý do hủy đơn (VD: Thay đổi kế hoạch cá nhân)..."
+                    className="w-full p-2 rounded-xl border border-rose-300 bg-white text-xs text-slate-800 font-medium focus:outline-none"
+                  />
+                  <div className="flex space-x-2 justify-end">
+                    <button
+                      type="button"
+                      onClick={() => setShowCancelPrompt(false)}
+                      className="px-3 py-1.5 rounded-xl bg-slate-200 text-slate-700 font-bold text-xs"
+                    >
+                      Hủy Bỏ
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => {
+                        cancelLeaveRequest(leave.id, cancelReasonInput);
+                        setShowCancelPrompt(false);
+                        alert('Đã HỦY đơn xin nghỉ phép thành công. Lịch dạy thay và thời gian giảng dạy đã được giải phóng!');
+                        onClose();
+                      }}
+                      className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm"
+                    >
+                      Xác Nhận Hủy Đơn
+                    </button>
+                  </div>
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* Delete Action Bar for Cancelled / Draft Leaves */}
+          {(leave.applicantId === currentUser.id || activeRole === 'ADMIN' || currentUser.roles?.includes('ADMIN')) && leave.overallStatus === 'CANCELLED' && (
+            <div className="flex justify-end pt-1">
+              <button
+                type="button"
+                onClick={() => {
+                  if (confirm('Bạn có chắc chắn muốn XÓA vĩnh viễn đơn nghỉ phép này khỏi danh sách?')) {
+                    deleteLeaveRequest(leave.id);
+                    alert('Đã xóa đơn khỏi danh sách.');
+                    onClose();
+                  }
+                }}
+                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-slate-200 transition-all"
+              >
+                🗑️ Xóa Đơn Khỏi Danh Sách
+              </button>
+            </div>
+          )}
 
           {/* Action Box for Authorized Approver */}
           {canApprove && (
@@ -177,9 +426,39 @@ export function LeaveDetailModal({ leave, onClose }: LeaveDetailModalProps) {
               <div className="flex items-center justify-between">
                 <span className="font-bold text-indigo-950 text-xs flex items-center gap-1.5">
                   <FileCheck className="w-4 h-4 text-indigo-600" />
-                  Thao Tác Phê Duyệt (Vai trò hiện tại: {ROLE_LABELS[activeRole]})
+                  Thao Tác Phê Duyệt (Vai trò: {ROLE_LABELS[activeRole]})
                 </span>
               </div>
+
+              {/* Mandatory Substitute Teacher Selection for Group Leader / Dept Head */}
+              {isStepGroupLeader && (
+                <div className="bg-amber-100/90 p-3 rounded-xl border border-amber-300 space-y-1.5">
+                  <label className="block font-bold text-amber-900 text-xs flex items-center gap-1">
+                    <UserCheck className="w-4 h-4 text-amber-700" />
+                    <span>Phân công Giáo viên dạy thay (BẮT BUỘC):</span>
+                  </label>
+                  <select
+                    value={selectedSubId}
+                    onChange={(e) => setSelectedSubId(e.target.value)}
+                    className="w-full p-2 bg-white rounded-lg border border-amber-300 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-amber-500"
+                  >
+                    <option value="">-- Bấm chọn giáo viên dạy thay --</option>
+                    {users
+                      .filter(u => u.id !== leave.applicantId)
+                      .map(u => {
+                        const conflict = getTeacherLeaveConflict(u.id, leave.startDate, leave.endDate, leave.session, leave.id);
+                        return (
+                          <option key={u.id} value={u.id} disabled={conflict.hasConflict}>
+                            {conflict.hasConflict
+                              ? `🚫 ${u.fullName} (${u.departmentName}) - Đang xin nghỉ phép (${conflict.conflictDetail?.startDate} → ${conflict.conflictDetail?.endDate})`
+                              : `${u.fullName} (${u.departmentName} - ${u.subject || 'Chuyên môn'})`}
+                          </option>
+                        );
+                      })
+                    }
+                  </select>
+                </div>
+              )}
 
               <textarea
                 rows={2}

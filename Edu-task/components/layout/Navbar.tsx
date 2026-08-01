@@ -24,6 +24,7 @@ export function Navbar({ onSearch }: { onSearch?: (term: string) => void }) {
     currentUser, 
     activeRole, 
     users, 
+    schoolName,
     switchUser, 
     switchActiveRole, 
     notifications, 
@@ -56,7 +57,7 @@ export function Navbar({ onSearch }: { onSearch?: (term: string) => void }) {
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-slate-900 tracking-tight text-base">EduTask</span>
               <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
-                THPT Chuyên Nguyễn Trãi
+                {schoolName}
               </span>
             </div>
             <p className="text-xs text-slate-500 hidden sm:block">Hệ thống Quản lý Công việc & Đơn từ Nội bộ</p>
@@ -195,55 +196,16 @@ export function Navbar({ onSearch }: { onSearch?: (term: string) => void }) {
                     </div>
                   </div>
 
-                  <div className="px-3 py-2 border-b border-slate-100">
-                    <p className="text-[11px] font-semibold text-slate-400 uppercase tracking-wider mb-1.5">
-                      Đổi tài khoản kiểm thử (Demo Teacher)
-                    </p>
-                    <div className="space-y-1 max-h-48 overflow-y-auto">
-                      {users.map(u => (
-                        <button
-                          key={u.id}
-                          onClick={() => {
-                            switchUser(u.id);
-                            setShowUserDropdown(false);
-                          }}
-                          className={`w-full text-left px-2.5 py-1.5 rounded-lg text-xs flex items-center justify-between hover:bg-slate-100 transition-colors ${
-                            u.id === currentUser.id ? 'bg-indigo-50 text-indigo-700 font-bold' : 'text-slate-700'
-                          }`}
-                        >
-                          <div>
-                            <div className="leading-tight">{u.fullName}</div>
-                            <div className="text-[10px] text-slate-400 font-normal">{ROLE_LABELS[u.roles[0]]} - {u.departmentName}</div>
-                          </div>
-                          {u.id === currentUser.id && <CheckCircle2 className="w-3.5 h-3.5 text-indigo-600" />}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="px-2 pt-1 border-t border-slate-100 mt-1 space-y-1">
+                  <div className="px-2 pt-1 border-t border-slate-100 mt-1">
                     <button
                       onClick={() => {
                         logout();
                         setShowUserDropdown(false);
                       }}
-                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-slate-700 hover:bg-slate-100 flex items-center space-x-2 font-bold"
+                      className="w-full text-left px-3 py-2 rounded-lg text-xs text-slate-700 hover:bg-slate-100 flex items-center space-x-2 font-bold"
                     >
-                      <LogOut className="w-3.5 h-3.5 text-rose-500" />
+                      <LogOut className="w-4 h-4 text-rose-500" />
                       <span className="text-slate-800">Đăng Xuất Tài Khoản</span>
-                    </button>
-
-                    <button
-                      onClick={() => {
-                        if (confirm('Khôi phục dữ liệu mẫu ban đầu của hệ thống?')) {
-                          resetSystemData();
-                          setShowUserDropdown(false);
-                        }
-                      }}
-                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-rose-600 hover:bg-rose-50 flex items-center space-x-2 font-medium"
-                    >
-                      <RotateCcw className="w-3.5 h-3.5 text-rose-500" />
-                      <span>Reset Dữ Liệu Demo</span>
                     </button>
                   </div>
                 </div>

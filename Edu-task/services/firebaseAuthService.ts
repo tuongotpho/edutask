@@ -9,7 +9,10 @@ import {
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/Edu-task/lib/firebase';
 import { User, RoleType } from '@/Edu-task/types/user';
-import { INITIAL_USERS } from '@/Edu-task/lib/storage';
+
+function sanitizeForFirestore<T>(obj: T): T {
+  return JSON.parse(JSON.stringify(obj));
+}
 
 export const firebaseAuthService = {
   // Listen to Auth State Changes
@@ -42,7 +45,7 @@ export const firebaseAuthService = {
         id: fbUser.uid,
         fullName: fbUser.displayName || 'Giáo viên mới',
         email: fbUser.email || '',
-        avatarUrl: fbUser.photoURL || undefined,
+        avatarUrl: fbUser.photoURL || '',
         phone: fbUser.phoneNumber || '',
         departmentId: 'DEPT_TOAN_TIN',
         departmentName: 'Tổ Toán - Tin',
@@ -52,7 +55,7 @@ export const firebaseAuthService = {
         subject: 'Chưa phân công môn',
         status: isAdminEmail ? 'ACTIVE' : 'PENDING_APPROVAL',
       };
-      await setDoc(userDocRef, userProfile);
+      await setDoc(userDocRef, sanitizeForFirestore(userProfile));
     }
 
     return { fbUser, userProfile };
@@ -87,7 +90,7 @@ export const firebaseAuthService = {
     };
 
     // Save profile to Firestore
-    await setDoc(doc(db, 'users', fbUser.uid), userProfile);
+    await setDoc(doc(db, 'users', fbUser.uid), sanitizeForFirestore(userProfile));
     return userProfile;
   },
 
@@ -127,7 +130,7 @@ export const firebaseAuthService = {
     };
 
     if (!adminDoc.exists()) {
-      await setDoc(doc(db, 'users', 'USR_ADMIN'), adminUser);
+      await setDoc(doc(db, 'users', 'USR_ADMIN'), sanitizeForFirestore(adminUser));
     }
     return adminUser;
   }

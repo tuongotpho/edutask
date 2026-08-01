@@ -4,7 +4,9 @@ import {
   setDoc, 
   getDocs, 
   onSnapshot, 
-  Unsubscribe 
+  Unsubscribe,
+  query,
+  where
 } from 'firebase/firestore';
 import { db } from '@/Edu-task/lib/firebase';
 import { User } from '@/Edu-task/types/user';
@@ -18,6 +20,12 @@ import {
   INITIAL_NOTIFICATIONS 
 } from '@/Edu-task/lib/storage';
 
+// Helper to remove any undefined fields before sending to Firestore
+function sanitizeForFirestore<T>(obj: T): T {
+  if (obj === undefined) return null as unknown as T;
+  return JSON.parse(JSON.stringify(obj));
+}
+
 export const firebaseService = {
   // --- Seed initial data to Firestore if empty ---
   async seedInitialDataIfEmpty(): Promise<void> {
@@ -26,7 +34,7 @@ export const firebaseService = {
       if (usersSnap.empty) {
         console.log('Seeding initial users to Firestore...');
         for (const u of INITIAL_USERS) {
-          await setDoc(doc(db, 'users', u.id), u);
+          await setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u));
         }
       }
 
@@ -34,7 +42,7 @@ export const firebaseService = {
       if (leavesSnap.empty) {
         console.log('Seeding initial leaves to Firestore...');
         for (const l of INITIAL_LEAVES) {
-          await setDoc(doc(db, 'leaves', l.id), l);
+          await setDoc(doc(db, 'leaves', l.id), sanitizeForFirestore(l));
         }
       }
 
@@ -42,7 +50,7 @@ export const firebaseService = {
       if (tasksSnap.empty) {
         console.log('Seeding initial tasks to Firestore...');
         for (const t of INITIAL_TASKS) {
-          await setDoc(doc(db, 'tasks', t.id), t);
+          await setDoc(doc(db, 'tasks', t.id), sanitizeForFirestore(t));
         }
       }
 
@@ -50,7 +58,7 @@ export const firebaseService = {
       if (notifsSnap.empty) {
         console.log('Seeding initial notifications to Firestore...');
         for (const n of INITIAL_NOTIFICATIONS) {
-          await setDoc(doc(db, 'notifications', n.id), n);
+          await setDoc(doc(db, 'notifications', n.id), sanitizeForFirestore(n));
         }
       }
     } catch (err) {
@@ -59,10 +67,13 @@ export const firebaseService = {
   },
 
   // --- Users ---
-  subscribeUsers(onUpdate: (users: User[]) => void): Unsubscribe {
-    return onSnapshot(collection(db, 'users'), (snapshot) => {
+  subscribeUsers(onUpdate: (users: User[]) => void, role?: string, deptId?: string): Unsubscribe {
+    let q = collection(db, 'users') as any;
+    // If not admin, we could limit, but users collection is small and needed for dropdowns
+    // For now, we still fetch all users so the UI works (dropdowns to assign tasks/leaves)
+    return onSnapshot(q, (snapshot: any) => {
       const users: User[] = [];
-      snapshot.forEach((doc) => {
+      snapshot.forEach((doc: any) => {
         users.push(doc.data() as User);
       });
       if (users.length > 0) {
@@ -72,7 +83,7 @@ export const firebaseService = {
   },
 
   async saveUser(user: User): Promise<void> {
-    await setDoc(doc(db, 'users', user.id), user, { merge: true });
+    await setDoc(doc(db, 'users', user.id), sanitizeForFirestore(user), { merge: true });
   },
 
   async deleteUser(userId: string): Promise<void> {
@@ -81,58 +92,80 @@ export const firebaseService = {
   },
 
   // --- Leaves ---
-  subscribeLeaves(onUpdate: (leaves: LeaveRequest[]) => void): Unsubscribe {
-    return onSnapshot(collection(db, 'leaves'), (snapshot) => {
+  subscribeLeaves(onUpdate: (leaves: LeaveRequest[]) => void, filters?: { role?: string; deptId?: string; userId?: string }): Unsubscribe {
+    let q = collection(db, 'leaves') as any;
+    
+    // Applying basic frontend limits based on role to prevent massive fetches
+    // Firestore security rules will enforce this on the backend
+    if (filters) {
+      if (filters.role === 'GROUP_LEADER' || filters.role === 'HEAD_OF_DEPT') {
+        q = query(q, where('departmentId', '==', filters.deptId));
+      } else if (filters.role === 'TEACHER') {
+        q = query(q, where('applicantId', '==', filters.userId));
+      }
+    }
+
+    return onSnapshot(q, (snapshot: any) => {
       const leaves: LeaveRequest[] = [];
-      snapshot.forEach((doc) => {
+      snapshot.forEach((doc: any) => {
         leaves.push(doc.data() as LeaveRequest);
       });
-      if (leaves.length > 0) {
-        // Sort leaves by createdAt desc
-        leaves.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        onUpdate(leaves);
-      }
+      leaves.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      onUpdate(leaves);
     });
   },
 
   async saveLeave(leave: LeaveRequest): Promise<void> {
-    await setDoc(doc(db, 'leaves', leave.id), leave, { merge: true });
+    await setDoc(doc(db, 'leaves', leave.id), sanitizeForFirestore(leave), { merge: true });
   },
 
   // --- Tasks ---
-  subscribeTasks(onUpdate: (tasks: Task[]) => void): Unsubscribe {
-    return onSnapshot(collection(db, 'tasks'), (snapshot) => {
+  subscribeTasks(onUpdate: (tasks: Task[]) => void, filters?: { role?: string; deptId?: string; userId?: string }): Unsubscribe {
+    let q = collection(db, 'tasks') as any;
+    
+    if (filters) {
+      // Note: for tasks we might need more complex queries depending on assignees.
+      // Since assignees is an array, it's tricky to filter purely here without changing data model.
+      // As a performance compromise for this scope, we load tasks and filter later, but apply a limit
+      // if it grows too large, or if it's a specific department.
+      if (filters.role === 'GROUP_LEADER' || filters.role === 'HEAD_OF_DEPT') {
+        q = query(q, where('targetDepartmentId', '==', filters.deptId));
+      }
+    }
+
+    return onSnapshot(q, (snapshot: any) => {
       const tasks: Task[] = [];
-      snapshot.forEach((doc) => {
+      snapshot.forEach((doc: any) => {
         tasks.push(doc.data() as Task);
       });
-      if (tasks.length > 0) {
-        // Sort tasks by createdAt desc
-        tasks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        onUpdate(tasks);
-      }
+      tasks.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      onUpdate(tasks);
     });
   },
 
   async saveTask(task: Task): Promise<void> {
-    await setDoc(doc(db, 'tasks', task.id), task, { merge: true });
+    await setDoc(doc(db, 'tasks', task.id), sanitizeForFirestore(task), { merge: true });
   },
 
   // --- Notifications ---
-  subscribeNotifications(onUpdate: (notifs: AppNotification[]) => void): Unsubscribe {
-    return onSnapshot(collection(db, 'notifications'), (snapshot) => {
+  subscribeNotifications(onUpdate: (notifs: AppNotification[]) => void, userId?: string): Unsubscribe {
+    let q = collection(db, 'notifications') as any;
+    
+    if (userId) {
+      q = query(q, where('recipientUserId', '==', userId));
+    }
+
+    return onSnapshot(q, (snapshot: any) => {
       const notifs: AppNotification[] = [];
-      snapshot.forEach((doc) => {
+      snapshot.forEach((doc: any) => {
         notifs.push(doc.data() as AppNotification);
       });
-      if (notifs.length > 0) {
-        notifs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-        onUpdate(notifs);
-      }
+      notifs.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      onUpdate(notifs);
     });
   },
 
   async saveNotification(notif: AppNotification): Promise<void> {
-    await setDoc(doc(db, 'notifications', notif.id), notif, { merge: true });
+    await setDoc(doc(db, 'notifications', notif.id), sanitizeForFirestore(notif), { merge: true });
   }
 };

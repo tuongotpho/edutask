@@ -7,9 +7,39 @@ import { TASK_STATUS_CONFIG } from '@/Edu-task/types/task';
 import { CalendarDays, AlertTriangle, Shield, CheckCircle2, Clock, Users } from 'lucide-react';
 
 export function SchoolTimelineTab() {
-  const { users, leaves, tasks } = useApp();
+  const { users, leaves, tasks, currentUser, activeRole } = useApp();
+
+  const isSchoolExecutiveOrAdmin = 
+    activeRole === 'ADMIN' || 
+    activeRole === 'PRINCIPAL' || 
+    activeRole === 'VICE_PRINCIPAL' || 
+    activeRole === 'SECRETARY' || 
+    activeRole === 'INSPECTOR' ||
+    currentUser?.roles?.some(r => ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'SECRETARY', 'INSPECTOR'].includes(r));
+
+  const isDeptLeader = 
+    activeRole === 'HEAD_OF_DEPT' || 
+    activeRole === 'GROUP_LEADER' || 
+    currentUser?.roles?.some(r => ['HEAD_OF_DEPT', 'GROUP_LEADER'].includes(r));
+
+  const displayUsers = isSchoolExecutiveOrAdmin 
+    ? users 
+    : isDeptLeader 
+    ? users.filter(u => u.departmentId === currentUser?.departmentId) 
+    : users.filter(u => u.id === currentUser?.id);
 
   const todayStr = new Date().toISOString().split('T')[0];
+
+  let headerTitle = 'Lịch Nghỉ Phép & Khối Lượng Công Việc Cá Nhân';
+  let headerSub = 'Theo dõi lịch nghỉ phép đã đăng ký và danh sách công việc đang được giao phụ trách.';
+
+  if (isSchoolExecutiveOrAdmin) {
+    headerTitle = 'Lịch Nghỉ Phép & Khối Lượng Công Việc Toàn Trường';
+    headerSub = 'Công khai minh bạch tiến độ nhiệm vụ và trạng thái có mặt toàn trường để hỗ trợ Ban Giám Hiệu chỉ đạo.';
+  } else if (isDeptLeader) {
+    headerTitle = `Lịch Nghỉ Phép & Khối Lượng Công Việc - ${currentUser?.departmentName || 'Tổ Chuyên Môn'}`;
+    headerSub = `Theo dõi tiến độ nhiệm vụ và lịch nghỉ phép của giáo viên thuộc ${currentUser?.departmentName || 'tổ mình quản lý'}.`;
+  }
 
   return (
     <div className="space-y-6">
@@ -18,16 +48,16 @@ export function SchoolTimelineTab() {
       <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-2">
         <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
           <CalendarDays className="w-5 h-5 text-indigo-600" />
-          Lịch Nghỉ Phép & Khối Lượng Công Việc Toàn Trường
+          {headerTitle}
         </h2>
         <p className="text-xs text-slate-500">
-          Công khai minh bạch tiến độ nhiệm vụ và trạng thái có mặt để hỗ trợ Ban Giám Hiệu & Tổ trưởng giao việc chính xác, không giao đè khi nhân sự nghỉ.
+          {headerSub}
         </p>
       </div>
 
       {/* Grid of Teachers with Status */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {users.map(teacher => {
+        {displayUsers.map(teacher => {
           // Check active leaves for this teacher
           const activeLeaves = leaves.filter(l => 
             l.applicantId === teacher.id && 

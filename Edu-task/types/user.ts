@@ -1,5 +1,6 @@
 export type RoleType = 
   | 'TEACHER'           // Giáo viên
+  | 'GROUP_LEADER'      // Nhóm trưởng chuyên môn
   | 'HEAD_OF_DEPT'      // Tổ trưởng
   | 'VICE_PRINCIPAL'    // Hiệu phó
   | 'PRINCIPAL'         // Hiệu trưởng
@@ -39,6 +40,7 @@ export interface User {
 
 export const ROLE_LABELS: Record<RoleType, string> = {
   TEACHER: 'Giáo viên',
+  GROUP_LEADER: 'Nhóm trưởng chuyên môn',
   HEAD_OF_DEPT: 'Tổ trưởng chuyên môn',
   VICE_PRINCIPAL: 'Hiệu phó',
   PRINCIPAL: 'Hiệu trưởng',

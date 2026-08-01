@@ -27,6 +27,7 @@ function EduTaskMainApp() {
 
   // Modals state
   const [isLeaveFormOpen, setIsLeaveFormOpen] = useState(false);
+  const [editingLeave, setEditingLeave] = useState<LeaveRequest | null>(null);
   const [selectedLeaveId, setSelectedLeaveId] = useState<string | null>(null);
 
   const [isTaskFormOpen, setIsTaskFormOpen] = useState(false);
@@ -34,6 +35,16 @@ function EduTaskMainApp() {
 
   const selectedLeave = leaves.find(l => l.id === selectedLeaveId) || null;
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
+
+  const handleOpenNewLeave = () => {
+    setEditingLeave(null);
+    setIsLeaveFormOpen(true);
+  };
+
+  const handleOpenEditLeave = (leaveToEdit: LeaveRequest) => {
+    setEditingLeave(leaveToEdit);
+    setIsLeaveFormOpen(true);
+  };
 
   if (!isAuthenticated || !currentUser) {
     return <LoginPage />;
@@ -54,7 +65,7 @@ function EduTaskMainApp() {
         <Sidebar
           activeTab={activeTab}
           setActiveTab={setActiveTab}
-          onRequestNewLeave={() => setIsLeaveFormOpen(true)}
+          onRequestNewLeave={handleOpenNewLeave}
           onRequestNewTask={() => setIsTaskFormOpen(true)}
         />
 
@@ -62,7 +73,7 @@ function EduTaskMainApp() {
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
           {activeTab === 'dashboard' && (
             <OverviewTab
-              onRequestNewLeave={() => setIsLeaveFormOpen(true)}
+              onRequestNewLeave={handleOpenNewLeave}
               onRequestNewTask={() => setIsTaskFormOpen(true)}
               onSelectLeave={(id) => setSelectedLeaveId(id)}
               onSelectTask={(id) => setSelectedTaskId(id)}
@@ -72,7 +83,7 @@ function EduTaskMainApp() {
 
           {activeTab === 'leave' && (
             <LeaveTab
-              onRequestNewLeave={() => setIsLeaveFormOpen(true)}
+              onRequestNewLeave={handleOpenNewLeave}
               onSelectLeave={(id) => setSelectedLeaveId(id)}
               searchTerm={searchTerm}
             />
@@ -102,12 +113,17 @@ function EduTaskMainApp() {
       {/* Global Modals */}
       <LeaveFormModal
         isOpen={isLeaveFormOpen}
-        onClose={() => setIsLeaveFormOpen(false)}
+        editingLeave={editingLeave}
+        onClose={() => {
+          setIsLeaveFormOpen(false);
+          setEditingLeave(null);
+        }}
       />
 
       <LeaveDetailModal
         leave={selectedLeave}
         onClose={() => setSelectedLeaveId(null)}
+        onEditLeave={handleOpenEditLeave}
       />
 
       <TaskFormModal

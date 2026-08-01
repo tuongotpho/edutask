@@ -5,7 +5,31 @@ import { useApp } from '@/Edu-task/context/AppContext';
 import { BarChart3, PieChart, TrendingUp, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
 
 export function AnalyticsTab() {
-  const { leaves, tasks, users } = useApp();
+  const { leaves, tasks, users, departments, currentUser, activeRole } = useApp();
+
+  const canViewStats = 
+    activeRole === 'ADMIN' || 
+    activeRole === 'PRINCIPAL' || 
+    activeRole === 'VICE_PRINCIPAL' || 
+    activeRole === 'HEAD_OF_DEPT' || 
+    activeRole === 'GROUP_LEADER' || 
+    activeRole === 'SECRETARY' || 
+    activeRole === 'INSPECTOR' ||
+    currentUser?.roles?.some(r => ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_OF_DEPT', 'GROUP_LEADER', 'SECRETARY', 'INSPECTOR'].includes(r));
+
+  if (!canViewStats) {
+    return (
+      <div className="p-8 bg-white rounded-3xl border border-slate-200 text-center space-y-3 shadow-sm my-6">
+        <div className="w-12 h-12 mx-auto rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 font-bold text-xl">
+          🚫
+        </div>
+        <h3 className="text-base font-bold text-slate-900">Truy Cập Báo Cáo Bị Từ Chối</h3>
+        <p className="text-xs text-slate-500 max-w-md mx-auto">
+          Tính năng Báo cáo & Thống kê toàn trường chỉ dành cho Ban Giám Hiệu, Tổ trưởng & Nhóm trưởng chuyên môn.
+        </p>
+      </div>
+    );
+  }
 
   const totalLeaves = leaves.length;
   const totalApprovedLeaves = leaves.filter(l => l.overallStatus === 'APPROVED').length;
@@ -59,23 +83,22 @@ export function AnalyticsTab() {
       <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
         <h3 className="font-bold text-slate-900 text-sm">Thống Kê Khối Lượng Công Việc Theo Tổ Bộ Môn</h3>
         <div className="space-y-3 text-xs">
-          {[
-            { name: 'Tổ Toán - Tin', count: 4, percent: 80 },
-            { name: 'Tổ Ngữ Văn - Lịch Sử', count: 2, percent: 50 },
-            { name: 'Tổ Hành Chính - Kế Toán', count: 2, percent: 50 },
-            { name: 'Tổ Ngoại Ngữ', count: 1, percent: 30 },
-            { name: 'Tổ Lý - Hóa - Sinh', count: 1, percent: 30 },
-          ].map(item => (
-            <div key={item.name} className="space-y-1">
-              <div className="flex items-center justify-between font-semibold text-slate-800">
-                <span>{item.name}</span>
-                <span>{item.count} nhiệm vụ</span>
+          {departments.map(dept => {
+            const deptTasksCount = tasks.filter(t => t.targetDepartmentId === dept.id).length;
+            const maxTasksCount = Math.max(...departments.map(d => tasks.filter(t => t.targetDepartmentId === d.id).length), 1);
+            const percent = Math.round((deptTasksCount / maxTasksCount) * 100) || 10;
+            return (
+              <div key={dept.id} className="space-y-1">
+                <div className="flex items-center justify-between font-semibold text-slate-800">
+                  <span>{dept.name}</span>
+                  <span>{deptTasksCount} nhiệm vụ</span>
+                </div>
+                <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
+                  <div className="bg-indigo-600 h-full rounded-full transition-all" style={{ width: `${percent}%` }} />
+                </div>
               </div>
-              <div className="w-full bg-slate-100 h-2.5 rounded-full overflow-hidden">
-                <div className="bg-indigo-600 h-full rounded-full" style={{ width: `${item.percent}%` }} />
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
 

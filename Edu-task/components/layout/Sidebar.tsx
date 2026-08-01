@@ -32,13 +32,42 @@ export function Sidebar({
   onRequestNewLeave, 
   onRequestNewTask 
 }: SidebarProps) {
-  const { currentUser, activeRole, leaves, tasks } = useApp();
+  const { currentUser, activeRole, leaves, tasks, users } = useApp();
 
-  // Calculate pending review badges
-  const pendingLeavesCount = leaves.filter(l => l.overallStatus === 'IN_REVIEW').length;
+  const isLeadershipOrAdmin = 
+    activeRole === 'ADMIN' || 
+    activeRole === 'PRINCIPAL' || 
+    activeRole === 'VICE_PRINCIPAL' || 
+    activeRole === 'SECRETARY' || 
+    activeRole === 'INSPECTOR' ||
+    currentUser?.roles?.includes('ADMIN') ||
+    currentUser?.roles?.includes('PRINCIPAL') ||
+    currentUser?.roles?.includes('VICE_PRINCIPAL');
+
+  const visibleLeaves = leaves.filter(l => {
+    if (isLeadershipOrAdmin) return true;
+    if (activeRole === 'HEAD_OF_DEPT' || activeRole === 'GROUP_LEADER' || currentUser?.roles?.includes('HEAD_OF_DEPT') || currentUser?.roles?.includes('GROUP_LEADER')) {
+      return l.departmentId === currentUser?.departmentId || l.applicantId === currentUser?.id;
+    }
+    return l.applicantId === currentUser?.id || l.substituteTeacherId === currentUser?.id;
+  });
+
+  // Calculate pending review badges based on visible scope
+  const pendingLeavesCount = visibleLeaves.filter(l => l.overallStatus === 'IN_REVIEW').length;
   const activeTasksCount = tasks.filter(t => t.status === 'ASSIGNED' || t.status === 'IN_PROGRESS' || t.status === 'PENDING_APPROVAL').length;
+  const pendingUsersCount = users.filter(u => u.status === 'PENDING_APPROVAL').length;
 
-  const canAssignTasks = activeRole === 'PRINCIPAL' || activeRole === 'VICE_PRINCIPAL' || activeRole === 'HEAD_OF_DEPT';
+  const canAssignTasks = activeRole === 'PRINCIPAL' || activeRole === 'VICE_PRINCIPAL' || activeRole === 'HEAD_OF_DEPT' || activeRole === 'ADMIN';
+  const isAdmin = activeRole === 'ADMIN' || currentUser?.roles?.includes('ADMIN') || currentUser?.email === 'admin@gmail.com';
+  const canViewStats = 
+    activeRole === 'ADMIN' || 
+    activeRole === 'PRINCIPAL' || 
+    activeRole === 'VICE_PRINCIPAL' || 
+    activeRole === 'HEAD_OF_DEPT' || 
+    activeRole === 'GROUP_LEADER' || 
+    activeRole === 'SECRETARY' || 
+    activeRole === 'INSPECTOR' ||
+    currentUser?.roles?.some(r => ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_OF_DEPT', 'GROUP_LEADER', 'SECRETARY', 'INSPECTOR'].includes(r));
 
   const menuItems = [
     {
@@ -63,22 +92,23 @@ export function Sidebar({
     },
     {
       id: 'schedule' as TabType,
-      label: 'Lịch Nghỉ & Việc Toàn Trường',
+      label: isLeadershipOrAdmin ? 'Lịch Nghỉ & Việc Toàn Trường' : 'Lịch Nghỉ & Việc Cá Nhân',
       icon: CalendarDays,
       badge: null,
     },
-    {
+    ...(canViewStats ? [{
       id: 'stats' as TabType,
       label: 'Báo Cáo & Thống Kê',
       icon: BarChart3,
       badge: null,
-    },
-    {
+    }] : []),
+    ...(isAdmin ? [{
       id: 'config' as TabType,
-      label: 'Cấu Hình RBAC & Luồng Duyệt',
-      icon: Settings,
-      badge: null,
-    },
+      label: 'Quản Trị RBAC & Duyệt TK',
+      icon: ShieldCheck,
+      badge: pendingUsersCount > 0 ? `${pendingUsersCount} duyệt` : null,
+      badgeColor: 'bg-amber-500 text-white font-bold',
+    }] : []),
   ];
 
   return (
@@ -139,22 +169,8 @@ export function Sidebar({
         </nav>
       </div>
 
-      {/* Footer Profile Info */}
-      <div className="pt-4 border-t border-slate-100 space-y-3">
-        <div className="p-3 rounded-xl bg-slate-50 border border-slate-200/80">
-          <div className="flex items-center space-x-2">
-            <ShieldCheck className="w-4 h-4 text-emerald-600 flex-shrink-0" />
-            <div className="min-w-0 flex-1">
-              <div className="text-[11px] font-bold text-slate-800 truncate">
-                {currentUser ? currentUser.fullName : 'Chưa đăng nhập'}
-              </div>
-              <div className="text-[10px] text-slate-500 truncate">
-                Quyền: {ROLE_LABELS[activeRole]}
-              </div>
-            </div>
-          </div>
-        </div>
-
+      {/* Footer Version Info */}
+      <div className="pt-4 border-t border-slate-100">
         <div className="text-[10px] text-center text-slate-400">
           EduTask v1.0.4 • Trường học Chuyển đổi số
         </div>

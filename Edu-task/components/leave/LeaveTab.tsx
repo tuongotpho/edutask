@@ -23,15 +23,40 @@ interface LeaveTabProps {
 }
 
 export function LeaveTab({ onRequestNewLeave, onSelectLeave, searchTerm = '' }: LeaveTabProps) {
-  const { leaves, currentUser, activeRole } = useApp();
+  const { leaves, departments, currentUser, activeRole } = useApp();
 
   const [localSearch, setLocalSearch] = useState(searchTerm);
   const [selectedDept, setSelectedDept] = useState('ALL');
   const [selectedType, setSelectedType] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
+  const isSchoolLeadershipOrAdmin = 
+    activeRole === 'ADMIN' || 
+    activeRole === 'PRINCIPAL' || 
+    activeRole === 'VICE_PRINCIPAL' || 
+    activeRole === 'SECRETARY' || 
+    activeRole === 'INSPECTOR' ||
+    currentUser?.roles?.includes('ADMIN') ||
+    currentUser?.roles?.includes('PRINCIPAL') ||
+    currentUser?.roles?.includes('VICE_PRINCIPAL');
+
+  const isDeptHeader = 
+    activeRole === 'HEAD_OF_DEPT' || 
+    activeRole === 'GROUP_LEADER' || 
+    currentUser?.roles?.includes('HEAD_OF_DEPT') || 
+    currentUser?.roles?.includes('GROUP_LEADER');
+
+  // Filter leaves based on user role & department permission scope
+  const visibleLeaves = leaves.filter(leave => {
+    if (isSchoolLeadershipOrAdmin) return true;
+    if (isDeptHeader) {
+      return leave.departmentId === currentUser?.departmentId || leave.applicantId === currentUser?.id;
+    }
+    return leave.applicantId === currentUser?.id || leave.substituteTeacherId === currentUser?.id;
+  });
+
   // Filter logic
-  const filteredLeaves = leaves.filter(leave => {
+  const filteredLeaves = visibleLeaves.filter(leave => {
     const term = localSearch.toLowerCase();
     const matchesSearch = 
       leave.applicantName.toLowerCase().includes(term) ||
@@ -85,18 +110,23 @@ export function LeaveTab({ onRequestNewLeave, onSelectLeave, searchTerm = '' }: 
           </div>
 
           {/* Department Filter */}
-          <select
-            value={selectedDept}
-            onChange={(e) => setSelectedDept(e.target.value)}
-            className="w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-800 font-medium"
-          >
-            <option value="ALL">-- Tất cả Tổ chuyên môn --</option>
-            <option value="DEPT_TOAN_TIN">Tổ Toán - Tin</option>
-            <option value="DEPT_VAN_SU">Tổ Ngữ Văn - Lịch Sử</option>
-            <option value="DEPT_ANH">Tổ Ngoại Ngữ</option>
-            <option value="DEPT_LY_HOA_SINH">Tổ Lý - Hóa - Sinh</option>
-            <option value="DEPT_HANH_CHINH">Tổ Hành Chính - Kế Toán</option>
-          </select>
+          {isSchoolLeadershipOrAdmin ? (
+            <select
+              value={selectedDept}
+              onChange={(e) => setSelectedDept(e.target.value)}
+              className="w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-800 font-medium"
+            >
+              <option value="ALL">-- Tất cả Tổ chuyên môn --</option>
+              {departments.map(d => (
+                <option key={d.id} value={d.id}>{d.name}</option>
+              ))}
+            </select>
+          ) : (
+            <div className="py-2 px-3 rounded-xl border border-slate-200 bg-slate-100 text-slate-700 font-semibold flex items-center justify-between">
+              <span>{currentUser?.departmentName || 'Tổ Chuyên Môn'}</span>
+              <span className="text-[10px] text-slate-400 font-normal">Tổ của tôi</span>
+            </div>
+          )}
 
           {/* Leave Type Filter */}
           <select
@@ -187,9 +217,13 @@ export function LeaveTab({ onRequestNewLeave, onSelectLeave, searchTerm = '' }: 
                   <span className={`text-[11px] font-bold ${
                     leave.overallStatus === 'APPROVED' ? 'text-emerald-600' :
                     leave.overallStatus === 'REJECTED' ? 'text-rose-600' :
+                    leave.overallStatus === 'CANCELLED' ? 'text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200' :
                     leave.overallStatus === 'REQUEST_EDIT' ? 'text-amber-600' : 'text-indigo-600'
                   }`}>
-                    ● Trạng thái: {leave.overallStatus}
+                    ● {leave.overallStatus === 'APPROVED' ? 'Đã duyệt' :
+                       leave.overallStatus === 'REJECTED' ? 'Đã từ chối' :
+                       leave.overallStatus === 'CANCELLED' ? 'Đã HỦY đơn' :
+                       leave.overallStatus === 'REQUEST_EDIT' ? 'Yêu cầu sửa' : 'Đang xét duyệt'}
                   </span>
                 </div>
               </div>

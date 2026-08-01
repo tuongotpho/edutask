@@ -30,6 +30,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
   const { 
     currentUser, 
     activeRole, 
+    users,
     updateTaskProgress, 
     requestExtension, 
     reviewExtension, 
@@ -43,6 +44,49 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
   const [feedback, setFeedback] = useState('');
 
   if (!task || !currentUser) return null;
+
+  const isSchoolLeadershipOrAdmin = 
+    activeRole === 'ADMIN' || 
+    activeRole === 'PRINCIPAL' || 
+    activeRole === 'VICE_PRINCIPAL' || 
+    activeRole === 'SECRETARY' || 
+    activeRole === 'INSPECTOR' ||
+    currentUser?.roles?.some(r => ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'SECRETARY', 'INSPECTOR'].includes(r));
+
+  const isDeptHeader = 
+    activeRole === 'HEAD_OF_DEPT' || 
+    activeRole === 'GROUP_LEADER' || 
+    currentUser?.roles?.some(r => ['HEAD_OF_DEPT', 'GROUP_LEADER'].includes(r));
+
+  const isAssigneeUserInDept = task.assignees.some(a => {
+    const u = users.find(usr => usr.id === a.userId);
+    return u?.departmentId === currentUser.departmentId;
+  });
+
+  const canViewTask = 
+    isSchoolLeadershipOrAdmin || 
+    (isDeptHeader && (task.assignerId === currentUser.id || isAssigneeUserInDept)) || 
+    task.assignerId === currentUser.id || 
+    task.assignees.some(a => a.userId === currentUser.id);
+
+  if (!canViewTask) {
+    return (
+      <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
+        <div className="bg-white rounded-3xl p-6 max-w-md w-full text-center space-y-3 shadow-2xl border border-slate-200 animate-in fade-in duration-200">
+          <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center font-bold text-xl mx-auto">
+            🚫
+          </div>
+          <h3 className="font-bold text-slate-900 text-base">Truy Cập Bị Từ Chối</h3>
+          <p className="text-xs text-slate-500 leading-relaxed">
+            Tài khoản Giáo viên không có quyền xem chi tiết công việc giao cho giáo viên khác.
+          </p>
+          <button onClick={onClose} className="px-5 py-2 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs transition-colors">
+            Đóng Cửa Sổ
+          </button>
+        </div>
+      </div>
+    );
+  }
 
   // Permissions check
   const isAssigner = task.assignerId === currentUser.id || activeRole === 'PRINCIPAL' || activeRole === 'VICE_PRINCIPAL';

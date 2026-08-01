@@ -1,26 +1,46 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
-import { LeaveType, LeaveSession, LEAVE_TYPE_LABELS, LEAVE_SESSION_LABELS } from '@/Edu-task/types/leave';
-import { X, Calendar, AlertTriangle, UserCheck, FileText, Upload, Sparkles } from 'lucide-react';
+import { LeaveRequest, LeaveType, LeaveSession, LEAVE_TYPE_LABELS, LEAVE_SESSION_LABELS } from '@/Edu-task/types/leave';
+import { X, Calendar, AlertTriangle, FileText, Upload, Info } from 'lucide-react';
 
-export function LeaveFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { currentUser, users, createLeaveRequest, getTeacherLeaveConflict } = useApp();
+interface LeaveFormModalProps {
+  isOpen: boolean;
+  editingLeave?: LeaveRequest | null;
+  onClose: () => void;
+}
+
+export function LeaveFormModal({ isOpen, editingLeave, onClose }: LeaveFormModalProps) {
+  const { currentUser, createLeaveRequest, updateLeaveRequest, getTeacherLeaveConflict } = useApp();
 
   const [leaveType, setLeaveType] = useState<LeaveType>('PAID');
   const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
   const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
   const [session, setSession] = useState<LeaveSession>('FULL_DAY');
   const [reason, setReason] = useState('');
-  const [substituteTeacherId, setSubstituteTeacherId] = useState('');
   const [notes, setNotes] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  if (!isOpen || !currentUser) return null;
+  useEffect(() => {
+    if (editingLeave) {
+      setLeaveType(editingLeave.leaveType);
+      setStartDate(editingLeave.startDate);
+      setEndDate(editingLeave.endDate);
+      setSession(editingLeave.session);
+      setReason(editingLeave.reason);
+      setNotes(editingLeave.notes || '');
+    } else {
+      setLeaveType('PAID');
+      setStartDate(new Date().toISOString().split('T')[0]);
+      setEndDate(new Date().toISOString().split('T')[0]);
+      setSession('FULL_DAY');
+      setReason('');
+      setNotes('');
+    }
+  }, [editingLeave, isOpen]);
 
-  // Filter available substitute teachers (same department preferably or teaching staff)
-  const availableSubstitutes = users.filter(u => u.id !== currentUser.id && u.isTeachingStaff);
+  if (!isOpen || !currentUser) return null;
 
   // Check for conflicts
   const conflict = getTeacherLeaveConflict(currentUser.id, startDate, endDate);
@@ -34,18 +54,28 @@ export function LeaveFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
 
     setIsSubmitting(true);
     try {
-      createLeaveRequest({
-        leaveType,
-        startDate,
-        endDate,
-        session,
-        reason,
-        substituteTeacherId: substituteTeacherId || undefined,
-        notes: notes || undefined,
-      });
+      if (editingLeave) {
+        updateLeaveRequest(editingLeave.id, {
+          leaveType,
+          startDate,
+          endDate,
+          session,
+          reason,
+          notes: notes || undefined,
+        });
+      } else {
+        createLeaveRequest({
+          leaveType,
+          startDate,
+          endDate,
+          session,
+          reason,
+          notes: notes || undefined,
+        });
+      }
       onClose();
     } catch (err) {
-      alert('Có lỗi xảy ra khi tạo đơn xin nghỉ');
+      alert('Có lỗi xảy ra khi gửi đơn xin nghỉ');
     } finally {
       setIsSubmitting(false);
     }
@@ -62,8 +92,10 @@ export function LeaveFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
               <FileText className="w-4 h-4" />
             </div>
             <div>
-              <h3 className="text-base font-bold text-white">Tạo Đơn Xin Nghỉ Mới</h3>
-              <p className="text-xs text-slate-400">Gửi trình Ban Giám Hiệu & Tổ trưởng chuyên môn</p>
+              <h3 className="text-base font-bold text-white">
+                {editingLeave ? `Chỉnh Sửa Đơn Xin Nghỉ (${editingLeave.code})` : 'Tạo Đơn Xin Nghỉ Mới'}
+              </h3>
+              <p className="text-xs text-slate-400">Gửi trình Ban Giám Hiệu & Nhóm/Tổ trưởng chuyên môn</p>
             </div>
           </div>
           <button
@@ -157,24 +189,12 @@ export function LeaveFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
             </div>
           </div>
 
-          {/* Substitute Teacher */}
-          <div>
-            <label className="block font-bold text-slate-800 mb-1">Người dạy thay / Bàn giao lịch (nếu có)</label>
-            <div className="relative">
-              <UserCheck className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
-              <select
-                value={substituteTeacherId}
-                onChange={(e) => setSubstituteTeacherId(e.target.value)}
-                className="w-full pl-9 pr-3 p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-medium text-slate-800"
-              >
-                <option value="">-- Không cần chọn / Tự thu xếp --</option>
-                {availableSubstitutes.map(sub => (
-                  <option key={sub.id} value={sub.id}>
-                    {sub.fullName} ({sub.departmentName} - Môn: {sub.subject || 'Chuyên môn'})
-                  </option>
-                ))}
-              </select>
-            </div>
+          {/* Notice about Substitute Teacher Assignment */}
+          <div className="p-3 rounded-xl bg-indigo-50/70 border border-indigo-100 flex items-start space-x-2 text-indigo-900">
+            <Info className="w-4 h-4 text-indigo-600 flex-shrink-0 mt-0.5" />
+            <span>
+              Giáo viên không cần chọn người dạy thay khi làm đơn. Việc phân công giáo viên dạy thay sẽ do <strong>Nhóm trưởng / Tổ trưởng chuyên môn</strong> trực tiếp chỉ định khi phê duyệt.
+            </span>
           </div>
 
           {/* Reason Input */}
@@ -189,7 +209,7 @@ export function LeaveFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
             />
           </div>
 
-          {/* Attachment upload box (Interactive UI simulation) */}
+          {/* Attachment upload box */}
           <div>
             <label className="block font-bold text-slate-800 mb-1">File minh chứng đính kèm (Giấy khám bệnh, Công văn...)</label>
             <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 text-center bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors">
@@ -213,7 +233,7 @@ export function LeaveFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: 
               disabled={isSubmitting}
               className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-sm transition-all"
             >
-              Gửi Đơn Xin Nghỉ
+              {editingLeave ? 'Lưu & Gửi Lại Đơn Xin Nghỉ' : 'Gửi Đơn Xin Nghỉ'}
             </button>
           </div>
         </form>

@@ -6,7 +6,7 @@ import { TaskPriority, TASK_PRIORITY_CONFIG } from '@/Edu-task/types/task';
 import { X, CheckSquare, AlertTriangle, Users, Calendar, Shield, Paperclip, Sparkles } from 'lucide-react';
 
 export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { currentUser, users, createTask, getTeacherLeaveConflict } = useApp();
+  const { currentUser, users, departments, createTask, getTeacherLeaveConflict } = useApp();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -19,14 +19,6 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen || !currentUser) return null;
-
-  const departments = [
-    { id: 'DEPT_TOAN_TIN', name: 'Tổ Toán - Tin' },
-    { id: 'DEPT_VAN_SU', name: 'Tổ Ngữ Văn - Lịch Sử' },
-    { id: 'DEPT_ANH', name: 'Tổ Ngoại Ngữ' },
-    { id: 'DEPT_LY_HOA_SINH', name: 'Tổ Lý - Hóa - Sinh' },
-    { id: 'DEPT_HANH_CHINH', name: 'Tổ Hành Chính - Kế Toán' },
-  ];
 
   // Smart Leave Conflicts check for selected assignees
   const targetCheckUsers = assigneeType === 'DEPARTMENT' 

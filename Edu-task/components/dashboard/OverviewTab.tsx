@@ -34,13 +34,41 @@ export function OverviewTab({
 }: OverviewTabProps) {
   const { currentUser, activeRole, leaves, tasks, users } = useApp();
 
-  const pendingLeaves = leaves.filter(l => l.overallStatus === 'IN_REVIEW');
-  const activeTasks = tasks.filter(t => t.status === 'ASSIGNED' || t.status === 'IN_PROGRESS' || t.status === 'PENDING_APPROVAL');
-  const completedTasks = tasks.filter(t => t.status === 'COMPLETED');
+  const isSchoolLeadershipOrAdmin = 
+    activeRole === 'ADMIN' || 
+    activeRole === 'PRINCIPAL' || 
+    activeRole === 'VICE_PRINCIPAL' || 
+    activeRole === 'SECRETARY' || 
+    activeRole === 'INSPECTOR' ||
+    currentUser?.roles?.includes('ADMIN') ||
+    currentUser?.roles?.includes('PRINCIPAL') ||
+    currentUser?.roles?.includes('VICE_PRINCIPAL');
+
+  const isDeptHeader = 
+    activeRole === 'HEAD_OF_DEPT' || 
+    activeRole === 'GROUP_LEADER' || 
+    currentUser?.roles?.includes('HEAD_OF_DEPT') || 
+    currentUser?.roles?.includes('GROUP_LEADER');
+
+  const visibleLeaves = leaves.filter(l => {
+    if (isSchoolLeadershipOrAdmin) return true;
+    if (isDeptHeader) {
+      return l.departmentId === currentUser?.departmentId || l.applicantId === currentUser?.id;
+    }
+    return l.applicantId === currentUser?.id || l.substituteTeacherId === currentUser?.id;
+  });
+
+  const visibleTasks = (isSchoolLeadershipOrAdmin || isDeptHeader)
+    ? tasks
+    : tasks.filter(t => t.assignees?.some(a => a.userId === currentUser?.id) || t.assignerId === currentUser?.id);
+
+  const pendingLeaves = visibleLeaves.filter(l => l.overallStatus === 'IN_REVIEW');
+  const activeTasks = visibleTasks.filter(t => t.status === 'ASSIGNED' || t.status === 'IN_PROGRESS' || t.status === 'PENDING_APPROVAL');
+  const completedTasks = visibleTasks.filter(t => t.status === 'COMPLETED');
 
   // Teachers currently on approved leave today
   const todayStr = new Date().toISOString().split('T')[0];
-  const teachersOnLeaveToday = leaves.filter(l => 
+  const teachersOnLeaveToday = visibleLeaves.filter(l => 
     l.overallStatus === 'APPROVED' && 
     l.startDate <= todayStr && 
     l.endDate >= todayStr
@@ -84,8 +112,8 @@ export function OverviewTab({
         </div>
       </div>
 
-      {/* Teacher Availability Alert Ticker */}
-      {teachersOnLeaveToday.length > 0 && (
+      {/* Teacher Availability Alert Ticker (Leadership/Management Only) */}
+      {(isSchoolLeadershipOrAdmin || isDeptHeader) && teachersOnLeaveToday.length > 0 && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 flex items-center justify-between">
           <div className="flex items-center space-x-3">
             <div className="w-8 h-8 rounded-xl bg-amber-100 text-amber-700 flex items-center justify-center font-bold">
@@ -124,7 +152,9 @@ export function OverviewTab({
             </div>
           </div>
           <div className="text-2xl font-extrabold text-slate-900">{pendingLeaves.length}</div>
-          <div className="text-[11px] text-slate-500">Cần BGH & Tổ trưởng xử lý</div>
+          <div className="text-[11px] text-slate-500">
+            {(isSchoolLeadershipOrAdmin || isDeptHeader) ? 'Cần BGH & Tổ trưởng xử lý' : 'Đơn của bạn đang được duyệt'}
+          </div>
         </div>
 
         <div 
@@ -138,7 +168,7 @@ export function OverviewTab({
             </div>
           </div>
           <div className="text-2xl font-extrabold text-slate-900">{activeTasks.length}</div>
-          <div className="text-[11px] text-slate-500">Chỉ đạo & Nhiệm vụ đang chạy</div>
+          <div className="text-[11px] text-slate-500">Nhiệm vụ đang triển khai</div>
         </div>
 
         <div 
@@ -160,13 +190,19 @@ export function OverviewTab({
           className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-300 hover:shadow-md cursor-pointer transition-all space-y-2"
         >
           <div className="flex items-center justify-between">
-            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">Tránh Giao Trùng Lịch</span>
+            <span className="text-xs font-bold text-slate-500 uppercase tracking-wider">
+              {(isSchoolLeadershipOrAdmin || isDeptHeader) ? 'Tránh Giao Trùng Lịch' : 'Lịch Nghỉ Cá Nhân'}
+            </span>
             <div className="w-8 h-8 rounded-xl bg-purple-50 text-purple-600 flex items-center justify-center font-bold">
               <AlertTriangle className="w-4 h-4" />
             </div>
           </div>
-          <div className="text-2xl font-extrabold text-slate-900">{teachersOnLeaveToday.length}</div>
-          <div className="text-[11px] text-purple-700">Giáo viên đang trong kỳ nghỉ</div>
+          <div className="text-2xl font-extrabold text-slate-900">
+            {(isSchoolLeadershipOrAdmin || isDeptHeader) ? teachersOnLeaveToday.length : visibleLeaves.length}
+          </div>
+          <div className="text-[11px] text-purple-700">
+            {(isSchoolLeadershipOrAdmin || isDeptHeader) ? 'Giáo viên đang trong kỳ nghỉ' : 'Tổng số đơn nghỉ của bạn'}
+          </div>
         </div>
 
       </div>
@@ -191,7 +227,7 @@ export function OverviewTab({
           </div>
 
           <div className="divide-y divide-slate-100">
-            {leaves.slice(0, 4).map(leave => (
+            {visibleLeaves.slice(0, 4).map(leave => (
               <div 
                 key={leave.id}
                 onClick={() => onSelectLeave(leave.id)}
@@ -230,7 +266,7 @@ export function OverviewTab({
           </div>
 
           <div className="divide-y divide-slate-100">
-            {tasks.slice(0, 4).map(task => (
+            {visibleTasks.slice(0, 4).map(task => (
               <div 
                 key={task.id}
                 onClick={() => onSelectTask(task.id)}

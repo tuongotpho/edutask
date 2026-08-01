@@ -132,6 +132,24 @@ class StorageService {
     this.setItem('notifications', updated);
   }
 
+  // School Name
+  getSchoolName(): string {
+    return this.getItem<string>('school_name', 'Trường THPT Chuyên EduTask');
+  }
+
+  saveSchoolName(name: string): void {
+    this.setItem('school_name', name);
+  }
+
+  // Departments
+  getDepartments(): Department[] {
+    return this.getItem<Department[]>('departments', INITIAL_DEPARTMENTS);
+  }
+
+  saveDepartments(depts: Department[]): void {
+    this.setItem('departments', depts);
+  }
+
   // Reset to initial demo state
   resetAllData(): void {
     if (typeof window === 'undefined') return;
@@ -140,6 +158,8 @@ class StorageService {
     localStorage.removeItem(this.STORAGE_KEY_PREFIX + 'tasks');
     localStorage.removeItem(this.STORAGE_KEY_PREFIX + 'notifications');
     localStorage.removeItem(this.STORAGE_KEY_PREFIX + 'current_user_id');
+    localStorage.removeItem(this.STORAGE_KEY_PREFIX + 'school_name');
+    localStorage.removeItem(this.STORAGE_KEY_PREFIX + 'departments');
   }
 }
 
