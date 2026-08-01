@@ -1,0 +1,308 @@
+'use client';
+
+import React, { useState } from 'react';
+import { useApp } from '@/Edu-task/context/AppContext';
+import { TaskPriority, TASK_PRIORITY_CONFIG } from '@/Edu-task/types/task';
+import { X, CheckSquare, AlertTriangle, Users, Calendar, Shield, Paperclip, Sparkles } from 'lucide-react';
+
+export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
+  const { currentUser, users, createTask, getTeacherLeaveConflict } = useApp();
+
+  const [title, setTitle] = useState('');
+  const [description, setDescription] = useState('');
+  const [assigneeType, setAssigneeType] = useState<'INDIVIDUAL' | 'MULTIPLE' | 'DEPARTMENT'>('INDIVIDUAL');
+  const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
+  const [selectedDeptId, setSelectedDeptId] = useState('');
+  const [deadline, setDeadline] = useState('2026-08-05 17:00');
+  const [priority, setPriority] = useState<TaskPriority>('NORMAL');
+  const [isConfidential, setIsConfidential] = useState(false);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+
+  if (!isOpen || !currentUser) return null;
+
+  const departments = [
+    { id: 'DEPT_TOAN_TIN', name: 'Tổ Toán - Tin' },
+    { id: 'DEPT_VAN_SU', name: 'Tổ Ngữ Văn - Lịch Sử' },
+    { id: 'DEPT_ANH', name: 'Tổ Ngoại Ngữ' },
+    { id: 'DEPT_LY_HOA_SINH', name: 'Tổ Lý - Hóa - Sinh' },
+    { id: 'DEPT_HANH_CHINH', name: 'Tổ Hành Chính - Kế Toán' },
+  ];
+
+  // Smart Leave Conflicts check for selected assignees
+  const targetCheckUsers = assigneeType === 'DEPARTMENT' 
+    ? users.filter(u => u.departmentId === selectedDeptId)
+    : users.filter(u => selectedUserIds.includes(u.id));
+
+  const deadlineDateStr = deadline.split(' ')[0];
+  const detectedConflicts = targetCheckUsers
+    .map(u => ({ user: u, conflict: getTeacherLeaveConflict(u.id, deadlineDateStr, deadlineDateStr) }))
+    .filter(item => item.conflict.hasConflict);
+
+  const toggleUserSelection = (userId: string) => {
+    if (selectedUserIds.includes(userId)) {
+      setSelectedUserIds(selectedUserIds.filter(id => id !== userId));
+    } else {
+      setSelectedUserIds([...selectedUserIds, userId]);
+    }
+  };
+
+  const handleSubmit = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!title.trim()) {
+      alert('Vui lòng nhập tiêu đề công việc');
+      return;
+    }
+
+    if (assigneeType === 'DEPARTMENT' && !selectedDeptId) {
+      alert('Vui lòng chọn tổ môn nhận việc');
+      return;
+    }
+
+    if (assigneeType !== 'DEPARTMENT' && selectedUserIds.length === 0) {
+      alert('Vui lòng chọn người nhận việc');
+      return;
+    }
+
+    setIsSubmitting(true);
+    try {
+      createTask({
+        title,
+        description,
+        assigneeType,
+        targetUserIds: selectedUserIds,
+        targetDepartmentId: selectedDeptId || undefined,
+        deadline,
+        priority,
+        isConfidential,
+      });
+      onClose();
+    } catch (err) {
+      alert('Có lỗi xảy ra khi giao việc');
+    } finally {
+      setIsSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
+        
+        {/* Header */}
+        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+          <div className="flex items-center space-x-2.5">
+            <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
+              <CheckSquare className="w-4 h-4" />
+            </div>
+            <div>
+              <h3 className="text-base font-bold text-white">Phát Hành Chỉ Đạo & Giao Việc</h3>
+              <p className="text-xs text-slate-400">Giao cho Cá nhân, Nhiều người hoặc Toàn tổ chuyên môn</p>
+            </div>
+          </div>
+          <button
+            onClick={onClose}
+            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+          >
+            <X className="w-5 h-5" />
+          </button>
+        </div>
+
+        {/* Form */}
+        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
+
+          {/* Smart Leave Conflict Warning Box */}
+          {detectedConflicts.length > 0 && (
+            <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-300 text-amber-900 space-y-1">
+              <div className="flex items-center space-x-2 font-bold text-amber-800">
+                <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+                <span>Cảnh Báo Thông Minh: Người Nhận Đang Có Đơn Xin Nghỉ!</span>
+              </div>
+              <ul className="pl-6 list-disc space-y-0.5 text-[11px]">
+                {detectedConflicts.map(({ user, conflict }) => (
+                  <li key={user.id}>
+                    <strong>{user.fullName}</strong> có lịch nghỉ ({conflict.conflictDetail?.startDate} → {conflict.conflictDetail?.endDate}). Lý do: {conflict.conflictDetail?.reason}
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          {/* Title */}
+          <div>
+            <label className="block font-bold text-slate-800 mb-1">Tiêu đề công việc <span className="text-rose-500">*</span></label>
+            <input
+              type="text"
+              value={title}
+              onChange={(e) => setTitle(e.target.value)}
+              placeholder="Nhập tên nhiệm vụ / chỉ đạo..."
+              className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 font-semibold text-slate-900"
+            />
+          </div>
+
+          {/* Assignee Type Selector */}
+          <div>
+            <label className="block font-bold text-slate-800 mb-1">Đối tượng nhận việc</label>
+            <div className="grid grid-cols-3 gap-2">
+              <button
+                type="button"
+                onClick={() => setAssigneeType('INDIVIDUAL')}
+                className={`p-2 rounded-xl border text-center font-bold transition-all ${
+                  assigneeType === 'INDIVIDUAL'
+                    ? 'border-indigo-600 bg-indigo-50 text-indigo-900 shadow-xs'
+                    : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                }`}
+              >
+                1 Cá nhân
+              </button>
+              <button
+                type="button"
+                onClick={() => setAssigneeType('MULTIPLE')}
+                className={`p-2 rounded-xl border text-center font-bold transition-all ${
+                  assigneeType === 'MULTIPLE'
+                    ? 'border-indigo-600 bg-indigo-50 text-indigo-900 shadow-xs'
+                    : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                }`}
+              >
+                Nhiều người
+              </button>
+              <button
+                type="button"
+                onClick={() => setAssigneeType('DEPARTMENT')}
+                className={`p-2 rounded-xl border text-center font-bold transition-all ${
+                  assigneeType === 'DEPARTMENT'
+                    ? 'border-indigo-600 bg-indigo-50 text-indigo-900 shadow-xs'
+                    : 'border-slate-200 bg-white hover:bg-slate-50 text-slate-700'
+                }`}
+              >
+                Cả Tổ môn
+              </button>
+            </div>
+          </div>
+
+          {/* Target Department Selection */}
+          {assigneeType === 'DEPARTMENT' && (
+            <div>
+              <label className="block font-bold text-slate-800 mb-1">Chọn Tổ môn nhận chỉ đạo</label>
+              <select
+                value={selectedDeptId}
+                onChange={(e) => setSelectedDeptId(e.target.value)}
+                className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white font-medium text-slate-900"
+              >
+                <option value="">-- Chọn Tổ chuyên môn --</option>
+                {departments.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            </div>
+          )}
+
+          {/* Target Users Selection */}
+          {assigneeType !== 'DEPARTMENT' && (
+            <div>
+              <label className="block font-bold text-slate-800 mb-1">Chọn nhân sự thực hiện</label>
+              <div className="max-h-36 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 p-1 bg-slate-50">
+                {users.map(u => {
+                  const isSelected = selectedUserIds.includes(u.id);
+                  return (
+                    <div
+                      key={u.id}
+                      onClick={() => toggleUserSelection(u.id)}
+                      className={`p-2 rounded-lg cursor-pointer flex items-center justify-between transition-colors ${
+                        isSelected ? 'bg-indigo-50 text-indigo-900 font-bold' : 'hover:bg-white text-slate-700'
+                      }`}
+                    >
+                      <div>
+                        <span>{u.fullName}</span>
+                        <span className="text-[10px] text-slate-400 block">{u.departmentName}</span>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={isSelected}
+                        onChange={() => {}}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* Deadline & Priority */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <div>
+              <label className="block font-bold text-slate-800 mb-1">Hạn hoàn thành (Deadline) <span className="text-rose-500">*</span></label>
+              <input
+                type="text"
+                value={deadline}
+                onChange={(e) => setDeadline(e.target.value)}
+                placeholder="2026-08-05 17:00"
+                className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white font-semibold text-slate-900"
+              />
+            </div>
+
+            <div>
+              <label className="block font-bold text-slate-800 mb-1">Mức độ ưu tiên</label>
+              <select
+                value={priority}
+                onChange={(e) => setPriority(e.target.value as TaskPriority)}
+                className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white font-semibold text-slate-900"
+              >
+                {(Object.keys(TASK_PRIORITY_CONFIG) as TaskPriority[]).map(p => (
+                  <option key={p} value={p}>{TASK_PRIORITY_CONFIG[p].label}</option>
+                ))}
+              </select>
+            </div>
+          </div>
+
+          {/* Detailed Instructions */}
+          <div>
+            <label className="block font-bold text-slate-800 mb-1">Nội dung / Chỉ đạo chi tiết</label>
+            <textarea
+              rows={3}
+              value={description}
+              onChange={(e) => setDescription(e.target.value)}
+              placeholder="Mô tả cụ thể yêu cầu công việc, các tiêu chí nghiệm thu..."
+              className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white font-medium text-slate-900"
+            />
+          </div>
+
+          {/* Confidential Flag */}
+          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+            <div className="flex items-center space-x-2">
+              <Shield className="w-4 h-4 text-indigo-600" />
+              <div>
+                <span className="font-bold text-slate-800 block">Công việc bảo mật BGH / Lãnh đạo</span>
+                <span className="text-[10px] text-slate-500">Chỉ người giao và người nhận mới có quyền xem nội dung</span>
+              </div>
+            </div>
+            <input
+              type="checkbox"
+              checked={isConfidential}
+              onChange={(e) => setIsConfidential(e.target.checked)}
+              className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+            />
+          </div>
+
+          {/* Submit */}
+          <div className="pt-2 flex items-center justify-end space-x-2 border-t border-slate-100">
+            <button
+              type="button"
+              onClick={onClose}
+              className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold"
+            >
+              Hủy
+            </button>
+            <button
+              type="submit"
+              disabled={isSubmitting}
+              className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-sm transition-all"
+            >
+              Phát Hành Công Việc
+            </button>
+          </div>
+
+        </form>
+      </div>
+    </div>
+  );
+}

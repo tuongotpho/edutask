@@ -1,0 +1,14 @@
+{
+  "projects": {
+    "default": "app-from-ai"
+  },
+  "targets": {
+    "app-from-ai": {
+      "hosting": {
+        "edutask": [
+          "edutask"
+        ]
+      }
+    }
+  }
+}
