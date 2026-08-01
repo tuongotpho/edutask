@@ -25,10 +25,19 @@ jobs:
       - name: Build Project
         run: npm run build
 
+      - name: Check Firebase Service Account Secret
+        env:
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_APP_FROM_AI || secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          if [ -z "$SERVICE_ACCOUNT" ]; then
+            echo "::error::Thiếu GitHub Secret FIREBASE_SERVICE_ACCOUNT_APP_FROM_AI! Vui lòng thêm secret vào GitHub Repo Settings -> Secrets -> Actions."
+            exit 1
+          fi
+
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
         with:
           repoToken: '${{ secrets.GITHUB_TOKEN }}'
-          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_APP_FROM_AI }}'
+          firebaseServiceAccount: '${{ secrets.FIREBASE_SERVICE_ACCOUNT_APP_FROM_AI || secrets.FIREBASE_SERVICE_ACCOUNT }}'
           channelId: live
           projectId: app-from-ai
