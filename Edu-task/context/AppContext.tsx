@@ -7,6 +7,7 @@ import { Task, TaskPriority, TaskStatus } from '@/Edu-task/types/task';
 import { AppNotification } from '@/Edu-task/types/notification';
 import { storage } from '@/Edu-task/lib/storage';
 import { firebaseService } from '@/Edu-task/services/firebaseService';
+import { firebaseAuthService } from '@/Edu-task/services/firebaseAuthService';
 
 interface AppContextType {
   currentUser: User | null;
@@ -15,7 +16,18 @@ interface AppContextType {
   leaves: LeaveRequest[];
   tasks: Task[];
   notifications: AppNotification[];
+  isAuthenticated: boolean;
   
+  // Auth & Account Management
+  loginWithFirebase: (email: string, pass: string) => Promise<void>;
+  registerWithFirebase: (email: string, pass: string, fullName: string, deptId: string, deptName: string) => Promise<void>;
+  loginAsDemoUser: (email: string) => void;
+  logout: () => Promise<void>;
+  
+  // User Management
+  addUserProfile: (user: User) => Promise<void>;
+  deleteUserProfile: (userId: string) => Promise<void>;
+
   // Role & User Switching
   switchUser: (userId: string) => void;
   switchActiveRole: (role: RoleType) => void;
@@ -88,25 +100,34 @@ const AppContext = createContext<AppContextType | undefined>(undefined);
 
 export function AppProvider({ children }: { children: React.ReactNode }) {
   const [users, setUsers] = useState<User[]>(() => storage.getUsers());
-  const [currentUser, setCurrentUser] = useState<User | null>(() => {
-    const loadedUsers = storage.getUsers();
-    const currentUserId = storage.getCurrentUserId();
-    return loadedUsers.find(u => u.id === currentUserId) || loadedUsers[2] || null;
-  });
-  const [activeRole, setActiveRole] = useState<RoleType>(() => {
-    const loadedUsers = storage.getUsers();
-    const currentUserId = storage.getCurrentUserId();
-    const foundUser = loadedUsers.find(u => u.id === currentUserId) || loadedUsers[2];
-    return foundUser?.activeRole || foundUser?.roles[0] || 'HEAD_OF_DEPT';
-  });
+  const [currentUser, setCurrentUser] = useState<User | null>(null);
+  const [activeRole, setActiveRole] = useState<RoleType>('ADMIN');
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
+
   const [leaves, setLeaves] = useState<LeaveRequest[]>(() => storage.getLeaves());
   const [tasks, setTasks] = useState<Task[]>(() => storage.getTasks());
-  const [notifications, setNotifications] = useState<AppNotification[]>(() => {
-    const loadedUsers = storage.getUsers();
-    const currentUserId = storage.getCurrentUserId();
-    const foundUser = loadedUsers.find(u => u.id === currentUserId) || loadedUsers[2];
-    return foundUser ? storage.getNotifications(foundUser.id) : [];
-  });
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+
+  // Listen to Firebase Auth state
+  useEffect(() => {
+    const unsubscribe = firebaseAuthService.onAuthChange(async (fbUser) => {
+      if (fbUser) {
+        setIsAuthenticated(true);
+        // Find matching profile in users list or by email
+        const userEmail = fbUser.email?.toLowerCase();
+        let match = users.find(u => u.email.toLowerCase() === userEmail || u.id === fbUser.uid);
+        if (!match && userEmail === 'admin@gmail.com') {
+          match = users.find(u => u.id === 'USR_ADMIN') || await firebaseAuthService.seedAdminUserProfile();
+        }
+        if (match) {
+          setCurrentUser(match);
+          setActiveRole(match.activeRole || match.roles[0] || 'ADMIN');
+          storage.setCurrentUserId(match.id);
+        }
+      }
+    });
+    return () => unsubscribe();
+  }, [users]);
 
   // Seed & Subscribe to Firebase Firestore Realtime Database
   useEffect(() => {
@@ -141,6 +162,60 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       unsubNotifs();
     };
   }, [currentUser?.id]);
+
+  // Firebase Auth Login
+  const loginWithFirebase = async (email: string, pass: string) => {
+    await firebaseAuthService.login(email, pass);
+    setIsAuthenticated(true);
+    const match = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    if (match) {
+      setCurrentUser(match);
+      setActiveRole(match.activeRole || match.roles[0]);
+    }
+  };
+
+  // Firebase Auth Register
+  const registerWithFirebase = async (email: string, pass: string, fullName: string, deptId: string, deptName: string) => {
+    const newProfile = await firebaseAuthService.register(email, pass, fullName, deptId, deptName);
+    setIsAuthenticated(true);
+    setCurrentUser(newProfile);
+    setActiveRole(newProfile.roles[0]);
+    await firebaseService.saveUser(newProfile);
+  };
+
+  // Login As Demo User
+  const loginAsDemoUser = (email: string) => {
+    let match = users.find(u => u.email.toLowerCase() === email.toLowerCase());
+    if (!match && email === 'admin@gmail.com') {
+      match = users.find(u => u.id === 'USR_ADMIN');
+    }
+    if (match) {
+      setIsAuthenticated(true);
+      setCurrentUser(match);
+      setActiveRole(match.activeRole || match.roles[0]);
+      storage.setCurrentUserId(match.id);
+    }
+  };
+
+  // Logout
+  const logout = async () => {
+    try {
+      await firebaseAuthService.logout();
+    } catch {
+      // ignore
+    }
+    setIsAuthenticated(false);
+    setCurrentUser(null);
+  };
+
+  // User Management
+  const addUserProfile = async (user: User) => {
+    await firebaseService.saveUser(user);
+  };
+
+  const deleteUserProfile = async (userId: string) => {
+    await firebaseService.deleteUser(userId);
+  };
 
   // Switch User
   const switchUser = (userId: string) => {
@@ -699,6 +774,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         leaves,
         tasks,
         notifications,
+        isAuthenticated,
+        loginWithFirebase,
+        registerWithFirebase,
+        loginAsDemoUser,
+        logout,
+        addUserProfile,
+        deleteUserProfile,
         switchUser,
         switchActiveRole,
         createLeaveRequest,

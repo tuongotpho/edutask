@@ -75,6 +75,11 @@ export const firebaseService = {
     await setDoc(doc(db, 'users', user.id), user, { merge: true });
   },
 
+  async deleteUser(userId: string): Promise<void> {
+    const { deleteDoc } = await import('firebase/firestore');
+    await deleteDoc(doc(db, 'users', userId));
+  },
+
   // --- Leaves ---
   subscribeLeaves(onUpdate: (leaves: LeaveRequest[]) => void): Unsubscribe {
     return onSnapshot(collection(db, 'leaves'), (snapshot) => {

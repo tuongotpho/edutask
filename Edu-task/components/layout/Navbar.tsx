@@ -27,7 +27,8 @@ export function Navbar({ onSearch }: { onSearch?: (term: string) => void }) {
     switchUser, 
     switchActiveRole, 
     notifications, 
-    resetSystemData 
+    resetSystemData,
+    logout 
   } = useApp();
 
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
@@ -220,7 +221,18 @@ export function Navbar({ onSearch }: { onSearch?: (term: string) => void }) {
                     </div>
                   </div>
 
-                  <div className="px-2 pt-1">
+                  <div className="px-2 pt-1 border-t border-slate-100 mt-1 space-y-1">
+                    <button
+                      onClick={() => {
+                        logout();
+                        setShowUserDropdown(false);
+                      }}
+                      className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-slate-700 hover:bg-slate-100 flex items-center space-x-2 font-bold"
+                    >
+                      <LogOut className="w-3.5 h-3.5 text-rose-500" />
+                      <span className="text-slate-800">Đăng Xuất Tài Khoản</span>
+                    </button>
+
                     <button
                       onClick={() => {
                         if (confirm('Khôi phục dữ liệu mẫu ban đầu của hệ thống?')) {
@@ -230,8 +242,8 @@ export function Navbar({ onSearch }: { onSearch?: (term: string) => void }) {
                       }}
                       className="w-full text-left px-3 py-1.5 rounded-lg text-xs text-rose-600 hover:bg-rose-50 flex items-center space-x-2 font-medium"
                     >
-                      <RotateCcw className="w-3.5 h-3.5" />
-                      <span>Reset Dữ Liệu Demo Ban Đầu</span>
+                      <RotateCcw className="w-3.5 h-3.5 text-rose-500" />
+                      <span>Reset Dữ Liệu Demo</span>
                     </button>
                   </div>
                 </div>

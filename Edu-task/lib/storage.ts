@@ -14,6 +14,18 @@ export const INITIAL_DEPARTMENTS: Department[] = [
 
 export const INITIAL_USERS: User[] = [
   {
+    id: 'USR_ADMIN',
+    fullName: 'Quản trị viên Hệ thống (Admin)',
+    email: 'admin@gmail.com',
+    phone: '0900 000 999',
+    departmentId: 'DEPT_BGH',
+    departmentName: 'Ban Giám Hiệu',
+    roles: ['ADMIN', 'PRINCIPAL', 'TEACHER'],
+    activeRole: 'ADMIN',
+    isTeachingStaff: true,
+    subject: 'Quản trị hệ thống',
+  },
+  {
     id: 'USR_001',
     fullName: 'TS. Nguyễn Văn An',
     email: 'nguyenvanan@truong.edu.vn',

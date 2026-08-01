@@ -14,11 +14,12 @@ import { TaskDetailModal } from '@/Edu-task/components/task/TaskDetailModal';
 import { SchoolTimelineTab } from '@/Edu-task/components/schedule/SchoolTimelineTab';
 import { AnalyticsTab } from '@/Edu-task/components/stats/AnalyticsTab';
 import { RbacConfigTab } from '@/Edu-task/components/config/RbacConfigTab';
+import { LoginPage } from '@/Edu-task/components/auth/LoginPage';
 import { LeaveRequest } from '@/Edu-task/types/leave';
 import { Task } from '@/Edu-task/types/task';
 
 function EduTaskMainApp() {
-  const { leaves, tasks } = useApp();
+  const { leaves, tasks, currentUser, isAuthenticated } = useApp();
 
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
   const [searchTerm, setSearchTerm] = useState('');
@@ -32,6 +33,10 @@ function EduTaskMainApp() {
 
   const selectedLeave = leaves.find(l => l.id === selectedLeaveId) || null;
   const selectedTask = tasks.find(t => t.id === selectedTaskId) || null;
+
+  if (!isAuthenticated || !currentUser) {
+    return <LoginPage />;
+  }
 
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased flex flex-col">
