@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import { useApp } from '@/Edu-task/context/AppContext';
 import { ROLE_LABELS, RoleType } from '@/Edu-task/types/user';
 import { Settings, ShieldCheck, GitBranch, Check, Save } from 'lucide-react';
 
