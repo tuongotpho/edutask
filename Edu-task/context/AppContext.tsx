@@ -20,12 +20,15 @@ interface AppContextType {
   
   // Auth & Account Management
   loginWithFirebase: (email: string, pass: string) => Promise<void>;
+  loginWithGoogle: () => Promise<void>;
   registerWithFirebase: (email: string, pass: string, fullName: string, deptId: string, deptName: string) => Promise<void>;
   loginAsDemoUser: (email: string) => void;
   logout: () => Promise<void>;
   
   // User Management
   addUserProfile: (user: User) => Promise<void>;
+  approveUserProfile: (userId: string, role: RoleType, deptId: string, deptName: string) => Promise<void>;
+  rejectUserProfile: (userId: string) => Promise<void>;
   deleteUserProfile: (userId: string) => Promise<void>;
 
   // Role & User Switching
@@ -163,6 +166,14 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     };
   }, [currentUser?.id]);
 
+  // Firebase Auth Google Login
+  const loginWithGoogle = async () => {
+    const { userProfile } = await firebaseAuthService.loginWithGoogle();
+    setIsAuthenticated(true);
+    setCurrentUser(userProfile);
+    setActiveRole(userProfile.activeRole || userProfile.roles[0] || 'TEACHER');
+  };
+
   // Firebase Auth Login
   const loginWithFirebase = async (email: string, pass: string) => {
     await firebaseAuthService.login(email, pass);
@@ -211,6 +222,30 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // User Management
   const addUserProfile = async (user: User) => {
     await firebaseService.saveUser(user);
+  };
+
+  const approveUserProfile = async (userId: string, role: RoleType, deptId: string, deptName: string) => {
+    const target = users.find(u => u.id === userId);
+    if (!target) return;
+    const updated: User = {
+      ...target,
+      departmentId: deptId,
+      departmentName: deptName,
+      roles: [role],
+      activeRole: role,
+      status: 'ACTIVE',
+    };
+    await firebaseService.saveUser(updated);
+  };
+
+  const rejectUserProfile = async (userId: string) => {
+    const target = users.find(u => u.id === userId);
+    if (!target) return;
+    const updated: User = {
+      ...target,
+      status: 'REJECTED',
+    };
+    await firebaseService.saveUser(updated);
   };
 
   const deleteUserProfile = async (userId: string) => {
@@ -776,10 +811,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         notifications,
         isAuthenticated,
         loginWithFirebase,
+        loginWithGoogle,
         registerWithFirebase,
         loginAsDemoUser,
         logout,
         addUserProfile,
+        approveUserProfile,
+        rejectUserProfile,
         deleteUserProfile,
         switchUser,
         switchActiveRole,

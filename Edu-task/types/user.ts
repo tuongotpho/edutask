@@ -34,6 +34,7 @@ export interface User {
   roles: RoleType[]; // Multi-role support
   activeRole: RoleType; // Currently selected active context role
   isTeachingStaff: boolean;
+  status?: 'ACTIVE' | 'PENDING_APPROVAL' | 'REJECTED'; // Account approval status
 }
 
 export const ROLE_LABELS: Record<RoleType, string> = {

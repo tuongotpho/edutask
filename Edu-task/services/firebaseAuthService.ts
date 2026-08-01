@@ -1,12 +1,13 @@
 import { 
   signInWithEmailAndPassword, 
   createUserWithEmailAndPassword, 
+  signInWithPopup, 
   signOut, 
   onAuthStateChanged, 
   User as FbUser 
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { auth, db } from '@/Edu-task/lib/firebase';
+import { auth, db, googleProvider } from '@/Edu-task/lib/firebase';
 import { User, RoleType } from '@/Edu-task/types/user';
 import { INITIAL_USERS } from '@/Edu-task/lib/storage';
 
@@ -22,6 +23,41 @@ export const firebaseAuthService = {
     return credential.user;
   },
 
+  // Login or Register with Google (Gmail)
+  async loginWithGoogle(): Promise<{ fbUser: FbUser; userProfile: User }> {
+    const credential = await signInWithPopup(auth, googleProvider);
+    const fbUser = credential.user;
+
+    const userDocRef = doc(db, 'users', fbUser.uid);
+    const userDocSnap = await getDoc(userDocRef);
+
+    let userProfile: User;
+
+    if (userDocSnap.exists()) {
+      userProfile = userDocSnap.data() as User;
+    } else {
+      // First time Google sign in -> Create Pending Approval Profile
+      const isAdminEmail = fbUser.email?.toLowerCase() === 'admin@gmail.com';
+      userProfile = {
+        id: fbUser.uid,
+        fullName: fbUser.displayName || 'Giáo viên mới',
+        email: fbUser.email || '',
+        avatarUrl: fbUser.photoURL || undefined,
+        phone: fbUser.phoneNumber || '',
+        departmentId: 'DEPT_TOAN_TIN',
+        departmentName: 'Tổ Toán - Tin',
+        roles: isAdminEmail ? ['ADMIN', 'PRINCIPAL'] : ['TEACHER'],
+        activeRole: isAdminEmail ? 'ADMIN' : 'TEACHER',
+        isTeachingStaff: true,
+        subject: 'Chưa phân công môn',
+        status: isAdminEmail ? 'ACTIVE' : 'PENDING_APPROVAL',
+      };
+      await setDoc(userDocRef, userProfile);
+    }
+
+    return { fbUser, userProfile };
+  },
+
   // Register a new user account with Email & Password
   async register(
     email: string, 
@@ -34,6 +70,8 @@ export const firebaseAuthService = {
     const credential = await createUserWithEmailAndPassword(auth, email, pass);
     const fbUser = credential.user;
 
+    const isAdmin = email.toLowerCase() === 'admin@gmail.com';
+
     const userProfile: User = {
       id: fbUser.uid,
       fullName,
@@ -41,10 +79,11 @@ export const firebaseAuthService = {
       phone: '',
       departmentId,
       departmentName,
-      roles,
-      activeRole: roles[0] || 'TEACHER',
+      roles: isAdmin ? ['ADMIN', 'PRINCIPAL'] : roles,
+      activeRole: isAdmin ? 'ADMIN' : (roles[0] || 'TEACHER'),
       isTeachingStaff: true,
-      subject: 'Bộ môn chung',
+      subject: 'Bộ môn chuyên',
+      status: isAdmin ? 'ACTIVE' : 'PENDING_APPROVAL',
     };
 
     // Save profile to Firestore
@@ -57,13 +96,15 @@ export const firebaseAuthService = {
     await signOut(auth);
   },
 
-  // Get User Profile from Firestore by email or uid
-  async getUserProfileByEmail(email: string): Promise<User | null> {
+  // Get User Profile from Firestore
+  async getUserProfile(uid: string): Promise<User | null> {
     try {
-      const match = INITIAL_USERS.find(u => u.email.toLowerCase() === email.toLowerCase());
-      if (match) return match;
+      const userDocSnap = await getDoc(doc(db, 'users', uid));
+      if (userDocSnap.exists()) {
+        return userDocSnap.data() as User;
+      }
     } catch {
-      // ignore
+      // fallback
     }
     return null;
   },
@@ -82,6 +123,7 @@ export const firebaseAuthService = {
       activeRole: 'ADMIN',
       isTeachingStaff: true,
       subject: 'Quản trị hệ thống',
+      status: 'ACTIVE',
     };
 
     if (!adminDoc.exists()) {

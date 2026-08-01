@@ -137,7 +137,7 @@ export function RbacConfigTab() {
 }
 
 function UserAccountManager() {
-  const { users, addUserProfile, deleteUserProfile } = useApp();
+  const { users, addUserProfile, approveUserProfile, rejectUserProfile, deleteUserProfile } = useApp();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [fullName, setFullName] = useState('');
@@ -145,18 +145,21 @@ function UserAccountManager() {
   const [departmentId, setDepartmentId] = useState('DEPT_TOAN_TIN');
   const [role, setRole] = useState<RoleType>('TEACHER');
 
+  const pendingUsers = users.filter(u => u.status === 'PENDING_APPROVAL');
+  const activeUsers = users.filter(u => u.status !== 'PENDING_APPROVAL');
+
+  const deptMap: Record<string, string> = {
+    'DEPT_BGH': 'Ban Giám Hiệu',
+    'DEPT_TOAN_TIN': 'Tổ Toán - Tin',
+    'DEPT_VAN_SU': 'Tổ Ngữ Văn - Lịch Sử',
+    'DEPT_ANH': 'Tổ Ngoại Ngữ',
+    'DEPT_LY_HOA_SINH': 'Tổ Lý - Hóa - Sinh',
+    'DEPT_HANH_CHINH': 'Tổ Hành Chính - Kế Toán',
+  };
+
   const handleCreateUser = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!fullName || !email) return;
-
-    const deptMap: Record<string, string> = {
-      'DEPT_BGH': 'Ban Giám Hiệu',
-      'DEPT_TOAN_TIN': 'Tổ Toán - Tin',
-      'DEPT_VAN_SU': 'Tổ Ngữ Văn - Lịch Sử',
-      'DEPT_ANH': 'Tổ Ngoại Ngữ',
-      'DEPT_LY_HOA_SINH': 'Tổ Lý - Hóa - Sinh',
-      'DEPT_HANH_CHINH': 'Tổ Hành Chính - Kế Toán',
-    };
 
     const newUser = {
       id: `USR_${Date.now()}`,
@@ -169,6 +172,7 @@ function UserAccountManager() {
       activeRole: role,
       isTeachingStaff: true,
       subject: 'Bộ môn chuyên',
+      status: 'ACTIVE' as const,
     };
 
     await addUserProfile(newUser);
@@ -178,63 +182,98 @@ function UserAccountManager() {
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-      <div className="flex items-center justify-between">
-        <div>
-          <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-            <ShieldCheck className="w-4 h-4 text-indigo-600" />
-            Danh Sách Tài Khoản Người Dùng & Vai Trò (Firestore DB)
-          </h3>
-          <p className="text-xs text-slate-500 mt-0.5">Quản lý người dùng, phân quyền vai trò được đồng bộ realtime với Firebase Firestore</p>
+    <div className="space-y-6">
+
+      {/* Pending User Approval Section */}
+      <div className="bg-amber-50 rounded-3xl border border-amber-200 p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-amber-900 text-sm flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-amber-600" />
+              Tài Khoản Đăng Ký / Gmail Mới Chờ Admin Phê Duyệt ({pendingUsers.length})
+            </h3>
+            <p className="text-xs text-amber-700 mt-0.5">Phê duyệt và phân bổ Tổ chuyên môn & Vai trò cho giáo viên mới đăng nhập lần đầu</p>
+          </div>
         </div>
-        <button
-          onClick={() => setShowAddModal(true)}
-          className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors shadow-xs"
-        >
-          + Thêm Tài Khoản Mới
-        </button>
+
+        {pendingUsers.length === 0 ? (
+          <div className="p-4 bg-white/80 rounded-2xl text-center text-xs text-slate-500 font-medium">
+            Không có tài khoản nào đang chờ phê duyệt.
+          </div>
+        ) : (
+          <div className="space-y-3">
+            {pendingUsers.map(pu => (
+              <PendingUserRow 
+                key={pu.id} 
+                user={pu} 
+                deptMap={deptMap}
+                onApprove={approveUserProfile}
+                onReject={rejectUserProfile}
+              />
+            ))}
+          </div>
+        )}
       </div>
 
-      <div className="overflow-x-auto">
-        <table className="w-full text-left text-xs border-collapse">
-          <thead>
-            <tr className="border-b border-slate-200 bg-slate-50">
-              <th className="p-3 font-bold text-slate-700">Họ và Tên</th>
-              <th className="p-3 font-bold text-slate-700">Email</th>
-              <th className="p-3 font-bold text-slate-700">Tổ Chuyên Môn</th>
-              <th className="p-3 font-bold text-slate-700">Vai Trò</th>
-              <th className="p-3 font-bold text-slate-700 text-right">Thao Tác</th>
-            </tr>
-          </thead>
-          <tbody className="divide-y divide-slate-100">
-            {users.map(u => (
-              <tr key={u.id} className="hover:bg-slate-50">
-                <td className="p-3 font-bold text-slate-900">{u.fullName}</td>
-                <td className="p-3 text-slate-600">{u.email}</td>
-                <td className="p-3 text-slate-600">{u.departmentName}</td>
-                <td className="p-3">
-                  <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-100">
-                    {ROLE_LABELS[u.roles[0]] || u.roles[0]}
-                  </span>
-                </td>
-                <td className="p-3 text-right">
-                  {u.id !== 'USR_ADMIN' && (
-                    <button
-                      onClick={() => {
-                        if (confirm(`Bạn có chắc muốn xóa tài khoản ${u.fullName}?`)) {
-                          deleteUserProfile(u.id);
-                        }
-                      }}
-                      className="text-rose-600 hover:text-rose-800 text-[11px] font-semibold"
-                    >
-                      Xóa
-                    </button>
-                  )}
-                </td>
+      {/* Active User Accounts List */}
+      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
+        <div className="flex items-center justify-between">
+          <div>
+            <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+              <ShieldCheck className="w-4 h-4 text-indigo-600" />
+              Danh Sách Tài Khoản Đã Kích Hoạt ({activeUsers.length})
+            </h3>
+            <p className="text-xs text-slate-500 mt-0.5">Quản lý người dùng, phân quyền vai trò được đồng bộ realtime với Firebase Firestore</p>
+          </div>
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors shadow-xs"
+          >
+            + Thêm Tài Khoản Mới
+          </button>
+        </div>
+
+        <div className="overflow-x-auto">
+          <table className="w-full text-left text-xs border-collapse">
+            <thead>
+              <tr className="border-b border-slate-200 bg-slate-50">
+                <th className="p-3 font-bold text-slate-700">Họ và Tên</th>
+                <th className="p-3 font-bold text-slate-700">Email</th>
+                <th className="p-3 font-bold text-slate-700">Tổ Chuyên Môn</th>
+                <th className="p-3 font-bold text-slate-700">Vai Trò</th>
+                <th className="p-3 font-bold text-slate-700 text-right">Thao Tác</th>
               </tr>
-            ))}
-          </tbody>
-        </table>
+            </thead>
+            <tbody className="divide-y divide-slate-100">
+              {activeUsers.map(u => (
+                <tr key={u.id} className="hover:bg-slate-50">
+                  <td className="p-3 font-bold text-slate-900">{u.fullName}</td>
+                  <td className="p-3 text-slate-600">{u.email}</td>
+                  <td className="p-3 text-slate-600">{u.departmentName}</td>
+                  <td className="p-3">
+                    <span className="px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[10px] font-bold border border-indigo-100">
+                      {ROLE_LABELS[u.roles[0]] || u.roles[0]}
+                    </span>
+                  </td>
+                  <td className="p-3 text-right">
+                    {u.id !== 'USR_ADMIN' && u.email !== 'admin@gmail.com' && (
+                      <button
+                        onClick={() => {
+                          if (confirm(`Bạn có chắc muốn xóa tài khoản ${u.fullName}?`)) {
+                            deleteUserProfile(u.id);
+                          }
+                        }}
+                        className="text-rose-600 hover:text-rose-800 text-[11px] font-semibold"
+                      >
+                        Xóa
+                      </button>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
       </div>
 
       {showAddModal && (
@@ -317,6 +356,81 @@ function UserAccountManager() {
           </div>
         </div>
       )}
+    </div>
+  );
+}
+
+function PendingUserRow({ 
+  user, 
+  deptMap, 
+  onApprove, 
+  onReject 
+}: { 
+  user: any; 
+  deptMap: Record<string, string>;
+  onApprove: (id: string, role: RoleType, deptId: string, deptName: string) => Promise<void>;
+  onReject: (id: string) => Promise<void>;
+}) {
+  const [selectedDept, setSelectedDept] = useState(user.departmentId || 'DEPT_TOAN_TIN');
+  const [selectedRole, setSelectedRole] = useState<RoleType>(user.roles?.[0] || 'TEACHER');
+
+  const handleApprove = () => {
+    onApprove(user.id, selectedRole, selectedDept, deptMap[selectedDept] || 'Tổ chuyên môn');
+  };
+
+  return (
+    <div className="p-4 bg-white rounded-2xl border border-amber-200 shadow-2xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
+      <div>
+        <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
+          <span>{user.fullName}</span>
+          <span className="text-[10px] px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold border border-amber-200">
+            Chờ duyệt
+          </span>
+        </div>
+        <div className="text-slate-500">{user.email}</div>
+      </div>
+
+      <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
+        <select
+          value={selectedDept}
+          onChange={(e) => setSelectedDept(e.target.value)}
+          className="p-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium"
+        >
+          <option value="DEPT_BGH">Ban Giám Hiệu</option>
+          <option value="DEPT_TOAN_TIN">Tổ Toán - Tin</option>
+          <option value="DEPT_VAN_SU">Tổ Ngữ Văn - Lịch Sử</option>
+          <option value="DEPT_ANH">Tổ Ngoại Ngữ</option>
+          <option value="DEPT_LY_HOA_SINH">Tổ Lý - Hóa - Sinh</option>
+          <option value="DEPT_HANH_CHINH">Tổ Hành Chính - Kế Toán</option>
+        </select>
+
+        <select
+          value={selectedRole}
+          onChange={(e) => setSelectedRole(e.target.value as RoleType)}
+          className="p-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium"
+        >
+          <option value="TEACHER">Giáo viên (`TEACHER`)</option>
+          <option value="HEAD_OF_DEPT">Tổ trưởng (`HEAD_OF_DEPT`)</option>
+          <option value="VICE_PRINCIPAL">Hiệu phó (`VICE_PRINCIPAL`)</option>
+          <option value="PRINCIPAL">Hiệu trưởng (`PRINCIPAL`)</option>
+          <option value="SECRETARY">Văn thư (`SECRETARY`)</option>
+          <option value="ACCOUNTANT">Kế toán (`ACCOUNTANT`)</option>
+        </select>
+
+        <button
+          onClick={handleApprove}
+          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shadow-2xs"
+        >
+          ✓ Phê Duyệt
+        </button>
+
+        <button
+          onClick={() => onReject(user.id)}
+          className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors border border-rose-200"
+        >
+          Từ Chối
+        </button>
+      </div>
     </div>
   );
 }

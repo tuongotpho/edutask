@@ -15,6 +15,7 @@ import { SchoolTimelineTab } from '@/Edu-task/components/schedule/SchoolTimeline
 import { AnalyticsTab } from '@/Edu-task/components/stats/AnalyticsTab';
 import { RbacConfigTab } from '@/Edu-task/components/config/RbacConfigTab';
 import { LoginPage } from '@/Edu-task/components/auth/LoginPage';
+import { PendingApprovalPage } from '@/Edu-task/components/auth/PendingApprovalPage';
 import { LeaveRequest } from '@/Edu-task/types/leave';
 import { Task } from '@/Edu-task/types/task';
 
@@ -36,6 +37,10 @@ function EduTaskMainApp() {
 
   if (!isAuthenticated || !currentUser) {
     return <LoginPage />;
+  }
+
+  if (currentUser.status === 'PENDING_APPROVAL') {
+    return <PendingApprovalPage />;
   }
 
   return (
