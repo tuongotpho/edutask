@@ -18,7 +18,8 @@ import {
   Shield,
   FileCheck,
   CheckSquare,
-  Sparkles
+  Sparkles,
+  Trash2
 } from 'lucide-react';
 
 interface TaskDetailModalProps {
@@ -34,7 +35,8 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
     updateTaskProgress, 
     requestExtension, 
     reviewExtension, 
-    approveTaskCompletion 
+    approveTaskCompletion,
+    deleteTask
   } = useApp();
 
   const [reportNote, setReportNote] = useState('');
@@ -68,8 +70,9 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
 
   // Permissions check
   const isAssigner = task.assignerId === currentUser.id || activeRole === 'PRINCIPAL' || activeRole === 'VICE_PRINCIPAL';
-  const isAssignee = task.assignees.some(a => a.userId === currentUser.id);
+  const isAdminOrAssigner = isAssigner || activeRole === 'ADMIN' || currentUser.roles?.includes('ADMIN');
   const myAssigneeProgress = task.assignees.find(a => a.userId === currentUser.id);
+  const isAssignee = !!myAssigneeProgress;
 
   // Handle Mark as Viewed
   const handleMarkViewed = () => {
@@ -112,12 +115,28 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
               <p className="text-xs text-slate-400">Người giao: {task.assignerName}</p>
             </div>
           </div>
-          <button
-            onClick={onClose}
-            className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center space-x-2">
+            {isAdminOrAssigner && (
+              <button 
+                onClick={() => {
+                  if (confirm('Bạn có chắc chắn muốn xóa vĩnh viễn công việc này không? Mọi dữ liệu liên quan sẽ bị mất.')) {
+                    deleteTask(task.id);
+                    onClose();
+                  }
+                }}
+                className="p-1.5 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 rounded-lg transition-colors"
+                title="Xóa công việc"
+              >
+                <Trash2 className="w-5 h-5" />
+              </button>
+            )}
+            <button
+              onClick={onClose}
+              className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
 
         <div className="p-6 space-y-5 text-xs max-h-[80vh] overflow-y-auto">

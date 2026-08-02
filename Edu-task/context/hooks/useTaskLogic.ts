@@ -355,11 +355,19 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
     }
   };
 
+  const deleteTask = (taskId: string) => {
+    const updatedTasks = tasks.filter(t => t.id !== taskId);
+    setTasks(updatedTasks);
+    storage.saveTasks(updatedTasks);
+    firebaseService.deleteTask(taskId).catch(err => console.error(err));
+  };
+
   return {
     createTask,
     updateTaskProgress,
     requestExtension,
     reviewExtension,
     approveTaskCompletion,
+    deleteTask,
   };
 }

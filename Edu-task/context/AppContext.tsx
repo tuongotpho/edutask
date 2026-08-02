@@ -138,6 +138,7 @@ interface AppContextType {
     decision: 'APPROVE' | 'REVISE', 
     feedback?: string
   ) => void;
+  deleteTask: (taskId: string) => void;
 
   // Data Reset
   resetSystemData: () => void;
@@ -278,7 +279,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLeaves,
   });
 
-  const { createTask, updateTaskProgress, requestExtension, reviewExtension, approveTaskCompletion } = useTaskLogic({
+  const { createTask, updateTaskProgress, requestExtension, reviewExtension, approveTaskCompletion, deleteTask } = useTaskLogic({
     currentUser,
     activeRole,
     users,
@@ -345,6 +346,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         requestExtension,
         reviewExtension,
         approveTaskCompletion,
+        deleteTask,
         getTeacherLeaveConflict,
         resetSystemData,
       }}

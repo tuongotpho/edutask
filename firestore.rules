@@ -62,10 +62,7 @@ service cloud.firestore {
         (request.auth.uid in resource.data.viewerIds)
       );
       
-      allow delete: if isAuth() && (
-        isAdmin() || 
-        resource.data.assignerId == request.auth.uid
-      );
+      allow delete: if isAdmin() || resource.data.assignerId == request.auth.uid;
     }
     
     match /notifications/{notifId} {

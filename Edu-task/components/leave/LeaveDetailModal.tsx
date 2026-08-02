@@ -350,8 +350,8 @@ export function LeaveDetailModal({ leave, onClose, onEditLeave }: LeaveDetailMod
             </div>
           )}
 
-          {/* Cancel Action Bar for Applicant / Admin */}
-          {(leave.applicantId === currentUser.id || activeRole === 'ADMIN' || currentUser.roles?.includes('ADMIN')) && leave.overallStatus !== 'CANCELLED' && (
+          {/* Cancel Action Bar for Applicant */}
+          {leave.applicantId === currentUser.id && leave.overallStatus !== 'CANCELLED' && (
             <div className="p-4 bg-rose-50/60 rounded-2xl border border-rose-200 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3">
               <div>
                 <span className="font-bold text-rose-900 block text-xs">Hủy Đơn & Giải Phóng Lịch Dạy Thay</span>

@@ -43,6 +43,9 @@ export function useUserLogic({ users, setUsers, currentUser, setCurrentUser, set
   };
 
   const deleteUserProfile = async (userId: string) => {
+    const updatedUsers = users.filter(u => u.id !== userId);
+    setUsers(updatedUsers);
+    storage.saveUsers(updatedUsers);
     await firebaseService.deleteUser(userId);
   };
 

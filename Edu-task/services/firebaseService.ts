@@ -3,6 +3,7 @@ import {
   doc, 
   setDoc, 
   getDocs, 
+  deleteDoc,
   onSnapshot, 
   Unsubscribe,
   query,
@@ -141,6 +142,14 @@ export const firebaseService = {
 
   async saveTask(task: Task): Promise<void> {
     await setDoc(doc(db, 'tasks', task.id), sanitizeForFirestore(task), { merge: true });
+  },
+
+  async deleteTask(taskId: string): Promise<void> {
+    try {
+      await deleteDoc(doc(db, 'tasks', taskId));
+    } catch (e) {
+      console.error('Error deleting task from Firebase:', e);
+    }
   },
 
   // --- Notifications ---
