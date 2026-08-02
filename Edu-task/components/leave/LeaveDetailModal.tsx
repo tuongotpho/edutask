@@ -1,21 +1,16 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
-import { LeaveRequest, LEAVE_TYPE_LABELS, LEAVE_SESSION_LABELS, ApprovalStatus } from '@/Edu-task/types/leave';
+import { LeaveRequest, LEAVE_TYPE_LABELS, ApprovalStatus } from '@/Edu-task/types/leave';
 import { ROLE_LABELS } from '@/Edu-task/types/user';
 import { ConfirmModal } from '@/Edu-task/components/common/ConfirmModal';
+import { canApproveLeaveStep, canViewLeave, isDeptLeader, isSchoolLeadership } from '@/Edu-task/lib/permissions';
 import { 
   X, 
   CheckCircle2, 
   XCircle, 
   Clock, 
-  AlertCircle, 
-  User, 
-  Calendar, 
-  FileText, 
-  MessageSquare, 
-  Send,
   History,
   FileCheck,
   UserCheck,
@@ -29,7 +24,11 @@ interface LeaveDetailModalProps {
 }
 
 export function LeaveDetailModal({ leave, onClose, onEditLeave }: LeaveDetailModalProps) {
-  const { currentUser, activeRole, processLeaveStep, changeSubstituteTeacher, cancelLeaveRequest, deleteLeaveRequest, getTeacherLeaveConflict, users } = useApp();
+  const { currentUser, activeRole, processLeaveStep, changeSubstituteTeacher, cancelLeaveRequest, deleteLeaveRequest, getTeacherLeaveConflict, users, showToast } = useApp();
+  // Seeded once per mount. The caller keys this modal by leave id, so opening a
+  // different request remounts with fresh values. Re-syncing on every `leave`
+  // change (as before) also fired on each Firestore snapshot, which silently
+  // discarded a substitute the approver had just picked.
   const [comment, setComment] = useState('');
   const [selectedSubId, setSelectedSubId] = useState(leave?.substituteTeacherId || '');
   const [newSubId, setNewSubId] = useState(leave?.substituteTeacherId || '');
@@ -39,35 +38,12 @@ export function LeaveDetailModal({ leave, onClose, onEditLeave }: LeaveDetailMod
   const [cancelReasonInput, setCancelReasonInput] = useState('');
   const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
-  useEffect(() => {
-    if (leave) {
-      setSelectedSubId(leave.substituteTeacherId || '');
-      setNewSubId(leave.substituteTeacherId || '');
-    }
-  }, [leave]);
-
   if (!leave || !currentUser) return null;
 
-  const isSchoolLeadershipOrAdmin = 
-    activeRole === 'ADMIN' || 
-    activeRole === 'PRINCIPAL' || 
-    activeRole === 'VICE_PRINCIPAL' || 
-    activeRole === 'SECRETARY' || 
-    activeRole === 'INSPECTOR' ||
-    currentUser?.roles?.some(r => ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'SECRETARY', 'INSPECTOR'].includes(r));
+  const isSchoolLeadershipOrAdmin = isSchoolLeadership(currentUser, activeRole);
+  const isDeptHeader = isDeptLeader(currentUser, activeRole);
 
-  const isDeptHeader = 
-    activeRole === 'HEAD_OF_DEPT' || 
-    activeRole === 'GROUP_LEADER' || 
-    currentUser?.roles?.some(r => ['HEAD_OF_DEPT', 'GROUP_LEADER'].includes(r));
-
-  const canViewLeave = 
-    isSchoolLeadershipOrAdmin || 
-    (isDeptHeader && leave.departmentId === currentUser.departmentId) || 
-    leave.applicantId === currentUser.id || 
-    leave.substituteTeacherId === currentUser.id;
-
-  if (!canViewLeave) {
+  if (!canViewLeave(currentUser, activeRole, leave)) {
     return (
       <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
         <div className="bg-white rounded-3xl p-6 max-w-md w-full text-center space-y-3 shadow-2xl border border-slate-200 animate-in fade-in duration-200">
@@ -90,53 +66,42 @@ export function LeaveDetailModal({ leave, onClose, onEditLeave }: LeaveDetailMod
     isSchoolLeadershipOrAdmin || 
     (isDeptHeader && leave.departmentId === currentUser?.departmentId);
 
-  // Determine if active role can approve current pending step
+  // Determine if active role can approve current pending step. Uses the same
+  // helper as `processLeaveStep`, so the button can never appear for an action
+  // the handler will reject.
   const currentPendingStep = leave.steps[leave.currentStepIndex];
-  
-  let canApprove = false;
 
-  if (leave.overallStatus === 'IN_REVIEW' && currentPendingStep && currentPendingStep.status === 'PENDING') {
-    const isStepGroupLeader = currentPendingStep.level === 'GROUP_LEADER' || currentPendingStep.level === 'HEAD_OF_DEPT';
-    const isStepBGH = currentPendingStep.level === 'VICE_PRINCIPAL' || currentPendingStep.level === 'PRINCIPAL';
-
-    const isAdmin = activeRole === 'ADMIN' || currentUser?.roles?.includes('ADMIN');
-
-    if (isAdmin) {
-      canApprove = true;
-    } else if (isStepGroupLeader) {
-      // Step 0: Only Group Leader or HOD of the SAME department
-      const isDeptLeaderOfThisDept = 
-        (activeRole === 'GROUP_LEADER' || activeRole === 'HEAD_OF_DEPT') &&
-        currentUser?.departmentId === leave.departmentId;
-      if (isDeptLeaderOfThisDept) {
-        canApprove = true;
-      }
-    } else if (isStepBGH) {
-      // Step 1: Only Principal or Vice Principal
-      const isBGH = activeRole === 'PRINCIPAL' || activeRole === 'VICE_PRINCIPAL';
-      if (isBGH) {
-        canApprove = true;
-      }
-    }
-  }
+  const canApprove =
+    leave.overallStatus === 'IN_REVIEW' &&
+    !!currentPendingStep &&
+    currentPendingStep.status === 'PENDING' &&
+    canApproveLeaveStep({
+      user: currentUser,
+      activeRole,
+      stepLevel: currentPendingStep.level,
+      leaveDepartmentId: leave.departmentId,
+    });
 
   const isStepGroupLeader = leave.currentStepIndex === 0;
 
-  const handleAction = (decision: ApprovalStatus) => {
+  const handleAction = async (decision: ApprovalStatus) => {
     if (decision === 'APPROVED' && isStepGroupLeader) {
       if (!selectedSubId && !leave.substituteTeacherId) {
-        alert('Vui lòng chọn Giáo viên dạy thay trước khi phê duyệt đơn!');
+        showToast('error', 'Vui lòng chọn Giáo viên dạy thay trước khi phê duyệt đơn!');
         return;
       }
     }
 
     setIsProcessing(true);
     try {
-      processLeaveStep(leave.id, decision, comment, selectedSubId);
-      setComment('');
-      onClose();
-    } catch (e: any) {
-      alert(e.message || 'Có lỗi xảy ra khi xử lý đơn.');
+      // Validation problems throw; a rejected write resolves false and has
+      // already told the user, so in both cases the modal stays open.
+      if (await processLeaveStep(leave.id, decision, comment, selectedSubId)) {
+        setComment('');
+        onClose();
+      }
+    } catch (e: unknown) {
+      showToast('error', e instanceof Error ? e.message : 'Có lỗi xảy ra khi xử lý đơn.');
     } finally {
       setIsProcessing(false);
     }
@@ -310,14 +275,14 @@ export function LeaveDetailModal({ leave, onClose, onEditLeave }: LeaveDetailMod
                     <button
                       type="button"
                       disabled={!newSubId}
-                      onClick={() => {
-                        if (newSubId) {
-                          try {
-                            changeSubstituteTeacher(leave.id, newSubId);
+                      onClick={async () => {
+                        if (!newSubId) return;
+                        try {
+                          if (await changeSubstituteTeacher(leave.id, newSubId)) {
                             setIsChangingSub(false);
-                          } catch (err: any) {
-                            alert(err.message || 'Không thể đổi người dạy thay.');
                           }
+                        } catch (err: unknown) {
+                          showToast('error', err instanceof Error ? err.message : 'Không thể đổi người dạy thay.');
                         }
                       }}
                       className="w-full py-1.5 rounded-lg bg-amber-600 hover:bg-amber-700 disabled:opacity-50 text-white font-bold text-xs shadow-2xs transition-colors"
@@ -389,11 +354,11 @@ export function LeaveDetailModal({ leave, onClose, onEditLeave }: LeaveDetailMod
                     </button>
                     <button
                       type="button"
-                      onClick={() => {
-                        cancelLeaveRequest(leave.id, cancelReasonInput);
-                        setShowCancelPrompt(false);
-                        alert('Đã HỦY đơn xin nghỉ phép thành công. Lịch dạy thay và thời gian giảng dạy đã được giải phóng!');
-                        onClose();
+                      onClick={async () => {
+                        if (await cancelLeaveRequest(leave.id, cancelReasonInput)) {
+                          setShowCancelPrompt(false);
+                          onClose();
+                        }
                       }}
                       className="px-4 py-1.5 rounded-xl bg-rose-600 hover:bg-rose-700 text-white font-bold text-xs shadow-sm"
                     >
@@ -423,10 +388,9 @@ export function LeaveDetailModal({ leave, onClose, onEditLeave }: LeaveDetailMod
             title="Xóa đơn nghỉ phép"
             message="Bạn có chắc chắn muốn XÓA vĩnh viễn đơn nghỉ phép này khỏi danh sách?"
             confirmText="Xóa vĩnh viễn"
-            onConfirm={() => {
+            onConfirm={async () => {
               setIsDeleteModalOpen(false);
-              deleteLeaveRequest(leave.id);
-              onClose();
+              if (await deleteLeaveRequest(leave.id)) onClose();
             }}
             onCancel={() => setIsDeleteModalOpen(false)}
           />

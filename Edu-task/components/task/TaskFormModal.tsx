@@ -3,13 +3,14 @@
 import React, { useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { TaskPriority, TASK_PRIORITY_CONFIG } from '@/Edu-task/types/task';
-import { X, CheckSquare, AlertTriangle, Users, Calendar, Shield, Paperclip, Sparkles } from 'lucide-react';
+import { X, CheckSquare, AlertTriangle, Shield } from 'lucide-react';
+import { isSchoolLeadership } from '@/Edu-task/lib/permissions';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { format } from 'date-fns';
 
 export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { currentUser, activeRole, users, departments, createTask, getTeacherLeaveConflict } = useApp();
+  const { currentUser, activeRole, users, departments, createTask, getTeacherLeaveConflict, showToast } = useApp();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -30,13 +31,7 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
 
   if (!isOpen || !currentUser) return null;
 
-  const isSchoolLeadershipOrAdmin = 
-    activeRole === 'ADMIN' || 
-    activeRole === 'PRINCIPAL' || 
-    activeRole === 'VICE_PRINCIPAL' || 
-    activeRole === 'SECRETARY' || 
-    activeRole === 'INSPECTOR' ||
-    currentUser?.roles?.some(r => ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'SECRETARY', 'INSPECTOR'].includes(r));
+  const isSchoolLeadershipOrAdmin = isSchoolLeadership(currentUser, activeRole);
 
   const availableDepartments = isSchoolLeadershipOrAdmin 
     ? departments 
@@ -64,31 +59,33 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
     }
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!title.trim()) {
-      alert('Vui lòng nhập tiêu đề công việc');
+      showToast('error', 'Vui lòng nhập tiêu đề công việc.');
       return;
     }
 
     if (assigneeType === 'DEPARTMENT' && !selectedDeptId) {
-      alert('Vui lòng chọn tổ môn nhận việc');
+      showToast('error', 'Vui lòng chọn tổ môn nhận việc.');
       return;
     }
 
     if (assigneeType !== 'DEPARTMENT' && selectedUserIds.length === 0) {
-      alert('Vui lòng chọn người nhận việc');
+      showToast('error', 'Vui lòng chọn người nhận việc.');
       return;
     }
 
     setIsSubmitting(true);
     try {
-      createTask({
+      const created = await createTask({
         title,
         description,
         assigneeType,
-        targetUserIds: selectedUserIds,
-        targetDepartmentId: selectedDeptId || undefined,
+        // A department-wide task derives its assignees from the department, so
+        // any individually ticked users are irrelevant and must not leak in.
+        targetUserIds: assigneeType === 'DEPARTMENT' ? undefined : selectedUserIds,
+        targetDepartmentId: assigneeType === 'DEPARTMENT' ? selectedDeptId : undefined,
         deadline: format(deadline, 'yyyy-MM-dd HH:mm'),
         priority,
         visibilitySettings: {
@@ -97,9 +94,10 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
           specificVicePrincipalIds,
         }
       });
-      onClose();
-    } catch (err) {
-      alert('Có lỗi xảy ra khi giao việc');
+      // Keep the form open when the write is rejected; a toast already explained.
+      if (created) onClose();
+    } catch (err: unknown) {
+      showToast('error', err instanceof Error ? err.message : 'Có lỗi xảy ra khi giao việc.');
     } finally {
       setIsSubmitting(false);
     }

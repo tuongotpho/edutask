@@ -4,28 +4,19 @@ import React from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { LEAVE_TYPE_LABELS } from '@/Edu-task/types/leave';
 import { TASK_STATUS_CONFIG } from '@/Edu-task/types/task';
-import { CalendarDays, AlertTriangle, Shield, CheckCircle2, Clock, Users } from 'lucide-react';
+import { CalendarDays } from 'lucide-react';
+import { isDeptLeader, isSchoolLeadership } from '@/Edu-task/lib/permissions';
 
 export function SchoolTimelineTab() {
   const { users, leaves, tasks, currentUser, activeRole } = useApp();
 
-  const isSchoolExecutiveOrAdmin = 
-    activeRole === 'ADMIN' || 
-    activeRole === 'PRINCIPAL' || 
-    activeRole === 'VICE_PRINCIPAL' || 
-    activeRole === 'SECRETARY' || 
-    activeRole === 'INSPECTOR' ||
-    currentUser?.roles?.some(r => ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'SECRETARY', 'INSPECTOR'].includes(r));
+  const isSchoolExecutiveOrAdmin = isSchoolLeadership(currentUser, activeRole);
+  const showsWholeDepartment = isDeptLeader(currentUser, activeRole);
 
-  const isDeptLeader = 
-    activeRole === 'HEAD_OF_DEPT' || 
-    activeRole === 'GROUP_LEADER' || 
-    currentUser?.roles?.some(r => ['HEAD_OF_DEPT', 'GROUP_LEADER'].includes(r));
-
-  const displayUsers = isSchoolExecutiveOrAdmin 
-    ? users 
-    : isDeptLeader 
-    ? users.filter(u => u.departmentId === currentUser?.departmentId) 
+  const displayUsers = isSchoolExecutiveOrAdmin
+    ? users
+    : showsWholeDepartment
+    ? users.filter(u => u.departmentId === currentUser?.departmentId)
     : users.filter(u => u.id === currentUser?.id);
 
   const todayStr = new Date().toISOString().split('T')[0];
@@ -36,7 +27,7 @@ export function SchoolTimelineTab() {
   if (isSchoolExecutiveOrAdmin) {
     headerTitle = 'Lịch Nghỉ Phép & Khối Lượng Công Việc Toàn Trường';
     headerSub = 'Công khai minh bạch tiến độ nhiệm vụ và trạng thái có mặt toàn trường để hỗ trợ Ban Giám Hiệu chỉ đạo.';
-  } else if (isDeptLeader) {
+  } else if (showsWholeDepartment) {
     headerTitle = `Lịch Nghỉ Phép & Khối Lượng Công Việc - ${currentUser?.departmentName || 'Tổ Chuyên Môn'}`;
     headerSub = `Theo dõi tiến độ nhiệm vụ và lịch nghỉ phép của giáo viên thuộc ${currentUser?.departmentName || 'tổ mình quản lý'}.`;
   }

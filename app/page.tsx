@@ -1,24 +1,54 @@
 'use client';
 
 import React, { useState } from 'react';
+import dynamic from 'next/dynamic';
 import { AppProvider, useApp } from '@/Edu-task/context/AppContext';
 import { Navbar } from '@/Edu-task/components/layout/Navbar';
 import { Sidebar, TabType } from '@/Edu-task/components/layout/Sidebar';
 import { OverviewTab } from '@/Edu-task/components/dashboard/OverviewTab';
 import { LeaveTab } from '@/Edu-task/components/leave/LeaveTab';
-import { LeaveFormModal } from '@/Edu-task/components/leave/LeaveFormModal';
-import { LeaveDetailModal } from '@/Edu-task/components/leave/LeaveDetailModal';
 import { TaskTab } from '@/Edu-task/components/task/TaskTab';
-import { TaskFormModal } from '@/Edu-task/components/task/TaskFormModal';
-import { TaskDetailModal } from '@/Edu-task/components/task/TaskDetailModal';
-import { SchoolTimelineTab } from '@/Edu-task/components/schedule/SchoolTimelineTab';
-import { AnalyticsTab } from '@/Edu-task/components/stats/AnalyticsTab';
-import { RbacConfigTab } from '@/Edu-task/components/config/RbacConfigTab';
 import { LoginPage } from '@/Edu-task/components/auth/LoginPage';
 import { PendingApprovalPage } from '@/Edu-task/components/auth/PendingApprovalPage';
+import { ToastViewport } from '@/Edu-task/components/common/Toast';
 import { LeaveRequest } from '@/Edu-task/types/leave';
-import { Task } from '@/Edu-task/types/task';
 
+// Split out of the initial bundle. The dashboard, leave and task tabs are what
+// a teacher opens every day; these are either role-gated (RBAC, analytics) or
+// opened on demand (modals, timeline), and the date picker they pull in is
+// heavy. `ssr: false` is safe here — the whole page is a client component.
+const loading = () => (
+  <div className="p-8 text-center text-xs text-slate-400 font-semibold">Đang tải…</div>
+);
+
+const SchoolTimelineTab = dynamic(
+  () => import('@/Edu-task/components/schedule/SchoolTimelineTab').then(m => m.SchoolTimelineTab),
+  { ssr: false, loading }
+);
+const AnalyticsTab = dynamic(
+  () => import('@/Edu-task/components/stats/AnalyticsTab').then(m => m.AnalyticsTab),
+  { ssr: false, loading }
+);
+const RbacConfigTab = dynamic(
+  () => import('@/Edu-task/components/config/RbacConfigTab').then(m => m.RbacConfigTab),
+  { ssr: false, loading }
+);
+const LeaveFormModal = dynamic(
+  () => import('@/Edu-task/components/leave/LeaveFormModal').then(m => m.LeaveFormModal),
+  { ssr: false }
+);
+const LeaveDetailModal = dynamic(
+  () => import('@/Edu-task/components/leave/LeaveDetailModal').then(m => m.LeaveDetailModal),
+  { ssr: false }
+);
+const TaskFormModal = dynamic(
+  () => import('@/Edu-task/components/task/TaskFormModal').then(m => m.TaskFormModal),
+  { ssr: false }
+);
+const TaskDetailModal = dynamic(
+  () => import('@/Edu-task/components/task/TaskDetailModal').then(m => m.TaskDetailModal),
+  { ssr: false }
+);
 function EduTaskMainApp() {
   const { leaves, tasks, currentUser, isAuthenticated } = useApp();
 
@@ -110,39 +140,61 @@ function EduTaskMainApp() {
         </main>
       </div>
 
-      {/* Global Modals */}
-      <LeaveFormModal
-        isOpen={isLeaveFormOpen}
-        editingLeave={editingLeave}
-        onClose={() => {
-          setIsLeaveFormOpen(false);
-          setEditingLeave(null);
-        }}
-      />
+      {/* Global Modals — mounted only while open so their lazily-loaded chunks
+          (and the date picker inside them) are fetched on first use, not on
+          every page load. Each modal still guards its own props internally. */}
+      {isLeaveFormOpen && (
+        <LeaveFormModal
+          key={editingLeave?.id ?? 'new-leave'}
+          isOpen={isLeaveFormOpen}
+          editingLeave={editingLeave}
+          onClose={() => {
+            setIsLeaveFormOpen(false);
+            setEditingLeave(null);
+          }}
+        />
+      )}
 
-      <LeaveDetailModal
-        leave={selectedLeave}
-        onClose={() => setSelectedLeaveId(null)}
-        onEditLeave={handleOpenEditLeave}
-      />
+      {selectedLeave && (
+        <LeaveDetailModal
+          key={selectedLeave.id}
+          leave={selectedLeave}
+          onClose={() => setSelectedLeaveId(null)}
+          onEditLeave={handleOpenEditLeave}
+        />
+      )}
 
-      <TaskFormModal
-        isOpen={isTaskFormOpen}
-        onClose={() => setIsTaskFormOpen(false)}
-      />
+      {isTaskFormOpen && (
+        <TaskFormModal
+          isOpen={isTaskFormOpen}
+          onClose={() => setIsTaskFormOpen(false)}
+        />
+      )}
 
-      <TaskDetailModal
-        task={selectedTask}
-        onClose={() => setSelectedTaskId(null)}
-      />
+      {selectedTask && (
+        <TaskDetailModal
+          task={selectedTask}
+          onClose={() => setSelectedTaskId(null)}
+        />
+      )}
     </div>
   );
+}
+
+/**
+ * Rendered as a sibling of the app shell so toasts survive every branch —
+ * login screen, pending-approval screen and the main app alike.
+ */
+function GlobalToasts() {
+  const { toasts, dismissToast } = useApp();
+  return <ToastViewport toasts={toasts} onDismiss={dismissToast} />;
 }
 
 export default function Page() {
   return (
     <AppProvider>
       <EduTaskMainApp />
+      <GlobalToasts />
     </AppProvider>
   );
 }

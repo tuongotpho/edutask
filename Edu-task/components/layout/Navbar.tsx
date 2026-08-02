@@ -2,34 +2,27 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
-import { ROLE_LABELS, RoleType } from '@/Edu-task/types/user';
-import { 
-  Building2, 
-  Bell, 
-  Search, 
-  UserCheck, 
-  RotateCcw, 
-  ShieldAlert, 
-  CheckCircle2, 
-  Sparkles,
+import { ROLE_LABELS } from '@/Edu-task/types/user';
+import {
+  Bell,
+  Search,
+  ShieldAlert,
+  CheckCircle2,
+  CheckCheck,
   ChevronDown,
-  User as UserIcon,
-  LogOut,
-  Calendar,
-  FileText
+  LogOut
 } from 'lucide-react';
 
 export function Navbar({ onSearch }: { onSearch?: (term: string) => void }) {
-  const { 
-    currentUser, 
-    activeRole, 
-    users, 
+  const {
+    currentUser,
+    activeRole,
     schoolName,
-    switchUser, 
-    switchActiveRole, 
-    notifications, 
-    resetSystemData,
-    logout 
+    switchActiveRole,
+    notifications,
+    markNotificationRead,
+    markAllNotificationsRead,
+    logout
   } = useApp();
 
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
@@ -144,20 +137,48 @@ export function Navbar({ onSearch }: { onSearch?: (term: string) => void }) {
 
             {showNotifDropdown && (
               <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50">
-                <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between">
-                  <span className="font-bold text-xs text-slate-800">Thông báo mới</span>
-                  <span className="text-[10px] text-slate-500">{notifications.length} thông báo</span>
+                <div className="px-4 py-2 border-b border-slate-100 flex items-center justify-between gap-2">
+                  <span className="font-bold text-xs text-slate-800">Thông báo</span>
+                  {unreadCount > 0 ? (
+                    <button
+                      onClick={() => markAllNotificationsRead()}
+                      className="text-[10px] font-bold text-indigo-600 hover:text-indigo-800 hover:underline flex items-center gap-1"
+                    >
+                      <CheckCheck className="w-3 h-3" />
+                      <span>Đánh dấu tất cả đã đọc</span>
+                    </button>
+                  ) : (
+                    <span className="text-[10px] text-slate-500">{notifications.length} thông báo</span>
+                  )}
                 </div>
                 <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
                   {notifications.length === 0 ? (
                     <div className="p-4 text-center text-xs text-slate-500">Không có thông báo mới</div>
                   ) : (
                     notifications.map(n => (
-                      <div key={n.id} className="p-3 hover:bg-slate-50 transition-colors">
-                        <div className="text-xs font-semibold text-slate-900 mb-0.5">{n.title}</div>
-                        <div className="text-xs text-slate-600 line-clamp-2">{n.message}</div>
-                        <div className="text-[10px] text-slate-400 mt-1">{n.createdAt}</div>
-                      </div>
+                      <button
+                        key={n.id}
+                        type="button"
+                        onClick={() => markNotificationRead(n.id)}
+                        className={`w-full text-left p-3 transition-colors flex items-start gap-2 ${
+                          n.isRead ? 'hover:bg-slate-50' : 'bg-indigo-50/60 hover:bg-indigo-50'
+                        }`}
+                      >
+                        {/* Unread marker keeps the badge count explainable at a glance */}
+                        <span
+                          className={`w-1.5 h-1.5 rounded-full mt-1.5 flex-shrink-0 ${
+                            n.isRead ? 'bg-transparent' : 'bg-indigo-500'
+                          }`}
+                          aria-hidden="true"
+                        />
+                        <span className="flex-1 min-w-0">
+                          <span className={`block text-xs mb-0.5 ${n.isRead ? 'font-semibold text-slate-700' : 'font-bold text-slate-900'}`}>
+                            {n.title}
+                          </span>
+                          <span className="block text-xs text-slate-600 line-clamp-2">{n.message}</span>
+                          <span className="block text-[10px] text-slate-400 mt-1">{n.createdAt}</span>
+                        </span>
+                      </button>
                     ))
                   )}
                 </div>
@@ -177,7 +198,8 @@ export function Navbar({ onSearch }: { onSearch?: (term: string) => void }) {
                 className="flex items-center space-x-2 pl-2 pr-2.5 py-1 rounded-xl border border-slate-200 hover:border-slate-300 hover:bg-slate-50 transition-all text-left"
               >
                 <div className="w-7 h-7 rounded-full bg-indigo-100 text-indigo-700 flex items-center justify-center font-bold text-xs border border-indigo-200">
-                  {currentUser.fullName.split(' ').slice(-1)[0][0]}
+                  {/* Last word's initial; falls back so an empty name cannot crash the header */}
+                  {currentUser.fullName?.trim().split(/\s+/).slice(-1)[0]?.[0]?.toUpperCase() ?? '?'}
                 </div>
                 <div className="hidden lg:block">
                   <div className="text-xs font-semibold text-slate-900 leading-none">{currentUser.fullName}</div>

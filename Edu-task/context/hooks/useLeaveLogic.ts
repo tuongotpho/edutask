@@ -2,7 +2,11 @@ import { LeaveRequest, LeaveType, LeaveSession, ApprovalStatus, LeaveHistoryLog 
 import { User, RoleType, ROLE_LABELS } from '@/Edu-task/types/user';
 import { AppNotification } from '@/Edu-task/types/notification';
 import { storage } from '@/Edu-task/lib/storage';
+import { genId } from '@/Edu-task/lib/utils';
+import { findLeaveConflict, LeaveConflictResult } from '@/Edu-task/lib/leaveConflict';
+import { canApproveLeaveStep } from '@/Edu-task/lib/permissions';
 import { firebaseService } from '@/Edu-task/services/firebaseService';
+import { ToastKind } from '@/Edu-task/components/common/Toast';
 
 interface LeaveLogicProps {
   currentUser: User | null;
@@ -11,42 +15,55 @@ interface LeaveLogicProps {
   leaves: LeaveRequest[];
   setLeaves: React.Dispatch<React.SetStateAction<LeaveRequest[]>>;
   setNotifications: React.Dispatch<React.SetStateAction<AppNotification[]>>;
+  notify: (kind: ToastKind, text: string) => void;
 }
 
-export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeaves, setNotifications }: LeaveLogicProps) {
-  
+const SAVE_FAILED = 'Không lưu được lên máy chủ. Thay đổi đã được hoàn tác — vui lòng thử lại.';
+
+export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeaves, setNotifications, notify }: LeaveLogicProps) {
+
+  /**
+   * Applies an optimistic update, then persists it. On rejection (offline, or
+   * blocked by security rules) the previous state is restored and the user is
+   * told, so the UI never claims a save that the server refused.
+   */
+  const commit = async (nextLeaves: LeaveRequest[], leaveToSave: LeaveRequest): Promise<boolean> => {
+    const previousLeaves = leaves;
+    setLeaves(nextLeaves);
+    storage.saveLeaves(nextLeaves);
+    try {
+      await firebaseService.saveLeave(leaveToSave);
+      return true;
+    } catch (err) {
+      console.error('Failed to save leave request:', err);
+      setLeaves(previousLeaves);
+      storage.saveLeaves(previousLeaves);
+      notify('error', SAVE_FAILED);
+      return false;
+    }
+  };
+
+  // Notifications are secondary to the record they announce: a delivery failure
+  // is logged but never rolls back the leave request itself.
+  const pushNotification = async (notif: AppNotification) => {
+    storage.addNotification(notif);
+    try {
+      await firebaseService.saveNotification(notif);
+    } catch (err) {
+      console.error('Failed to save notification:', err);
+    }
+  };
+
   const getTeacherLeaveConflict = (
-    teacherId: string, 
-    startDate: string, 
+    teacherId: string,
+    startDate: string,
     endDate: string,
     session: LeaveSession = 'FULL_DAY',
     excludeLeaveId?: string
-  ): { hasConflict: boolean; conflictDetail?: LeaveRequest } => {
-    if (!teacherId || !startDate || !endDate) return { hasConflict: false };
+  ): LeaveConflictResult =>
+    findLeaveConflict(leaves, teacherId, startDate, endDate, session, excludeLeaveId);
 
-    const approvedOrPendingLeaves = leaves.filter(l => 
-      l.id !== excludeLeaveId &&
-      l.applicantId === teacherId &&
-      (l.overallStatus === 'APPROVED' || l.overallStatus === 'IN_REVIEW')
-    );
-
-    for (const leave of approvedOrPendingLeaves) {
-      const dateOverlap = startDate <= leave.endDate && endDate >= leave.startDate;
-      if (dateOverlap) {
-        if (
-          session === 'FULL_DAY' ||
-          leave.session === 'FULL_DAY' ||
-          session === leave.session
-        ) {
-          return { hasConflict: true, conflictDetail: leave };
-        }
-      }
-    }
-
-    return { hasConflict: false };
-  };
-
-  const createLeaveRequest = (data: {
+  const createLeaveRequest = async (data: {
     leaveType: LeaveType;
     startDate: string;
     endDate: string;
@@ -54,7 +71,7 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
     reason: string;
     substituteTeacherId?: string;
     notes?: string;
-  }): LeaveRequest => {
+  }): Promise<LeaveRequest | null> => {
     if (!currentUser) throw new Error('User not logged in');
 
     const dStart = new Date(data.startDate);
@@ -83,13 +100,13 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
     ];
 
     const nowMs = Date.now();
-    // Timestamp-based suffix so codes/ids are unique across users and across
-    // role-filtered lists (the previous `leaves.length + 1` collided easily).
+    // `genId` guarantees a unique document id even for same-millisecond creates;
+    // the human-facing code stays time-based for readability.
     const newCode = `ĐXN-2026-${nowMs.toString().slice(-6)}`;
     const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
     const newLeave: LeaveRequest = {
-      id: `LV_2026_${nowMs}`,
+      id: genId('LV_2026'),
       code: newCode,
       applicantId: currentUser.id,
       applicantName: currentUser.fullName,
@@ -112,7 +129,7 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
       overallStatus: 'IN_REVIEW',
       history: [
         {
-          id: `HIST_${Date.now()}`,
+          id: genId('HIST'),
           action: 'TẠO ĐƠN XIN NGHỈ',
           actorName: currentUser.fullName,
           actorRole: ROLE_LABELS[activeRole],
@@ -124,41 +141,36 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
       updatedAt: now,
     };
 
-    const updatedLeaves = [newLeave, ...leaves];
-    setLeaves(updatedLeaves);
-    storage.saveLeaves(updatedLeaves);
-    firebaseService.saveLeave(newLeave);
+    const ok = await commit([newLeave, ...leaves], newLeave);
+    if (!ok) return null;
 
     const groupLeaders = users.filter(u => u.departmentId === currentUser.departmentId && (u.roles.includes('GROUP_LEADER') || u.roles.includes('HEAD_OF_DEPT')));
-    for (const gl of groupLeaders) {
-      if (gl.id !== currentUser.id) {
-        const notif: AppNotification = {
-          id: `NOTIF_${Date.now()}_${Math.random()}`,
-          recipientUserId: gl.id,
-          title: 'Đơn xin nghỉ phép mới cần duyệt',
-          message: `${currentUser.fullName} vừa gửi đơn xin nghỉ ${totalDays} ngày (${data.startDate}). Cần phân công dạy thay & duyệt.`,
-          type: 'LEAVE_REQUEST',
-          isRead: false,
-          createdAt: now,
-        };
-        storage.addNotification(notif);
-        firebaseService.saveNotification(notif);
-      }
-    }
+    await Promise.all(groupLeaders
+      .filter(gl => gl.id !== currentUser.id)
+      .map(gl => pushNotification({
+        id: genId('NOTIF'),
+        recipientUserId: gl.id,
+        title: 'Đơn xin nghỉ phép mới cần duyệt',
+        message: `${currentUser.fullName} vừa gửi đơn xin nghỉ ${totalDays} ngày (${data.startDate}). Cần phân công dạy thay & duyệt.`,
+        type: 'LEAVE_REQUEST',
+        isRead: false,
+        createdAt: now,
+      })));
 
+    notify('success', 'Đã gửi đơn xin nghỉ phép thành công.');
     return newLeave;
   };
 
-  const cancelLeaveRequest = (leaveId: string, cancelReason?: string) => {
+  const cancelLeaveRequest = async (leaveId: string, cancelReason?: string): Promise<boolean> => {
     const leave = leaves.find(l => l.id === leaveId);
-    if (!leave) return;
+    if (!leave) return false;
 
     const actorName = currentUser?.fullName || 'Người dùng';
     const actorRole = ROLE_LABELS[activeRole] || activeRole;
     const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
     const historyLog: LeaveHistoryLog = {
-      id: `HIST_${Date.now()}`,
+      id: genId('HIST'),
       action: 'HỦY ĐƠN XIN NGHỈ PHÉP (GIẢI PHÓNG THỜI GIAN GIẢNG DẠY & DẠY THAY)',
       actorName,
       actorRole,
@@ -175,69 +187,78 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
       updatedAt: now,
     };
 
-    const updatedLeaves = leaves.map(l => l.id === leaveId ? updatedLeave : l);
-    setLeaves(updatedLeaves);
-    storage.saveLeaves(updatedLeaves);
-    firebaseService.saveLeave(updatedLeave);
+    const ok = await commit(leaves.map(l => (l.id === leaveId ? updatedLeave : l)), updatedLeave);
+    if (!ok) return false;
 
     if (leave.substituteTeacherId && leave.substituteTeacherId !== currentUser?.id) {
-      storage.addNotification({
-        id: `NOTIF_${Date.now()}_SUB`,
+      await pushNotification({
+        id: genId('NOTIF'),
         recipientUserId: leave.substituteTeacherId,
         title: '❌ Thông báo HỦY lịch dạy thay',
         message: `Giáo viên ${leave.applicantName} đã HỦY đơn xin nghỉ phép (${leave.startDate} → ${leave.endDate}). Bạn KHÔNG cần dạy thay trong khoảng thời gian này nữa.`,
         type: 'LEAVE_REQUEST',
-        createdAt: new Date().toISOString(),
+        createdAt: now,
         isRead: false,
       });
     }
 
-    const deptLeaders = users.filter(u => 
-      u.departmentId === leave.departmentId && 
+    const deptLeaders = users.filter(u =>
+      u.departmentId === leave.departmentId &&
       u.roles.some(r => r === 'HEAD_OF_DEPT' || r === 'GROUP_LEADER') &&
       u.id !== currentUser?.id
     );
-    deptLeaders.forEach(leader => {
-      storage.addNotification({
-        id: `NOTIF_${Date.now()}_DEPT_${leader.id}`,
-        recipientUserId: leader.id,
-        title: '🚫 Thông báo HỦY đơn nghỉ phép tổ chuyên môn',
-        message: `Giáo viên ${leave.applicantName} (${leave.departmentName}) đã HỦY đơn xin nghỉ phép từ ${leave.startDate} đến ${leave.endDate}.`,
-        type: 'LEAVE_REQUEST',
-        createdAt: new Date().toISOString(),
-        isRead: false,
-      });
-    });
+    await Promise.all(deptLeaders.map(leader => pushNotification({
+      id: genId('NOTIF'),
+      recipientUserId: leader.id,
+      title: '🚫 Thông báo HỦY đơn nghỉ phép tổ chuyên môn',
+      message: `Giáo viên ${leave.applicantName} (${leave.departmentName}) đã HỦY đơn xin nghỉ phép từ ${leave.startDate} đến ${leave.endDate}.`,
+      type: 'LEAVE_REQUEST',
+      createdAt: now,
+      isRead: false,
+    })));
 
-    const bghUsers = users.filter(u => 
+    const bghUsers = users.filter(u =>
       u.roles.some(r => r === 'PRINCIPAL' || r === 'VICE_PRINCIPAL' || r === 'ADMIN') &&
       u.id !== currentUser?.id &&
       !deptLeaders.some(dl => dl.id === u.id)
     );
-    bghUsers.forEach(bgh => {
-      storage.addNotification({
-        id: `NOTIF_${Date.now()}_BGH_${bgh.id}`,
-        recipientUserId: bgh.id,
-        title: '📢 [BGH] Thông báo HỦY lịch nghỉ phép',
-        message: `Giáo viên ${leave.applicantName} (${leave.departmentName}) đã HỦY đơn xin nghỉ phép (${leave.startDate} → ${leave.endDate}). Lịch dạy thay và thời gian giảng dạy đã được giải phóng.`,
-        type: 'LEAVE_REQUEST',
-        createdAt: new Date().toISOString(),
-        isRead: false,
-      });
-    });
+    await Promise.all(bghUsers.map(bgh => pushNotification({
+      id: genId('NOTIF'),
+      recipientUserId: bgh.id,
+      title: '📢 [BGH] Thông báo HỦY lịch nghỉ phép',
+      message: `Giáo viên ${leave.applicantName} (${leave.departmentName}) đã HỦY đơn xin nghỉ phép (${leave.startDate} → ${leave.endDate}). Lịch dạy thay và thời gian giảng dạy đã được giải phóng.`,
+      type: 'LEAVE_REQUEST',
+      createdAt: now,
+      isRead: false,
+    })));
 
     if (currentUser) {
       setNotifications(storage.getNotifications(currentUser.id));
     }
+
+    notify('success', 'Đã hủy đơn xin nghỉ phép. Lịch dạy thay đã được giải phóng.');
+    return true;
   };
 
-  const deleteLeaveRequest = (leaveId: string) => {
+  const deleteLeaveRequest = async (leaveId: string): Promise<boolean> => {
+    const previousLeaves = leaves;
     const updatedLeaves = leaves.filter(l => l.id !== leaveId);
     setLeaves(updatedLeaves);
     storage.saveLeaves(updatedLeaves);
+
+    try {
+      await firebaseService.deleteLeave(leaveId);
+      return true;
+    } catch (err) {
+      console.error('Failed to delete leave request:', err);
+      setLeaves(previousLeaves);
+      storage.saveLeaves(previousLeaves);
+      notify('error', SAVE_FAILED);
+      return false;
+    }
   };
 
-  const updateLeaveRequest = (
+  const updateLeaveRequest = async (
     leaveId: string,
     data: {
       leaveType: LeaveType;
@@ -247,8 +268,8 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
       reason: string;
       notes?: string;
     }
-  ) => {
-    if (!currentUser) return;
+  ): Promise<boolean> => {
+    if (!currentUser) return false;
     const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
     let targetLeaveToSave: LeaveRequest | null = null;
 
@@ -270,7 +291,7 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
       }));
 
       const historyLog = {
-        id: `HIST_${Date.now()}`,
+        id: genId('HIST'),
         action: 'CHỈNH SỬA & GỬI LẠI ĐƠN NGHỈ',
         actorName: currentUser.fullName,
         actorRole: ROLE_LABELS[activeRole] || 'Giáo viên',
@@ -298,18 +319,15 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
       return updatedLeaveObj;
     });
 
-    setLeaves(updatedLeaves);
-    storage.saveLeaves(updatedLeaves);
-    if (targetLeaveToSave) {
-      firebaseService.saveLeave(targetLeaveToSave);
-    }
+    if (!targetLeaveToSave) return false;
+    return commit(updatedLeaves, targetLeaveToSave);
   };
 
-  const changeSubstituteTeacher = (leaveId: string, newSubstituteTeacherId: string) => {
-    if (!currentUser) return;
+  const changeSubstituteTeacher = async (leaveId: string, newSubstituteTeacherId: string): Promise<boolean> => {
+    if (!currentUser) return false;
     const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
     const newSubUser = users.find(u => u.id === newSubstituteTeacherId);
-    if (!newSubUser) return;
+    if (!newSubUser) return false;
 
     const currentLeave = leaves.find(l => l.id === leaveId);
     if (currentLeave) {
@@ -333,7 +351,7 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
       const oldSubName = leave.substituteTeacherName || 'Chưa phân công';
 
       const historyLog = {
-        id: `HIST_${Date.now()}`,
+        id: genId('HIST'),
         action: 'THAY ĐỔI GIÁO VIÊN DẠY THAY',
         actorName: currentUser.fullName,
         actorRole: ROLE_LABELS[activeRole] || 'Tổ trưởng chuyên môn',
@@ -353,33 +371,32 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
       return updatedLeaveObj;
     });
 
-    setLeaves(updatedLeaves);
-    storage.saveLeaves(updatedLeaves);
-    if (targetLeaveToSave) {
-      firebaseService.saveLeave(targetLeaveToSave);
-    }
+    if (!targetLeaveToSave) return false;
+    const ok = await commit(updatedLeaves, targetLeaveToSave);
+    if (!ok) return false;
 
     const targetLeave = leaves.find(l => l.id === leaveId);
-    const notif: AppNotification = {
-      id: `NOTIF_${Date.now()}`,
+    await pushNotification({
+      id: genId('NOTIF'),
       recipientUserId: newSubUser.id,
       title: 'Được phân công dạy thay mới',
       message: `${currentUser.fullName} đã điều chỉnh phân công bạn dạy thay cho đơn xin nghỉ của ${targetLeave?.applicantName || 'đồng nghiệp'}.`,
       type: 'LEAVE_REQUEST',
       isRead: false,
       createdAt: now,
-    };
-    storage.addNotification(notif);
-    firebaseService.saveNotification(notif);
+    });
+
+    notify('success', `Đã phân công ${newSubUser.fullName} dạy thay.`);
+    return true;
   };
 
-  const processLeaveStep = (
-    leaveId: string, 
-    decision: ApprovalStatus, 
+  const processLeaveStep = async (
+    leaveId: string,
+    decision: ApprovalStatus,
     comment?: string,
     assignedSubstituteTeacherId?: string
-  ) => {
-    if (!currentUser) return;
+  ): Promise<boolean> => {
+    if (!currentUser) return false;
     const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
     let targetLeaveToSave: LeaveRequest | null = null;
@@ -390,20 +407,17 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
       const steps = [...leave.steps];
       const currIdx = leave.currentStepIndex;
       const targetStep = steps[currIdx];
-      const isStepGroupLeader = targetStep.level === 'GROUP_LEADER' || targetStep.level === 'HEAD_OF_DEPT';
-      const isStepBGH = targetStep.level === 'VICE_PRINCIPAL' || targetStep.level === 'PRINCIPAL';
 
-      const isAdmin = activeRole === 'ADMIN' || currentUser.roles?.includes('ADMIN');
-
-      if (!isAdmin) {
-        if (isStepBGH && activeRole !== 'PRINCIPAL' && activeRole !== 'VICE_PRINCIPAL') {
-          throw new Error('Từ chối: Tổ trưởng không có quyền phê duyệt đơn ở cấp Ban Giám Hiệu.');
-        }
-        if (isStepGroupLeader) {
-          if ((activeRole !== 'GROUP_LEADER' && activeRole !== 'HEAD_OF_DEPT') || currentUser.departmentId !== leave.departmentId) {
-            throw new Error('Từ chối: Bạn không có quyền phê duyệt đơn xin nghỉ phép của tổ khác.');
-          }
-        }
+      if (!canApproveLeaveStep({
+        user: currentUser,
+        activeRole,
+        stepLevel: targetStep.level,
+        leaveDepartmentId: leave.departmentId,
+      })) {
+        const isExecutiveStep = targetStep.level === 'VICE_PRINCIPAL' || targetStep.level === 'PRINCIPAL';
+        throw new Error(isExecutiveStep
+          ? 'Từ chối: Tổ trưởng không có quyền phê duyệt đơn ở cấp Ban Giám Hiệu.'
+          : 'Từ chối: Bạn không có quyền phê duyệt đơn xin nghỉ phép của tổ khác.');
       }
 
       let subId = leave.substituteTeacherId;
@@ -455,12 +469,12 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
         }
       }
 
-      const actionText = decision === 'APPROVED' 
+      const actionText = decision === 'APPROVED'
         ? `PHÊ DUYỆT BƯỚC ${currIdx + 1} (${steps[currIdx].levelLabel})`
         : decision === 'REJECTED' ? 'TỪ CHỐI ĐƠN' : 'YÊU CẦU CHỈNH SỬA';
 
       const historyLog = {
-        id: `HIST_${Date.now()}`,
+        id: genId('HIST'),
         action: actionText,
         actorName: currentUser.fullName,
         actorRole: ROLE_LABELS[activeRole] || 'Người duyệt',
@@ -484,11 +498,8 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
       return updatedLeaveObj;
     });
 
-    setLeaves(updatedLeaves);
-    storage.saveLeaves(updatedLeaves);
-    if (targetLeaveToSave) {
-      firebaseService.saveLeave(targetLeaveToSave);
-    }
+    if (!targetLeaveToSave) return false;
+    return commit(updatedLeaves, targetLeaveToSave);
   };
 
   return {

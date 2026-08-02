@@ -32,6 +32,18 @@ service cloud.firestore {
              data.roles.hasAny(['HEAD_OF_DEPT', 'GROUP_LEADER']);
     }
 
+    // Shared school configuration. Every authenticated user needs to read these
+    // (dropdowns, headers); only admins may change them.
+    match /departments/{deptId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    match /settings/{settingId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
     match /users/{userId} {
       allow read: if isAuth();
 
@@ -47,12 +59,13 @@ service cloud.firestore {
          request.resource.data.status == 'PENDING_APPROVAL')
       );
 
-      // A user may edit their own profile but NOT their roles, status, or
-      // department (those are approval-controlled). Admins may edit anything.
+      // A user may edit their own profile but NOT their roles, status,
+      // department, or activeRole (those are approval-controlled and drive the
+      // client-side authz UI). Admins may edit anything.
       allow update: if isAuth() && (
         isAdmin() ||
         (request.auth.uid == userId &&
-         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roles', 'status', 'departmentId']))
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roles', 'status', 'departmentId', 'activeRole']))
       );
 
       allow delete: if isAdmin();
@@ -66,10 +79,13 @@ service cloud.firestore {
         isDeptLeader(resource.data.departmentId)
       );
 
-      // Applicant creates their own request; it must start under review.
+      // Applicant creates their own request; it must start under review and be
+      // filed under the applicant's OWN department (so a request can't be routed
+      // to an arbitrary department's leader for approval).
       allow create: if isAuth() &&
         request.resource.data.applicantId == request.auth.uid &&
-        request.resource.data.overallStatus == 'IN_REVIEW';
+        request.resource.data.overallStatus == 'IN_REVIEW' &&
+        request.resource.data.departmentId == getUserData().departmentId;
 
       // Only admins or the department's leader may advance the approval flow.
       // The applicant may still edit / cancel their own request, but may never
@@ -98,10 +114,15 @@ service cloud.firestore {
         request.resource.data.assignerId == request.auth.uid &&
         (request.auth.uid in request.resource.data.viewerIds);
 
+      // Admins and the assigner have full control. A plain viewer (assignee)
+      // may report progress / request extensions, but must NOT rewrite the ACL
+      // or ownership fields — that would let any assignee hijack the task.
       allow update: if isAuth() && (
         isAdmin() ||
         resource.data.assignerId == request.auth.uid ||
-        (request.auth.uid in resource.data.viewerIds)
+        ((request.auth.uid in resource.data.viewerIds) &&
+         !request.resource.data.diff(resource.data).affectedKeys()
+           .hasAny(['assignerId', 'viewerIds', 'id', 'code', 'createdAt', 'visibilitySettings']))
       );
 
       allow delete: if isAuth() && (
@@ -118,6 +139,9 @@ service cloud.firestore {
       // shape and start unread.
       allow create: if isAuth() &&
         request.resource.data.keys().hasAll(['recipientUserId', 'title', 'message']) &&
+        request.resource.data.recipientUserId is string &&
+        request.resource.data.title is string &&
+        request.resource.data.message is string &&
         request.resource.data.isRead == false;
 
       allow update: if isAuth() && resource.data.recipientUserId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);

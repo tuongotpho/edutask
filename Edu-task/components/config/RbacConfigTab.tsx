@@ -2,6 +2,13 @@ import React, { useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { ROLE_LABELS, RoleType, User } from '@/Edu-task/types/user';
 import { isAdminEmail } from '@/Edu-task/lib/admin';
+import {
+  ALL_ROLES,
+  PERMISSION_LABELS,
+  PermissionKey,
+  ROLE_CAPABILITIES,
+  canManageRbac,
+} from '@/Edu-task/lib/permissions';
 import { 
   Settings, 
   ShieldCheck, 
@@ -24,11 +31,12 @@ export function RbacConfigTab() {
     activeRole, 
     schoolName, 
     updateSchoolName, 
-    departments, 
-    addDepartment, 
-    updateDepartment, 
-    deleteDepartment, 
-    users 
+    departments,
+    addDepartment,
+    updateDepartment,
+    deleteDepartment,
+    users,
+    showToast
   } = useApp();
 
   const [autoApprove1Day, setAutoApprove1Day] = useState(true);
@@ -44,9 +52,7 @@ export function RbacConfigTab() {
 
   const [deleteConfirm, setDeleteConfirm] = useState<{type: 'dept' | 'user' | null, id: string, name: string}>({type: null, id: '', name: ''});
 
-  const isAdmin = activeRole === 'ADMIN' || currentUser?.roles?.includes('ADMIN') || isAdminEmail(currentUser?.email);
-
-  if (!isAdmin) {
+  if (!canManageRbac(currentUser, activeRole)) {
     return (
       <div className="p-8 bg-white rounded-3xl border border-slate-200 text-center space-y-3 shadow-sm my-6">
         <div className="w-12 h-12 mx-auto rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 font-bold text-xl">
@@ -60,37 +66,10 @@ export function RbacConfigTab() {
     );
   }
 
-  const permissionsList = [
-    { key: 'leave:create', label: 'Tạo đơn xin nghỉ phép' },
-    { key: 'leave:approve_dept', label: 'Phê duyệt đơn ở cấp Nhóm/Tổ chuyên môn' },
-    { key: 'leave:approve_exec', label: 'Phê duyệt đơn ở cấp BGH' },
-    { key: 'task:create', label: 'Phát hành & Giao việc' },
-    { key: 'task:view_all', label: 'Xem tiến độ công việc toàn trường' },
-    { key: 'config:rbac', label: 'Quản trị phân quyền hệ thống' },
-  ];
-
-  const roles: RoleType[] = [
-    'TEACHER',
-    'GROUP_LEADER',
-    'HEAD_OF_DEPT',
-    'VICE_PRINCIPAL',
-    'PRINCIPAL',
-    'SECRETARY',
-    'ACCOUNTANT',
-    'TRADE_UNION',
-    'INSPECTOR',
-    'ADMIN',
-  ];
-
-  // Default permission matrix mock mapping
-  const matrix: Record<string, RoleType[]> = {
-    'leave:create': ['TEACHER', 'GROUP_LEADER', 'HEAD_OF_DEPT', 'VICE_PRINCIPAL', 'PRINCIPAL', 'SECRETARY', 'ACCOUNTANT', 'TRADE_UNION', 'INSPECTOR', 'ADMIN'],
-    'leave:approve_dept': ['GROUP_LEADER', 'HEAD_OF_DEPT', 'PRINCIPAL', 'ADMIN'],
-    'leave:approve_exec': ['VICE_PRINCIPAL', 'PRINCIPAL', 'ADMIN'],
-    'task:create': ['GROUP_LEADER', 'HEAD_OF_DEPT', 'VICE_PRINCIPAL', 'PRINCIPAL', 'ADMIN'],
-    'task:view_all': ['VICE_PRINCIPAL', 'PRINCIPAL', 'SECRETARY', 'INSPECTOR', 'ADMIN'],
-    'config:rbac': ['ADMIN'],
-  };
+  // The matrix is rendered straight from the capability table the app actually
+  // enforces, so it can never drift out of date the way the old hardcoded copy did.
+  const permissionKeys = Object.keys(ROLE_CAPABILITIES) as PermissionKey[];
+  const roles = ALL_ROLES;
 
   return (
     <div className="space-y-6">
@@ -126,10 +105,11 @@ export function RbacConfigTab() {
           />
           <button
             type="button"
-            onClick={() => {
-              if (editingSchoolName.trim()) {
-                updateSchoolName(editingSchoolName.trim());
-                alert('Đã cập nhật Tên Trường Học thành công!');
+            onClick={async () => {
+              const name = editingSchoolName.trim();
+              if (!name) return;
+              if (await updateSchoolName(name)) {
+                showToast('success', 'Đã cập nhật tên trường học.');
               }
             }}
             className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-xs shadow-sm transition-all flex items-center justify-center space-x-1.5 flex-shrink-0"
@@ -212,7 +192,7 @@ export function RbacConfigTab() {
                         type="button"
                         onClick={() => {
                           if (userCount > 0) {
-                            alert(`Không thể xóa tổ ${dept.name} vì đang có ${userCount} thành viên thuộc tổ này.`);
+                            showToast('error', `Không thể xóa tổ ${dept.name} vì đang có ${userCount} thành viên thuộc tổ này.`);
                             return;
                           }
                           setDeleteConfirm({ type: 'dept', id: dept.id, name: dept.name });
@@ -232,12 +212,22 @@ export function RbacConfigTab() {
 
       {/* Workflow Customization Rules */}
       <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-        <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-          <GitBranch className="w-4 h-4 text-indigo-600" />
-          Cấu Hình Luồng Duyệt Linh Hoạt (Workflow Rules)
-        </h3>
+        <div className="flex items-start justify-between gap-3">
+          <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
+            <GitBranch className="w-4 h-4 text-indigo-600" />
+            Cấu Hình Luồng Duyệt Linh Hoạt (Workflow Rules)
+          </h3>
+          <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold border border-slate-200 flex-shrink-0">
+            SẮP RA MẮT
+          </span>
+        </div>
 
-        <div className="space-y-3 text-xs">
+        <p className="text-xs text-slate-500 bg-amber-50 border border-amber-200 rounded-xl p-3">
+          Các tuỳ chọn dưới đây <strong>chưa có hiệu lực</strong>. Luồng duyệt hiện tại cố định 2 cấp:
+          Nhóm/Tổ trưởng chuyên môn → Ban Giám Hiệu. Phần cấu hình sẽ được bật trong bản cập nhật tới.
+        </p>
+
+        <div className="space-y-3 text-xs opacity-60">
           <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
             <div>
               <span className="font-bold text-slate-800 block">Duyệt 1 chạm cho Ban Giám Hiệu (BGH)</span>
@@ -245,9 +235,10 @@ export function RbacConfigTab() {
             </div>
             <input
               type="checkbox"
+              disabled
               checked={autoApprove1Day}
               onChange={(e) => setAutoApprove1Day(e.target.checked)}
-              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-not-allowed"
             />
           </div>
 
@@ -258,9 +249,10 @@ export function RbacConfigTab() {
             </div>
             <input
               type="checkbox"
+              disabled
               checked={allowSecretaryViewAll}
               onChange={(e) => setAllowSecretaryViewAll(e.target.checked)}
-              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500"
+              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-not-allowed"
             />
           </div>
         </div>
@@ -274,7 +266,9 @@ export function RbacConfigTab() {
               <ShieldCheck className="w-4 h-4 text-emerald-600" />
               Ma Trận Phân Quyền Theo Vai Trò (Role-Based Access Control)
             </h3>
-            <p className="text-xs text-slate-500 mt-0.5">Bảng tham chiếu chi tiết các quyền mặc định của 10 vai trò trên hệ thống</p>
+            <p className="text-xs text-slate-500 mt-0.5">
+              Bảng tham chiếu (chỉ đọc) sinh trực tiếp từ quy tắc phân quyền đang chạy trong hệ thống
+            </p>
           </div>
           <button
             type="button"
@@ -307,11 +301,11 @@ export function RbacConfigTab() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {permissionsList.map(perm => (
-                  <tr key={perm.key} className="hover:bg-slate-50">
-                    <td className="p-3 font-semibold text-slate-800">{perm.label}</td>
+                {permissionKeys.map(permKey => (
+                  <tr key={permKey} className="hover:bg-slate-50">
+                    <td className="p-3 font-semibold text-slate-800">{PERMISSION_LABELS[permKey]}</td>
                     {roles.map(role => {
-                      const hasPerm = matrix[perm.key]?.includes(role);
+                      const hasPerm = ROLE_CAPABILITIES[permKey].includes(role);
                       return (
                         <td key={role} className="p-2 text-center">
                           {hasPerm ? (
@@ -351,25 +345,23 @@ export function RbacConfigTab() {
             </div>
 
             <form
-              onSubmit={(e) => {
+              onSubmit={async (e) => {
                 e.preventDefault();
                 if (!deptFormName.trim() || !deptFormCode.trim()) {
-                  alert('Vui lòng nhập đầy đủ Tên Tổ và Mã Tổ!');
+                  showToast('error', 'Vui lòng nhập đầy đủ Tên Tổ và Mã Tổ.');
                   return;
                 }
-                if (editingDeptId) {
-                  updateDepartment(editingDeptId, {
-                    name: deptFormName.trim(),
-                    code: deptFormCode.trim(),
-                    description: deptFormDesc.trim(),
-                  });
-                } else {
-                  addDepartment({
-                    name: deptFormName.trim(),
-                    code: deptFormCode.trim(),
-                    description: deptFormDesc.trim(),
-                  });
-                }
+                const payload = {
+                  name: deptFormName.trim(),
+                  code: deptFormCode.trim(),
+                  description: deptFormDesc.trim(),
+                };
+                const ok = editingDeptId
+                  ? await updateDepartment(editingDeptId, payload)
+                  : await addDepartment(payload);
+                // Keep the form open on failure so the input is not thrown away.
+                if (!ok) return;
+                showToast('success', editingDeptId ? 'Đã cập nhật tổ chuyên môn.' : 'Đã thêm tổ chuyên môn mới.');
                 setIsDeptModalOpen(false);
               }}
               className="space-y-3 text-xs"
@@ -489,7 +481,7 @@ function UserAccountManager() {
       status: 'ACTIVE',
     };
 
-    await addUserProfile(newUser);
+    if (!await addUserProfile(newUser)) return;
     setShowAddModal(false);
     setFullName('');
     setEmail('');
@@ -719,8 +711,8 @@ function PendingUserRow({
 }: { 
   user: any; 
   deptMap: Record<string, string>;
-  onApprove: (id: string, role: RoleType, deptId: string, deptName: string) => Promise<void>;
-  onReject: (id: string) => Promise<void>;
+  onApprove: (id: string, role: RoleType, deptId: string, deptName: string) => Promise<boolean>;
+  onReject: (id: string) => Promise<boolean>;
 }) {
   const { departments } = useApp();
   const [selectedDept, setSelectedDept] = useState(user.departmentId || departments[0]?.id || 'DEPT_TOAN_TIN');
@@ -797,8 +789,10 @@ function EditUserRolesModal({
   user: User; 
   deptMap: Record<string, string>;
   onClose: () => void;
-  onSave: (updatedUser: User) => Promise<void>;
+  onSave: (updatedUser: User) => Promise<boolean>;
 }) {
+  const { departments } = useApp();
+
   const ALL_ROLES: RoleType[] = [
     'TEACHER',
     'GROUP_LEADER',
@@ -841,10 +835,8 @@ function EditUserRolesModal({
         roles: selectedRoles,
         activeRole: selectedRoles.includes(user.activeRole) ? user.activeRole : selectedRoles[0],
       };
-      await onSave(updated);
-      onClose();
-    } catch {
-      alert('Có lỗi xảy ra khi lưu thông tin phân quyền.');
+      // Keep the modal open when the write is rejected so the edit is not lost.
+      if (await onSave(updated)) onClose();
     } finally {
       setIsSaving(false);
     }
@@ -881,12 +873,9 @@ function EditUserRolesModal({
                 onChange={(e) => setDepartmentId(e.target.value)}
                 className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-semibold"
               >
-                <option value="DEPT_BGH">Ban Giám Hiệu</option>
-                <option value="DEPT_TOAN_TIN">Tổ Toán - Tin</option>
-                <option value="DEPT_VAN_SU">Tổ Ngữ Văn - Lịch Sử</option>
-                <option value="DEPT_ANH">Tổ Ngoại Ngữ</option>
-                <option value="DEPT_LY_HOA_SINH">Tổ Lý - Hóa - Sinh</option>
-                <option value="DEPT_HANH_CHINH">Tổ Hành Chính - Kế Toán</option>
+                {departments.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
               </select>
             </div>
 

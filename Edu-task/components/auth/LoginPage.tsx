@@ -3,27 +3,25 @@
 import React, { useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { 
-  Building2, 
   Lock, 
   Mail, 
   User as UserIcon, 
-  ShieldCheck, 
   ArrowRight, 
   AlertCircle,
   UserPlus,
-  LogIn,
-  Chrome
+  LogIn
 } from 'lucide-react';
-import { INITIAL_DEPARTMENTS } from '@/Edu-task/lib/storage';
-
 export function LoginPage() {
-  const { loginWithFirebase, registerWithFirebase, loginWithGoogle } = useApp();
+  // `departments` comes from the app store: the Firestore-backed list once it has
+  // been cached locally, falling back to the built-in defaults for a first-time
+  // visitor (an unauthenticated browser cannot read Firestore yet).
+  const { loginWithFirebase, registerWithFirebase, loginWithGoogle, departments } = useApp();
 
   const [isRegistering, setIsRegistering] = useState(false);
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [fullName, setFullName] = useState('');
-  const [departmentId, setDepartmentId] = useState(INITIAL_DEPARTMENTS[0].id);
+  const [departmentId, setDepartmentId] = useState(departments[0]?.id ?? '');
   
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
@@ -38,13 +36,16 @@ export function LoginPage() {
         if (!fullName.trim() || !email.trim() || !password.trim()) {
           throw new Error('Vui lòng điền đầy đủ họ tên, email và mật khẩu.');
         }
-        const dept = INITIAL_DEPARTMENTS.find(d => d.id === departmentId);
+        const dept = departments.find(d => d.id === departmentId) ?? departments[0];
+        if (!dept) {
+          throw new Error('Chưa có tổ chuyên môn nào được cấu hình. Vui lòng liên hệ Quản trị viên.');
+        }
         await registerWithFirebase(
-          email.trim(), 
-          password, 
-          fullName.trim(), 
-          dept?.id || INITIAL_DEPARTMENTS[0].id, 
-          dept?.name || 'Ban Giám Hiệu'
+          email.trim(),
+          password,
+          fullName.trim(),
+          dept.id,
+          dept.name
         );
       } else {
         if (!email.trim() || !password.trim()) {
@@ -235,7 +236,7 @@ export function LoginPage() {
                   onChange={(e) => setDepartmentId(e.target.value)}
                   className="w-full px-3 py-2.5 bg-slate-900/80 border border-slate-700 rounded-xl text-white text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500"
                 >
-                  {INITIAL_DEPARTMENTS.map(d => (
+                  {departments.map(d => (
                     <option key={d.id} value={d.id}>{d.name}</option>
                   ))}
                 </select>
