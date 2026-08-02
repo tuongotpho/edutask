@@ -84,7 +84,12 @@ export interface Task {
   priority: TaskPriority;
   status: TaskStatus;
   
-  isConfidential: boolean; // Công việc nội bộ BGH / Lãnh đạo
+  viewerIds: string[]; // Access Control List (ACL) cho việc xem công việc này
+  visibilitySettings?: {
+    bghCanView?: boolean;
+    assigneeGroupLeadersCanView?: boolean;
+    specificVicePrincipalIds?: string[];
+  };
   
   extensionRequests: ExtensionRequest[];
   activities: TaskActivity[];

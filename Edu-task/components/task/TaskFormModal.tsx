@@ -6,7 +6,7 @@ import { TaskPriority, TASK_PRIORITY_CONFIG } from '@/Edu-task/types/task';
 import { X, CheckSquare, AlertTriangle, Users, Calendar, Shield, Paperclip, Sparkles } from 'lucide-react';
 
 export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
-  const { currentUser, users, departments, createTask, getTeacherLeaveConflict } = useApp();
+  const { currentUser, activeRole, users, departments, createTask, getTeacherLeaveConflict } = useApp();
 
   const [title, setTitle] = useState('');
   const [description, setDescription] = useState('');
@@ -15,15 +15,33 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const [selectedDeptId, setSelectedDeptId] = useState('');
   const [deadline, setDeadline] = useState('2026-08-05 17:00');
   const [priority, setPriority] = useState<TaskPriority>('NORMAL');
-  const [isConfidential, setIsConfidential] = useState(false);
+  const [bghCanView, setBghCanView] = useState(true);
+  const [assigneeGroupLeadersCanView, setAssigneeGroupLeadersCanView] = useState(true);
+  const [specificVicePrincipalIds, setSpecificVicePrincipalIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   if (!isOpen || !currentUser) return null;
 
+  const isSchoolLeadershipOrAdmin = 
+    activeRole === 'ADMIN' || 
+    activeRole === 'PRINCIPAL' || 
+    activeRole === 'VICE_PRINCIPAL' || 
+    activeRole === 'SECRETARY' || 
+    activeRole === 'INSPECTOR' ||
+    currentUser?.roles?.some(r => ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'SECRETARY', 'INSPECTOR'].includes(r));
+
+  const availableDepartments = isSchoolLeadershipOrAdmin 
+    ? departments 
+    : departments.filter(d => d.id === currentUser.departmentId);
+
+  const availableUsers = isSchoolLeadershipOrAdmin
+    ? users
+    : users.filter(u => u.departmentId === currentUser.departmentId);
+
   // Smart Leave Conflicts check for selected assignees
   const targetCheckUsers = assigneeType === 'DEPARTMENT' 
-    ? users.filter(u => u.departmentId === selectedDeptId)
-    : users.filter(u => selectedUserIds.includes(u.id));
+    ? availableUsers.filter(u => u.departmentId === selectedDeptId)
+    : availableUsers.filter(u => selectedUserIds.includes(u.id));
 
   const deadlineDateStr = deadline.split(' ')[0];
   const detectedConflicts = targetCheckUsers
@@ -65,7 +83,11 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
         targetDepartmentId: selectedDeptId || undefined,
         deadline,
         priority,
-        isConfidential,
+        visibilitySettings: {
+          bghCanView,
+          assigneeGroupLeadersCanView,
+          specificVicePrincipalIds,
+        }
       });
       onClose();
     } catch (err) {
@@ -180,7 +202,7 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
                 className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white font-medium text-slate-900"
               >
                 <option value="">-- Chọn Tổ chuyên môn --</option>
-                {departments.map(d => (
+                {availableDepartments.map(d => (
                   <option key={d.id} value={d.id}>{d.name}</option>
                 ))}
               </select>
@@ -192,7 +214,7 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
             <div>
               <label className="block font-bold text-slate-800 mb-1">Chọn nhân sự thực hiện</label>
               <div className="max-h-36 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 p-1 bg-slate-50">
-                {users.map(u => {
+                {availableUsers.map(u => {
                   const isSelected = selectedUserIds.includes(u.id);
                   return (
                     <div
@@ -258,22 +280,67 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
             />
           </div>
 
-          {/* Confidential Flag */}
-          <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <Shield className="w-4 h-4 text-indigo-600" />
-              <div>
-                <span className="font-bold text-slate-800 block">Công việc bảo mật BGH / Lãnh đạo</span>
-                <span className="text-[10px] text-slate-500">Chỉ người giao và người nhận mới có quyền xem nội dung</span>
+          {/* Visibility & Security Settings */}
+          {(activeRole === 'PRINCIPAL' || activeRole === 'VICE_PRINCIPAL' || activeRole === 'ADMIN') ? (
+            <div className="p-4 rounded-xl bg-slate-50 border border-slate-200 space-y-3">
+              <div className="flex items-center space-x-2 text-indigo-700 font-bold mb-2">
+                <Shield className="w-4 h-4" />
+                <span>Quyền Theo Dõi (Ban Giám Hiệu)</span>
+              </div>
+              
+              <div className="flex items-start justify-between space-x-4">
+                <div>
+                  <span className="font-bold text-slate-800 block">Cho phép Tổ/Nhóm trưởng theo dõi</span>
+                  <span className="text-[10px] text-slate-500 block">Tổ trưởng của người nhận việc sẽ xem được tiến độ.</span>
+                </div>
+                <input
+                  type="checkbox"
+                  checked={assigneeGroupLeadersCanView}
+                  onChange={(e) => setAssigneeGroupLeadersCanView(e.target.checked)}
+                  className="w-4 h-4 mt-1 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                />
+              </div>
+
+              <div className="pt-2 border-t border-slate-200">
+                <span className="font-bold text-slate-800 block mb-2">Chia sẻ với Phó Hiệu trưởng khác:</span>
+                <div className="space-y-1">
+                  {users.filter(u => u.roles.includes('VICE_PRINCIPAL') && u.id !== currentUser.id).map(vp => (
+                    <label key={vp.id} className="flex items-center space-x-2 cursor-pointer p-1.5 hover:bg-white rounded-lg transition-colors">
+                      <input 
+                        type="checkbox" 
+                        checked={specificVicePrincipalIds.includes(vp.id)}
+                        onChange={(e) => {
+                          if (e.target.checked) setSpecificVicePrincipalIds([...specificVicePrincipalIds, vp.id]);
+                          else setSpecificVicePrincipalIds(specificVicePrincipalIds.filter(id => id !== vp.id));
+                        }}
+                        className="rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+                      />
+                      <span className="text-sm font-medium text-slate-700">{vp.fullName}</span>
+                    </label>
+                  ))}
+                  {users.filter(u => u.roles.includes('VICE_PRINCIPAL') && u.id !== currentUser.id).length === 0 && (
+                    <span className="text-xs text-slate-500">Không có Phó Hiệu trưởng nào khác.</span>
+                  )}
+                </div>
               </div>
             </div>
-            <input
-              type="checkbox"
-              checked={isConfidential}
-              onChange={(e) => setIsConfidential(e.target.checked)}
-              className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
-            />
-          </div>
+          ) : (
+            <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
+              <div className="flex items-center space-x-2">
+                <Shield className="w-4 h-4 text-indigo-600" />
+                <div>
+                  <span className="font-bold text-slate-800 block">Cho phép BGH theo dõi</span>
+                  <span className="text-[10px] text-slate-500">Ban Giám Hiệu sẽ nhìn thấy công việc này (Nên bỏ chọn với việc lặt vặt nội bộ tổ).</span>
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={bghCanView}
+                onChange={(e) => setBghCanView(e.target.checked)}
+                className="w-4 h-4 rounded border-slate-300 text-indigo-600 focus:ring-indigo-500"
+              />
+            </div>
+          )}
 
           {/* Submit */}
           <div className="pt-2 flex items-center justify-end space-x-2 border-t border-slate-100">

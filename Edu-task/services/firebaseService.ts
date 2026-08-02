@@ -124,12 +124,8 @@ export const firebaseService = {
     let q = collection(db, 'tasks') as any;
     
     if (filters) {
-      // Note: for tasks we might need more complex queries depending on assignees.
-      // Since assignees is an array, it's tricky to filter purely here without changing data model.
-      // As a performance compromise for this scope, we load tasks and filter later, but apply a limit
-      // if it grows too large, or if it's a specific department.
-      if (filters.role === 'GROUP_LEADER' || filters.role === 'HEAD_OF_DEPT') {
-        q = query(q, where('targetDepartmentId', '==', filters.deptId));
+      if (filters.role !== 'ADMIN' && filters.userId) {
+        q = query(q, where('viewerIds', 'array-contains', filters.userId));
       }
     }
 

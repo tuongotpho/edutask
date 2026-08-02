@@ -9,6 +9,7 @@ import {
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/Edu-task/lib/firebase';
 import { User, RoleType } from '@/Edu-task/types/user';
+import { isAdminEmail } from '@/Edu-task/lib/admin';
 
 function sanitizeForFirestore<T>(obj: T): T {
   return JSON.parse(JSON.stringify(obj));
@@ -40,7 +41,7 @@ export const firebaseAuthService = {
       userProfile = userDocSnap.data() as User;
     } else {
       // First time Google sign in -> Create Pending Approval Profile
-      const isAdminEmail = fbUser.email?.toLowerCase() === 'admin@gmail.com';
+      const isAdmin = isAdminEmail(fbUser.email);
       userProfile = {
         id: fbUser.uid,
         fullName: fbUser.displayName || 'Giáo viên mới',
@@ -49,11 +50,11 @@ export const firebaseAuthService = {
         phone: fbUser.phoneNumber || '',
         departmentId: 'DEPT_TOAN_TIN',
         departmentName: 'Tổ Toán - Tin',
-        roles: isAdminEmail ? ['ADMIN', 'PRINCIPAL'] : ['TEACHER'],
-        activeRole: isAdminEmail ? 'ADMIN' : 'TEACHER',
+        roles: isAdmin ? ['ADMIN', 'PRINCIPAL'] : ['TEACHER'],
+        activeRole: isAdmin ? 'ADMIN' : 'TEACHER',
         isTeachingStaff: true,
         subject: 'Chưa phân công môn',
-        status: isAdminEmail ? 'ACTIVE' : 'PENDING_APPROVAL',
+        status: isAdmin ? 'ACTIVE' : 'PENDING_APPROVAL',
       };
       await setDoc(userDocRef, sanitizeForFirestore(userProfile));
     }
@@ -73,7 +74,7 @@ export const firebaseAuthService = {
     const credential = await createUserWithEmailAndPassword(auth, email, pass);
     const fbUser = credential.user;
 
-    const isAdmin = email.toLowerCase() === 'admin@gmail.com';
+    const isAdmin = isAdminEmail(email);
 
     const userProfile: User = {
       id: fbUser.uid,
@@ -104,7 +105,8 @@ export const firebaseAuthService = {
     try {
       const userDocSnap = await getDoc(doc(db, 'users', uid));
       if (userDocSnap.exists()) {
-        return userDocSnap.data() as User;
+        const data = userDocSnap.data() as User;
+        return data;
       }
     } catch {
       // fallback
@@ -118,7 +120,7 @@ export const firebaseAuthService = {
     const adminUser: User = {
       id: 'USR_ADMIN',
       fullName: 'Quản trị viên Hệ thống (Admin)',
-      email: 'admin@gmail.com',
+      email: process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(',')[0]?.trim() || 'admin@gmail.com',
       phone: '0900 000 999',
       departmentId: 'DEPT_BGH',
       departmentName: 'Ban Giám Hiệu',

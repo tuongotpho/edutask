@@ -14,7 +14,10 @@
       }
     ]
   },
-  "firestore": {
-    "rules": "firestore.rules"
-  }
+  "firestore": [
+    {
+      "database": "edutask",
+      "rules": "firestore.rules"
+    }
+  ]
 }

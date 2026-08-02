@@ -45,29 +45,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
 
   if (!task || !currentUser) return null;
 
-  const isSchoolLeadershipOrAdmin = 
-    activeRole === 'ADMIN' || 
-    activeRole === 'PRINCIPAL' || 
-    activeRole === 'VICE_PRINCIPAL' || 
-    activeRole === 'SECRETARY' || 
-    activeRole === 'INSPECTOR' ||
-    currentUser?.roles?.some(r => ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'SECRETARY', 'INSPECTOR'].includes(r));
-
-  const isDeptHeader = 
-    activeRole === 'HEAD_OF_DEPT' || 
-    activeRole === 'GROUP_LEADER' || 
-    currentUser?.roles?.some(r => ['HEAD_OF_DEPT', 'GROUP_LEADER'].includes(r));
-
-  const isAssigneeUserInDept = task.assignees.some(a => {
-    const u = users.find(usr => usr.id === a.userId);
-    return u?.departmentId === currentUser.departmentId;
-  });
-
-  const canViewTask = 
-    isSchoolLeadershipOrAdmin || 
-    (isDeptHeader && (task.assignerId === currentUser.id || isAssigneeUserInDept)) || 
-    task.assignerId === currentUser.id || 
-    task.assignees.some(a => a.userId === currentUser.id);
+  const canViewTask = task.viewerIds?.includes(currentUser.id) || activeRole === 'ADMIN';
 
   if (!canViewTask) {
     return (

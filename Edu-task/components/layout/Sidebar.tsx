@@ -14,6 +14,7 @@ import {
   HelpCircle,
   Clock
 } from 'lucide-react';
+import { isAdminEmail } from '@/Edu-task/lib/admin';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { ROLE_LABELS } from '@/Edu-task/types/user';
 
@@ -57,8 +58,8 @@ export function Sidebar({
   const activeTasksCount = tasks.filter(t => t.status === 'ASSIGNED' || t.status === 'IN_PROGRESS' || t.status === 'PENDING_APPROVAL').length;
   const pendingUsersCount = users.filter(u => u.status === 'PENDING_APPROVAL').length;
 
-  const canAssignTasks = activeRole === 'PRINCIPAL' || activeRole === 'VICE_PRINCIPAL' || activeRole === 'HEAD_OF_DEPT' || activeRole === 'ADMIN';
-  const isAdmin = activeRole === 'ADMIN' || currentUser?.roles?.includes('ADMIN') || currentUser?.email === 'admin@gmail.com';
+  const canAssignTasks = activeRole === 'PRINCIPAL' || activeRole === 'VICE_PRINCIPAL' || activeRole === 'HEAD_OF_DEPT' || activeRole === 'GROUP_LEADER' || activeRole === 'ADMIN';
+  const isAdmin = activeRole === 'ADMIN' || currentUser?.roles?.includes('ADMIN') || isAdminEmail(currentUser?.email);
   const canViewStats = 
     activeRole === 'ADMIN' || 
     activeRole === 'PRINCIPAL' || 

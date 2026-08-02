@@ -16,7 +16,7 @@ export const INITIAL_USERS: User[] = [
   {
     id: 'USR_ADMIN',
     fullName: 'Quản trị viên Hệ thống (Admin)',
-    email: 'admin@gmail.com',
+    email: process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(',')[0]?.trim() || 'admin@gmail.com',
     phone: '0900 000 999',
     departmentId: 'DEPT_BGH',
     departmentName: 'Ban Giám Hiệu',

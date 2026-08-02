@@ -1,0 +1,111 @@
+=== ROBUST E2E TEST LOGS ===
+
+[SYSTEM] Starting Puppeteer for Robust Deep E2E Testing...
+[SYSTEM] Logging in as hoa1@gmail.com...
+[SYSTEM] [Browser Console] VERBOSE: [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o
+[SYSTEM] [Browser Console] LOG: onAuthChange fired: 
+[SYSTEM] [Browser Console] LOG: handleLoginSubmit called [object Object]
+[SYSTEM] [Browser Console] LOG: loginWithFirebase called with: hoa1@gmail.com
+[SYSTEM] [Browser Console] LOG: onAuthChange fired: hoa1@gmail.com
+[SYSTEM] [Browser Console] LOG: onAuthChange match found: false 1
+[SYSTEM] [Browser Console] LOG: loginWithFirebase login success!
+[SYSTEM] [Browser Console] LOG: loginWithFirebase match: false 1
+[SYSTEM] [Browser Console] LOG: NO MATCH in loginWithFirebase for hoa1@gmail.com
+[SYSTEM] [Browser Console] LOG: onAuthChange fired: hoa1@gmail.com
+[SYSTEM] [Browser Console] LOG: onAuthChange match found: true 14
+[SYSTEM] [Browser Console] LOG: onAuthChange match found: true 14 match.activeRole: TEACHER fallback to: TEACHER
+[SYSTEM] Logged in as hoa1@gmail.com
+[SYSTEM] Clicking Nghỉ Phép tab...
+[SYSTEM] Looking for text: "Nghỉ Phép"
+[SYSTEM] Clicked element containing: "Nghỉ Phép"
+[SYSTEM] Clicking Tạo Đơn...
+[SYSTEM] Looking for text: "Tạo Đơn Xin Nghỉ"
+[SYSTEM] Clicked element containing: "Tạo Đơn Xin Nghỉ"
+[SYSTEM] Filling reason...
+[SYSTEM] Submitting leave request...
+[SYSTEM] Logging out...
+[SYSTEM] [Browser Console] LOG: onAuthChange fired: 
+[SYSTEM] [Browser Console] VERBOSE: [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o
+[SYSTEM] Logged out.
+[SYSTEM] Logging in as nhomtruong.hoa@gmail.com...
+[SYSTEM] [Browser Console] VERBOSE: [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o
+[SYSTEM] [Browser Console] LOG: onAuthChange fired: 
+[SYSTEM] [Browser Console] LOG: handleLoginSubmit called [object Object]
+[SYSTEM] [Browser Console] LOG: loginWithFirebase called with: nhomtruong.hoa@gmail.com
+[SYSTEM] [Browser Console] LOG: onAuthChange fired: nhomtruong.hoa@gmail.com
+[SYSTEM] [Browser Console] LOG: onAuthChange match found: false 1
+[SYSTEM] [Browser Console] LOG: loginWithFirebase login success!
+[SYSTEM] [Browser Console] LOG: loginWithFirebase match: false 1
+[SYSTEM] [Browser Console] LOG: NO MATCH in loginWithFirebase for nhomtruong.hoa@gmail.com
+[SYSTEM] [Browser Console] LOG: onAuthChange fired: nhomtruong.hoa@gmail.com
+[SYSTEM] [Browser Console] LOG: onAuthChange match found: true 14
+[SYSTEM] [Browser Console] LOG: onAuthChange match found: true 14 match.activeRole: TEACHER fallback to: TEACHER
+[SYSTEM] Logged in as nhomtruong.hoa@gmail.com
+[SYSTEM] Clicking Nghỉ Phép tab...
+[SYSTEM] Looking for text: "Nghỉ Phép"
+[SYSTEM] Clicked element containing: "Nghỉ Phép"
+[SYSTEM] Switching Role to GROUP_LEADER...
+[SYSTEM] Looking for text: "Nhóm trưởng chuyên môn"
+[SYSTEM] [Browser Console] LOG: onAuthChange fired: nhomtruong.hoa@gmail.com
+[SYSTEM] [Browser Console] LOG: onAuthChange match found: true 14
+[SYSTEM] [Browser Console] LOG: onAuthChange match found: true 14 match.activeRole: GROUP_LEADER fallback to: TEACHER
+[SYSTEM] Clicked element containing: "Nhóm trưởng chuyên môn"
+[SYSTEM] [Browser Console] LOG: onAuthChange fired: nhomtruong.hoa@gmail.com
+[SYSTEM] [Browser Console] LOG: onAuthChange match found: true 14
+[SYSTEM] [Browser Console] LOG: onAuthChange match found: true 14 match.activeRole: GROUP_LEADER fallback to: TEACHER
+[SYSTEM] Finding Leave request to approve...
+[SYSTEM] Looking for text: "khám sức khỏe định kỳ"
+[SYSTEM] Clicked element containing: "khám sức khỏe định kỳ"
+[SYSTEM] Selecting substitute teacher...
+[SYSTEM] Looking for text: "Lưu Điều Chỉnh Dạy Thay"
+[SYSTEM] Failed to find element containing: "Lưu Điều Chỉnh Dạy Thay". Body text preview: E EduTask TRƯỜNG THPT CHUYÊN EDUTASK  Hệ thống Quản lý Công việc & Đơn từ Nội bộ  Nhóm trưởng chuyên môn 17 H Nhóm Trưởng Hoá Tổ Hoá - Sinh Tạo Đơn Xin Nghỉ Giao Việc Mới DANH MỤC QUẢN LÝ Tổng Quan Đơn Xin Nghỉ 17 Quản Lý Giao Việc Lịch Nghỉ & Việc Cá Nhân Báo Cáo & Thống Kê EduTask v1.0.4 • Trường học Chuyển đổi số Vai trò hiện tại: GROUP_LEADER Xin chào, Nhóm Trưởng Hoá!  Hệ thống EduTask tự động kết nối luồng xin nghỉ phép và giao việc toàn trường, giúp giảm bớt thao tác giấy tờ và minh bạch 
+[SYSTEM] Approving leave...
+[SYSTEM] Looking for text: "Phê Duyệt"
+[SYSTEM] Clicked element containing: "Phê Duyệt"
+[SYSTEM] Clicking Giao Việc tab...
+[SYSTEM] Looking for text: "Giao Việc"
+[SYSTEM] Clicked element containing: "Giao Việc"
+[SYSTEM] Clicking Giao Việc Mới...
+[SYSTEM] Looking for text: "Giao Việc Mới"
+[SYSTEM] Clicked element containing: "Giao Việc Mới"
+[SYSTEM] Filling task form...
+[SYSTEM] Looking for text: "Cá nhân"
+[SYSTEM] Clicked element containing: "Cá nhân"
+[SYSTEM] Selecting user GV Hoá 2...
+[SYSTEM] Filling Title and Deadline...
+[SYSTEM] Submitting task...
+[SYSTEM] Looking for text: "Phát Hành Công Việc"
+[SYSTEM] Clicked element containing: "Phát Hành Công Việc"
+[SYSTEM] Logging out...
+[SYSTEM] [Browser Console] LOG: onAuthChange fired: 
+[SYSTEM] [Browser Console] VERBOSE: [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o
+[SYSTEM] Logged out.
+[SYSTEM] Logging in as hieutruong@gmail.com...
+[SYSTEM] [Browser Console] VERBOSE: [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o
+[SYSTEM] [Browser Console] LOG: onAuthChange fired: 
+[SYSTEM] [Browser Console] LOG: handleLoginSubmit called [object Object]
+[SYSTEM] [Browser Console] LOG: loginWithFirebase called with: hieutruong@gmail.com
+[SYSTEM] [Browser Console] LOG: onAuthChange fired: hieutruong@gmail.com
+[SYSTEM] [Browser Console] LOG: onAuthChange match found: false 1
+[SYSTEM] [Browser Console] LOG: loginWithFirebase login success!
+[SYSTEM] [Browser Console] LOG: loginWithFirebase match: false 1
+[SYSTEM] [Browser Console] LOG: NO MATCH in loginWithFirebase for hieutruong@gmail.com
+[SYSTEM] [Browser Console] LOG: onAuthChange fired: hieutruong@gmail.com
+[SYSTEM] [Browser Console] LOG: onAuthChange match found: true 14
+[SYSTEM] [Browser Console] LOG: onAuthChange match found: true 14 match.activeRole: PRINCIPAL fallback to: PRINCIPAL
+[SYSTEM] [Browser Console] LOG: onAuthChange fired: hieutruong@gmail.com
+[SYSTEM] [Browser Console] LOG: onAuthChange match found: true 14
+[SYSTEM] [Browser Console] LOG: onAuthChange match found: true 14 match.activeRole: PRINCIPAL fallback to: PRINCIPAL
+[SYSTEM] Logged in as hieutruong@gmail.com
+[SYSTEM] Checking Tasks...
+[SYSTEM] Looking for text: "Giao Việc"
+[SYSTEM] Clicked element containing: "Giao Việc"
+[SYSTEM] Checking Leaves...
+[SYSTEM] Looking for text: "Nghỉ Phép"
+[SYSTEM] Clicked element containing: "Nghỉ Phép"
+[SYSTEM] Logging out...
+[SYSTEM] [Browser Console] LOG: onAuthChange fired: 
+[SYSTEM] [Browser Console] VERBOSE: [DOM] Input elements should have autocomplete attributes (suggested: "current-password"): (More info: https://goo.gl/9p2vKq) %o
+[SYSTEM] Logged out.
+[SYSTEM] Closing browser...
+[SYSTEM] Tests completed.

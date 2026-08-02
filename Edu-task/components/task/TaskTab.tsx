@@ -31,31 +31,8 @@ export function TaskTab({ onRequestNewTask, onSelectTask }: TaskTabProps) {
 
   const canAssign = activeRole === 'PRINCIPAL' || activeRole === 'VICE_PRINCIPAL' || activeRole === 'HEAD_OF_DEPT';
 
-  const isSchoolExecutiveOrAdmin = 
-    activeRole === 'ADMIN' || 
-    activeRole === 'PRINCIPAL' || 
-    activeRole === 'VICE_PRINCIPAL' || 
-    activeRole === 'SECRETARY' || 
-    activeRole === 'INSPECTOR' ||
-    currentUser?.roles?.some(r => ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'SECRETARY', 'INSPECTOR'].includes(r));
-
-  const isDeptLeader = 
-    activeRole === 'HEAD_OF_DEPT' || 
-    activeRole === 'GROUP_LEADER' || 
-    currentUser?.roles?.some(r => ['HEAD_OF_DEPT', 'GROUP_LEADER'].includes(r));
-
   const visibleTasks = tasks.filter(task => {
-    if (isSchoolExecutiveOrAdmin) return true;
-    if (isDeptLeader) {
-      return (
-        task.assignerId === currentUser?.id ||
-        task.assignees?.some(a => {
-          const assigneeUser = users.find(u => u.id === a.userId);
-          return assigneeUser?.departmentId === currentUser?.departmentId;
-        })
-      );
-    }
-    return task.assignerId === currentUser?.id || task.assignees?.some(a => a.userId === currentUser?.id);
+    return activeRole === 'ADMIN' || (task.viewerIds && task.viewerIds.includes(currentUser?.id || ''));
   });
 
   // Filter tasks

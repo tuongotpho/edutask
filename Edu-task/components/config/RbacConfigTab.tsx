@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { ROLE_LABELS, RoleType, User } from '@/Edu-task/types/user';
+import { isAdminEmail } from '@/Edu-task/lib/admin';
 import { 
   Settings, 
   ShieldCheck, 
@@ -40,7 +41,7 @@ export function RbacConfigTab() {
   const [deptFormCode, setDeptFormCode] = useState('');
   const [deptFormDesc, setDeptFormDesc] = useState('');
 
-  const isAdmin = activeRole === 'ADMIN' || currentUser?.roles?.includes('ADMIN') || currentUser?.email === 'admin@gmail.com';
+  const isAdmin = activeRole === 'ADMIN' || currentUser?.roles?.includes('ADMIN') || isAdminEmail(currentUser?.email);
 
   if (!isAdmin) {
     return (
@@ -561,7 +562,7 @@ function UserAccountManager() {
                       <Edit className="w-3 h-3" />
                       <span>Sửa Vai Trò</span>
                     </button>
-                    {u.id !== 'USR_ADMIN' && u.email !== 'admin@gmail.com' && (
+                    {u.id !== 'USR_ADMIN' && !isAdminEmail(u.email) && (
                       <button
                         onClick={() => {
                           if (confirm(`Bạn có chắc muốn xóa tài khoản ${u.fullName}?`)) {
