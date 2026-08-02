@@ -81,6 +81,17 @@ firestore.rules          Quy tắc bảo mật — ranh giới bảo mật thậ
 Đẩy lên nhánh `main` sẽ kích hoạt [GitHub Actions](.github/workflows/deploy.yml):
 type-check → unit test → build → deploy `firestore.rules` → deploy hosting.
 
+> ⚠️ **Bước deploy rules hiện chưa tự động được.** Service account triển khai
+> thiếu quyền gọi `serviceusage.googleapis.com`, nên Firebase CLI báo 403 khi
+> kiểm tra API trước lúc deploy. Bước này được đặt `continue-on-error` để không
+> chặn deploy hosting; khi nó thất bại, CI in cảnh báo và **bạn phải áp dụng
+> `firestore.rules` thủ công** qua Firebase Console.
+>
+> Để bật lại tự động hoàn toàn: vào Google Cloud Console → IAM, cấp cho service
+> account triển khai hai vai trò `roles/serviceusage.serviceUsageConsumer` và
+> `roles/firebaserules.admin`, rồi đổi `continue-on-error` thành `false` trong
+> `deploy.yml`.
+
 Triển khai thủ công:
 ```bash
 npm run build && npx firebase deploy

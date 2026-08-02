@@ -53,20 +53,40 @@ jobs:
           fi
 
       # Security rules are the ONLY authorization boundary for this app (the
-      # client talks to Firestore directly), so they must ship with the code.
-      # Deployed before hosting: if the new rules are rejected, the old frontend
-      # keeps running against the old rules instead of a mismatched pair.
+      # client talks to Firestore directly), so CI tries to ship them with the
+      # code. Runs before hosting: if rules are rejected, the old frontend keeps
+      # running against the old rules instead of a mismatched pair.
+      #
+      # This step does NOT fail the job. The Firebase CLI first calls
+      # serviceusage.googleapis.com to confirm the Firestore API is enabled, and
+      # that call 403s unless the deploy service account holds
+      # `roles/serviceusage.serviceUsageConsumer`. Blocking the whole pipeline on
+      # a permission check would stop hosting from shipping too, so a failure is
+      # surfaced as a loud warning instead and the rules are applied by hand.
+      #
+      # TO RE-ENABLE FULL AUTOMATION: in Google Cloud Console -> IAM, grant the
+      # deploy service account both:
+      #   - roles/serviceusage.serviceUsageConsumer
+      #   - roles/firebaserules.admin
+      # then flip `continue-on-error` to false so drift becomes a hard failure.
       - name: Deploy Firestore Security Rules
+        id: deploy_rules
+        continue-on-error: true
         env:
           GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-service-account.json
           SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_APP_FROM_AI || secrets.FIREBASE_SERVICE_ACCOUNT }}
         run: |
           printf '%s' "$SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          trap 'rm -f "$GOOGLE_APPLICATION_CREDENTIALS"' EXIT
           npx --yes firebase-tools@15 deploy \
             --only firestore:rules \
             --project app-from-ai \
             --non-interactive
-          rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
+
+      - name: Warn if rules were not deployed
+        if: steps.deploy_rules.outcome == 'failure'
+        run: |
+          echo "::warning title=Firestore rules NOT deployed::CI could not deploy firestore.rules (usually a missing serviceusage.serviceUsageConsumer role on the deploy service account). The frontend below WILL ship. Apply firestore.rules manually in the Firebase Console, or grant the IAM roles listed in deploy.yml."
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0
