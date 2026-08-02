@@ -2,18 +2,12 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
-import { LeaveRequest, LEAVE_TYPE_LABELS, LEAVE_SESSION_LABELS, LeaveType } from '@/Edu-task/types/leave';
+import { LEAVE_TYPE_LABELS, LEAVE_SESSION_LABELS, LeaveType } from '@/Edu-task/types/leave';
+import { canViewLeave, isSchoolLeadership } from '@/Edu-task/lib/permissions';
 import { 
   FileText, 
   Search, 
-  Filter, 
-  PlusCircle, 
-  Clock, 
-  CheckCircle2, 
-  XCircle, 
-  UserCheck, 
-  AlertCircle,
-  Building2
+  PlusCircle
 } from 'lucide-react';
 
 interface LeaveTabProps {
@@ -30,30 +24,10 @@ export function LeaveTab({ onRequestNewLeave, onSelectLeave, searchTerm = '' }: 
   const [selectedType, setSelectedType] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
-  const isSchoolLeadershipOrAdmin = 
-    activeRole === 'ADMIN' || 
-    activeRole === 'PRINCIPAL' || 
-    activeRole === 'VICE_PRINCIPAL' || 
-    activeRole === 'SECRETARY' || 
-    activeRole === 'INSPECTOR' ||
-    currentUser?.roles?.includes('ADMIN') ||
-    currentUser?.roles?.includes('PRINCIPAL') ||
-    currentUser?.roles?.includes('VICE_PRINCIPAL');
-
-  const isDeptHeader = 
-    activeRole === 'HEAD_OF_DEPT' || 
-    activeRole === 'GROUP_LEADER' || 
-    currentUser?.roles?.includes('HEAD_OF_DEPT') || 
-    currentUser?.roles?.includes('GROUP_LEADER');
+  const isSchoolLeadershipOrAdmin = isSchoolLeadership(currentUser, activeRole);
 
   // Filter leaves based on user role & department permission scope
-  const visibleLeaves = leaves.filter(leave => {
-    if (isSchoolLeadershipOrAdmin) return true;
-    if (isDeptHeader) {
-      return leave.departmentId === currentUser?.departmentId || leave.applicantId === currentUser?.id;
-    }
-    return leave.applicantId === currentUser?.id || leave.substituteTeacherId === currentUser?.id;
-  });
+  const visibleLeaves = leaves.filter(leave => canViewLeave(currentUser, activeRole, leave));
 
   // Filter logic
   const filteredLeaves = visibleLeaves.filter(leave => {

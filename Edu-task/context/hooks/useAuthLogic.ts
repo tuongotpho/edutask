@@ -1,55 +1,35 @@
-import { User, RoleType } from '@/Edu-task/types/user';
-import { storage } from '@/Edu-task/lib/storage';
-import { firebaseService } from '@/Edu-task/services/firebaseService';
+import { User } from '@/Edu-task/types/user';
 import { firebaseAuthService } from '@/Edu-task/services/firebaseAuthService';
 
 interface AuthLogicProps {
-  users: User[];
   setCurrentUser: React.Dispatch<React.SetStateAction<User | null>>;
-  setActiveRole: React.Dispatch<React.SetStateAction<RoleType>>;
   setIsAuthenticated: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export function useAuthLogic({ users, setCurrentUser, setActiveRole, setIsAuthenticated }: AuthLogicProps) {
-  
+export function useAuthLogic({ setCurrentUser, setIsAuthenticated }: AuthLogicProps) {
+
+  // NOTE: for the three real Firebase flows below we deliberately do NOT set
+  // currentUser / activeRole / isAuthenticated here. The single onAuthChange
+  // listener in AppContext derives those from the auth state (and the live
+  // users snapshot), so setting them here too raced against that effect and
+  // could momentarily show a stale profile built from the cached users list.
+
   const loginWithGoogle = async () => {
-    const { userProfile } = await firebaseAuthService.loginWithGoogle();
-    setIsAuthenticated(true);
-    setCurrentUser(userProfile);
-    setActiveRole(userProfile.activeRole || userProfile.roles[0] || 'TEACHER');
+    await firebaseAuthService.loginWithGoogle();
   };
 
   const loginWithFirebase = async (email: string, pass: string) => {
     await firebaseAuthService.login(email, pass);
-    setIsAuthenticated(true);
-    const match = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (match) {
-      setCurrentUser(match);
-      setActiveRole(match.activeRole || match.roles[0]);
-    }
   };
 
   const registerWithFirebase = async (email: string, pass: string, fullName: string, deptId: string, deptName: string) => {
-    const newProfile = await firebaseAuthService.register(email, pass, fullName, deptId, deptName);
-    setIsAuthenticated(true);
-    setCurrentUser(newProfile);
-    setActiveRole(newProfile.roles[0]);
-    await firebaseService.saveUser(newProfile);
+    // register() already writes the profile to Firestore; the auth-state effect
+    // picks it up, so no extra saveUser / manual state update is needed here.
+    await firebaseAuthService.register(email, pass, fullName, deptId, deptName);
   };
 
-  const loginAsDemoUser = (email: string) => {
-    let match = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    if (!match && email === 'admin@gmail.com') {
-      match = users.find(u => u.id === 'USR_ADMIN');
-    }
-    if (match) {
-      setIsAuthenticated(true);
-      setCurrentUser(match);
-      setActiveRole(match.activeRole || match.roles[0]);
-      storage.setCurrentUserId(match.id);
-    }
-  };
-
+  // Signing out is the one flow that clears state directly: the auth listener
+  // fires too, but doing it here avoids a frame of stale user data on screen.
   const logout = async () => {
     try {
       await firebaseAuthService.logout();
@@ -64,7 +44,6 @@ export function useAuthLogic({ users, setCurrentUser, setActiveRole, setIsAuthen
     loginWithGoogle,
     loginWithFirebase,
     registerWithFirebase,
-    loginAsDemoUser,
     logout,
   };
 }

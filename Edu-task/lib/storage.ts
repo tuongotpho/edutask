@@ -1,5 +1,5 @@
-import { User, Department, RoleType } from '@/Edu-task/types/user';
-import { LeaveRequest, WorkflowRule } from '@/Edu-task/types/leave';
+import { User, Department } from '@/Edu-task/types/user';
+import { LeaveRequest } from '@/Edu-task/types/leave';
 import { Task } from '@/Edu-task/types/task';
 import { AppNotification } from '@/Edu-task/types/notification';
 
@@ -66,14 +66,6 @@ class StorageService {
     this.setItem('users', users);
   }
 
-  getCurrentUserId(): string {
-    return this.getItem<string>('current_user_id', 'USR_003'); // Default to Thầy Nam (HOD)
-  }
-
-  setCurrentUserId(id: string): void {
-    this.setItem('current_user_id', id);
-  }
-
   // Leave Requests
   getLeaves(): LeaveRequest[] {
     return this.getItem<LeaveRequest[]>('leaves', INITIAL_LEAVES);
@@ -83,17 +75,6 @@ class StorageService {
     this.setItem('leaves', leaves);
   }
 
-  addLeave(leave: LeaveRequest): void {
-    const leaves = this.getLeaves();
-    leaves.unshift(leave);
-    this.saveLeaves(leaves);
-  }
-
-  updateLeave(updated: LeaveRequest): void {
-    const leaves = this.getLeaves().map(l => l.id === updated.id ? updated : l);
-    this.saveLeaves(leaves);
-  }
-
   // Tasks
   getTasks(): Task[] {
     return this.getItem<Task[]>('tasks', INITIAL_TASKS);
@@ -101,17 +82,6 @@ class StorageService {
 
   saveTasks(tasks: Task[]): void {
     this.setItem('tasks', tasks);
-  }
-
-  addTask(task: Task): void {
-    const tasks = this.getTasks();
-    tasks.unshift(task);
-    this.saveTasks(tasks);
-  }
-
-  updateTask(updated: Task): void {
-    const tasks = this.getTasks().map(t => t.id === updated.id ? updated : t);
-    this.saveTasks(tasks);
   }
 
   // Notifications
@@ -148,18 +118,6 @@ class StorageService {
 
   saveDepartments(depts: Department[]): void {
     this.setItem('departments', depts);
-  }
-
-  // Reset to initial demo state
-  resetAllData(): void {
-    if (typeof window === 'undefined') return;
-    localStorage.removeItem(this.STORAGE_KEY_PREFIX + 'users');
-    localStorage.removeItem(this.STORAGE_KEY_PREFIX + 'leaves');
-    localStorage.removeItem(this.STORAGE_KEY_PREFIX + 'tasks');
-    localStorage.removeItem(this.STORAGE_KEY_PREFIX + 'notifications');
-    localStorage.removeItem(this.STORAGE_KEY_PREFIX + 'current_user_id');
-    localStorage.removeItem(this.STORAGE_KEY_PREFIX + 'school_name');
-    localStorage.removeItem(this.STORAGE_KEY_PREFIX + 'departments');
   }
 }
 

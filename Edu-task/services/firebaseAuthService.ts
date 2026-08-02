@@ -8,12 +8,9 @@ import {
 } from 'firebase/auth';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { auth, db, googleProvider } from '@/Edu-task/lib/firebase';
+import { sanitizeForFirestore } from '@/Edu-task/lib/utils';
 import { User, RoleType } from '@/Edu-task/types/user';
 import { isAdminEmail } from '@/Edu-task/lib/admin';
-
-function sanitizeForFirestore<T>(obj: T): T {
-  return JSON.parse(JSON.stringify(obj));
-}
 
 export const firebaseAuthService = {
   // Listen to Auth State Changes

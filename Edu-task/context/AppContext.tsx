@@ -1,12 +1,14 @@
 'use client';
 
-import React, { createContext, useContext, useState, useEffect } from 'react';
+import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { User as FirebaseAuthUser } from 'firebase/auth';
-import { User, RoleType, ROLE_LABELS, Department } from '@/Edu-task/types/user';
-import { LeaveRequest, LeaveType, LeaveSession, ApprovalStatus, LeaveHistoryLog } from '@/Edu-task/types/leave';
+import { User, RoleType, Department } from '@/Edu-task/types/user';
+import { LeaveRequest, LeaveType, LeaveSession, ApprovalStatus } from '@/Edu-task/types/leave';
 import { Task, TaskPriority, TaskStatus } from '@/Edu-task/types/task';
 import { AppNotification } from '@/Edu-task/types/notification';
-import { storage } from '@/Edu-task/lib/storage';
+import { storage, INITIAL_DEPARTMENTS } from '@/Edu-task/lib/storage';
+import { genId } from '@/Edu-task/lib/utils';
+import { ToastKind, ToastMessage } from '@/Edu-task/components/common/Toast';
 import { firebaseService } from '@/Edu-task/services/firebaseService';
 import { firebaseAuthService } from '@/Edu-task/services/firebaseAuthService';
 import { useAuthLogic } from './hooks/useAuthLogic';
@@ -23,30 +25,37 @@ interface AppContextType {
   tasks: Task[];
   notifications: AppNotification[];
   isAuthenticated: boolean;
-  
+
+  // Transient user feedback
+  toasts: ToastMessage[];
+  showToast: (kind: ToastKind, text: string) => void;
+  dismissToast: (id: string) => void;
+
   // School & Department Config
   schoolName: string;
   departments: Department[];
-  updateSchoolName: (name: string) => void;
-  addDepartment: (data: { name: string; code: string; description?: string }) => void;
-  updateDepartment: (id: string, data: { name: string; code: string; description?: string }) => void;
-  deleteDepartment: (id: string) => void;
+  updateSchoolName: (name: string) => Promise<boolean>;
+  addDepartment: (data: { name: string; code: string; description?: string }) => Promise<boolean>;
+  updateDepartment: (id: string, data: { name: string; code: string; description?: string }) => Promise<boolean>;
+  deleteDepartment: (id: string) => Promise<boolean>;
 
   // Auth & Account Management
   loginWithFirebase: (email: string, pass: string) => Promise<void>;
   loginWithGoogle: () => Promise<void>;
   registerWithFirebase: (email: string, pass: string, fullName: string, deptId: string, deptName: string) => Promise<void>;
-  loginAsDemoUser: (email: string) => void;
   logout: () => Promise<void>;
   
   // User Management
-  addUserProfile: (user: User) => Promise<void>;
-  approveUserProfile: (userId: string, role: RoleType, deptId: string, deptName: string) => Promise<void>;
-  rejectUserProfile: (userId: string) => Promise<void>;
-  deleteUserProfile: (userId: string) => Promise<void>;
+  addUserProfile: (user: User) => Promise<boolean>;
+  approveUserProfile: (userId: string, role: RoleType, deptId: string, deptName: string) => Promise<boolean>;
+  rejectUserProfile: (userId: string) => Promise<boolean>;
+  deleteUserProfile: (userId: string) => Promise<boolean>;
 
-  // Role & User Switching
-  switchUser: (userId: string) => void;
+  // Notifications
+  markNotificationRead: (notifId: string) => Promise<void>;
+  markAllNotificationsRead: () => Promise<void>;
+
+  // Role Switching
   switchActiveRole: (role: RoleType) => void;
   
   // Leave Actions
@@ -58,8 +67,8 @@ interface AppContextType {
     reason: string;
     substituteTeacherId?: string;
     notes?: string;
-  }) => LeaveRequest;
-  
+  }) => Promise<LeaveRequest | null>;
+
   updateLeaveRequest: (
     leaveId: string,
     data: {
@@ -70,22 +79,22 @@ interface AppContextType {
       reason: string;
       notes?: string;
     }
-  ) => void;
+  ) => Promise<boolean>;
 
   changeSubstituteTeacher: (
     leaveId: string,
     newSubstituteTeacherId: string
-  ) => void;
-  
-  cancelLeaveRequest: (leaveId: string, cancelReason?: string) => void;
-  deleteLeaveRequest: (leaveId: string) => void;
-  
+  ) => Promise<boolean>;
+
+  cancelLeaveRequest: (leaveId: string, cancelReason?: string) => Promise<boolean>;
+  deleteLeaveRequest: (leaveId: string) => Promise<boolean>;
+
   processLeaveStep: (
-    leaveId: string, 
-    decision: ApprovalStatus, 
+    leaveId: string,
+    decision: ApprovalStatus,
     comment?: string,
     assignedSubstituteTeacherId?: string
-  ) => void;
+  ) => Promise<boolean>;
 
   // Conflict Checker
   getTeacherLeaveConflict: (
@@ -113,36 +122,34 @@ interface AppContextType {
       assigneeGroupLeadersCanView?: boolean;
       specificVicePrincipalIds?: string[];
     };
-  }) => Task;
-  
-  updateTaskProgress: (
-    taskId: string, 
-    newStatus: TaskStatus, 
-    reportNotes?: string
-  ) => void;
-  
-  requestExtension: (
-    taskId: string, 
-    requestedDeadline: string, 
-    reason: string
-  ) => void;
-  
-  reviewExtension: (
-    taskId: string, 
-    extensionId: string, 
-    decision: 'APPROVED' | 'DECLINED', 
-    comment?: string
-  ) => void;
-  
-  approveTaskCompletion: (
-    taskId: string, 
-    decision: 'APPROVE' | 'REVISE', 
-    feedback?: string
-  ) => void;
-  deleteTask: (taskId: string) => void;
+  }) => Promise<Task | null>;
 
-  // Data Reset
-  resetSystemData: () => void;
+  updateTaskProgress: (
+    taskId: string,
+    newStatus: TaskStatus,
+    reportNotes?: string
+  ) => Promise<boolean>;
+
+  requestExtension: (
+    taskId: string,
+    requestedDeadline: string,
+    reason: string
+  ) => Promise<boolean>;
+
+  reviewExtension: (
+    taskId: string,
+    extensionId: string,
+    decision: 'APPROVED' | 'DECLINED',
+    comment?: string
+  ) => Promise<boolean>;
+
+  approveTaskCompletion: (
+    taskId: string,
+    decision: 'APPROVE' | 'REVISE',
+    feedback?: string
+  ) => Promise<boolean>;
+  deleteTask: (taskId: string) => Promise<boolean>;
+
 }
 
 const AppContext = createContext<AppContextType | undefined>(undefined);
@@ -159,6 +166,26 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [tasks, setTasks] = useState<Task[]>(() => storage.getTasks());
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [fbUser, setFbUser] = useState<FirebaseAuthUser | null>(null);
+  const [toasts, setToasts] = useState<ToastMessage[]>([]);
+
+  const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
+
+  const dismissToast = useCallback((id: string) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  }, []);
+
+  const showToast = useCallback((kind: ToastKind, text: string) => {
+    const id = genId('TOAST');
+    setToasts(prev => [...prev, { id, kind, text }]);
+    // Errors stay longer: they usually ask the user to retry something.
+    const timer = setTimeout(() => dismissToast(id), kind === 'error' ? 8000 : 4000);
+    timersRef.current.push(timer);
+  }, [dismissToast]);
+
+  useEffect(() => {
+    const timers = timersRef.current;
+    return () => { timers.forEach(clearTimeout); };
+  }, []);
 
   // Register the Firebase Auth listener exactly once (on mount). It only stores
   // the raw Firebase user; deriving the app profile happens in the effect below
@@ -168,9 +195,15 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => unsubscribe();
   }, []);
 
-  // Derive the current app user whenever the auth state or the users list changes.
+  // Derive the current app user whenever the auth state or the users list
+  // changes. This effect exists precisely to mirror an external system (Firebase
+  // Auth) into React state, which is the sanctioned use of an effect. The
+  // signed-out branch must run synchronously so no protected view renders for a
+  // logged-out user, and the signed-in branch needs an async profile fetch, so
+  // neither can be derived during render.
   useEffect(() => {
     if (!fbUser) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
       setIsAuthenticated(false);
       setCurrentUser(null);
       return;
@@ -203,7 +236,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       if (match) {
         setCurrentUser(match);
         setActiveRole(match.activeRole || match.roles[0] || 'ADMIN');
-        storage.setCurrentUserId(match.id);
       } else {
         // New user not yet in the users list -> show pending profile.
         const fallbackUser: User = {
@@ -225,11 +257,22 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     return () => { cancelled = true; };
   }, [fbUser, users]);
 
+  // Depend on primitives rather than the whole `currentUser` object: the object
+  // identity changes on every users snapshot, which would tear down and rebuild
+  // every Firestore subscription each time anyone's profile is touched.
+  const currentUserId = currentUser?.id;
+  const currentUserDeptId = currentUser?.departmentId;
+  // Mirrors `isAdmin()` in firestore.rules — the roles allowed to write shared
+  // school config, and therefore the only ones that can seed it.
+  const canSeedConfig = !!currentUser?.roles?.some(r =>
+    r === 'ADMIN' || r === 'PRINCIPAL' || r === 'VICE_PRINCIPAL'
+  );
+
   // Subscribe to Firebase Firestore Realtime Database
   useEffect(() => {
-    if (!isAuthenticated || !currentUser) return;
+    if (!isAuthenticated || !currentUserId) return;
 
-    const filter = { role: activeRole, deptId: currentUser.departmentId, userId: currentUser.id };
+    const filter = { role: activeRole, deptId: currentUserDeptId, userId: currentUserId };
 
     const unsubUsers = firebaseService.subscribeUsers((fbUsers) => {
       setUsers(prevUsers => {
@@ -257,30 +300,51 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
     const unsubNotifs = firebaseService.subscribeNotifications((fbNotifs) => {
       setNotifications(fbNotifs);
-    }, currentUser.id);
+    }, currentUserId);
+
+    // Shared school config. Departments used to live only in localStorage, which
+    // meant each browser had its own private list; they are now server-owned.
+    const unsubDepartments = firebaseService.subscribeDepartments((fbDepts) => {
+      if (fbDepts.length === 0) {
+        // First run against an empty project: migrate the built-in defaults so
+        // every device converges on one list. Only an admin is allowed to write.
+        if (canSeedConfig) {
+          firebaseService.seedDepartments(INITIAL_DEPARTMENTS)
+            .catch(err => console.error('Failed to seed departments:', err));
+        }
+        return; // keep showing the local defaults until the seed round-trips
+      }
+      setDepartments(fbDepts);
+      storage.saveDepartments(fbDepts);
+    });
+
+    const unsubSchoolName = firebaseService.subscribeSchoolName((name) => {
+      if (!name) return;
+      setSchoolName(name);
+      storage.saveSchoolName(name);
+    });
 
     return () => {
       unsubUsers();
       unsubLeaves();
       unsubTasks();
       unsubNotifs();
+      unsubDepartments();
+      unsubSchoolName();
     };
-  }, [isAuthenticated, currentUser?.id, activeRole]);
+  }, [isAuthenticated, currentUserId, currentUserDeptId, canSeedConfig, activeRole]);
 
-  const { loginWithGoogle, loginWithFirebase, registerWithFirebase, loginAsDemoUser, logout } = useAuthLogic({
-    users,
+  const { loginWithGoogle, loginWithFirebase, registerWithFirebase, logout } = useAuthLogic({
     setCurrentUser,
-    setActiveRole,
     setIsAuthenticated,
   });
 
-  const { addUserProfile, approveUserProfile, rejectUserProfile, deleteUserProfile, switchUser, switchActiveRole } = useUserLogic({
+  const { addUserProfile, approveUserProfile, rejectUserProfile, deleteUserProfile, switchActiveRole } = useUserLogic({
     users,
     setUsers,
     currentUser,
-    setCurrentUser,
     setActiveRole,
-    setNotifications,
+    notify: showToast,
   });
 
   const { updateSchoolName, addDepartment, updateDepartment, deleteDepartment } = useDepartmentLogic({
@@ -292,6 +356,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setUsers,
     leaves,
     setLeaves,
+    notify: showToast,
   });
 
   const { createTask, updateTaskProgress, requestExtension, reviewExtension, approveTaskCompletion, deleteTask } = useTaskLogic({
@@ -300,6 +365,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     users,
     tasks,
     setTasks,
+    notify: showToast,
   });
 
   const { getTeacherLeaveConflict, createLeaveRequest, cancelLeaveRequest, deleteLeaveRequest, updateLeaveRequest, changeSubstituteTeacher, processLeaveStep } = useLeaveLogic({
@@ -309,18 +375,36 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     leaves,
     setLeaves,
     setNotifications,
+    notify: showToast,
   });
 
-  // Reset
-  const resetSystemData = () => {
-    storage.resetAllData();
-    const loadedUsers = storage.getUsers();
-    setUsers(loadedUsers);
-    setCurrentUser(loadedUsers[2]);
-    setActiveRole(loadedUsers[2].roles[0]);
-    setLeaves(storage.getLeaves());
-    setTasks(storage.getTasks());
-    setNotifications(storage.getNotifications(loadedUsers[2].id));
+  // Notifications. Marking as read is best-effort and idempotent: the optimistic
+  // update makes the badge respond instantly, and the realtime snapshot corrects
+  // it if the write is rejected — so there is nothing to roll back by hand.
+  const markNotificationRead = async (notifId: string) => {
+    const target = notifications.find(n => n.id === notifId);
+    if (!target || target.isRead) return;
+
+    setNotifications(prev => prev.map(n => (n.id === notifId ? { ...n, isRead: true } : n)));
+    storage.markNotificationRead(notifId);
+    try {
+      await firebaseService.markNotificationRead(notifId);
+    } catch (err) {
+      console.error('Failed to mark notification as read:', err);
+    }
+  };
+
+  const markAllNotificationsRead = async () => {
+    const unreadIds = notifications.filter(n => !n.isRead).map(n => n.id);
+    if (unreadIds.length === 0) return;
+
+    setNotifications(prev => prev.map(n => ({ ...n, isRead: true })));
+    unreadIds.forEach(id => storage.markNotificationRead(id));
+    try {
+      await firebaseService.markAllNotificationsRead(unreadIds);
+    } catch (err) {
+      console.error('Failed to mark notifications as read:', err);
+    }
   };
 
   return (
@@ -333,6 +417,9 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         tasks,
         notifications,
         isAuthenticated,
+        toasts,
+        showToast,
+        dismissToast,
         schoolName,
         departments,
         updateSchoolName,
@@ -342,13 +429,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         loginWithFirebase,
         loginWithGoogle,
         registerWithFirebase,
-        loginAsDemoUser,
         logout,
         addUserProfile,
         approveUserProfile,
         rejectUserProfile,
         deleteUserProfile,
-        switchUser,
+        markNotificationRead,
+        markAllNotificationsRead,
         switchActiveRole,
         createLeaveRequest,
         updateLeaveRequest,
@@ -363,7 +450,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         approveTaskCompletion,
         deleteTask,
         getTeacherLeaveConflict,
-        resetSystemData,
       }}
     >
       {children}

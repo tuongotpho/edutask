@@ -2,7 +2,9 @@ import { Task, TaskPriority, TaskStatus } from '@/Edu-task/types/task';
 import { User, RoleType, ROLE_LABELS } from '@/Edu-task/types/user';
 import { AppNotification } from '@/Edu-task/types/notification';
 import { storage } from '@/Edu-task/lib/storage';
+import { genId } from '@/Edu-task/lib/utils';
 import { firebaseService } from '@/Edu-task/services/firebaseService';
+import { ToastKind } from '@/Edu-task/components/common/Toast';
 
 interface TaskLogicProps {
   currentUser: User | null;
@@ -10,11 +12,35 @@ interface TaskLogicProps {
   users: User[];
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
+  notify: (kind: ToastKind, text: string) => void;
 }
 
-export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }: TaskLogicProps) {
-  
-  const createTask = (data: {
+const SAVE_FAILED = 'Không lưu được lên máy chủ. Thay đổi đã được hoàn tác — vui lòng thử lại.';
+
+export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks, notify }: TaskLogicProps) {
+
+  /**
+   * Applies an optimistic update, then persists it. If the write is rejected
+   * (offline, or blocked by security rules) the local state is restored and the
+   * user is told — otherwise the UI would keep showing data the server discarded.
+   */
+  const commit = async (nextTasks: Task[], taskToSave: Task): Promise<boolean> => {
+    const previousTasks = tasks;
+    setTasks(nextTasks);
+    storage.saveTasks(nextTasks);
+    try {
+      await firebaseService.saveTask(taskToSave);
+      return true;
+    } catch (err) {
+      console.error('Failed to save task:', err);
+      setTasks(previousTasks);
+      storage.saveTasks(previousTasks);
+      notify('error', SAVE_FAILED);
+      return false;
+    }
+  };
+
+  const createTask = async (data: {
     title: string;
     description: string;
     assigneeType: 'INDIVIDUAL' | 'MULTIPLE' | 'DEPARTMENT';
@@ -27,10 +53,10 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
       assigneeGroupLeadersCanView?: boolean;
       specificVicePrincipalIds?: string[];
     };
-  }): Task => {
+  }): Promise<Task | null> => {
     if (!currentUser) throw new Error('User not logged in');
 
-    let assigneesList: any[] = [];
+    let assigneesList: Task['assignees'] = [];
     let deptName = undefined;
 
     if (data.assigneeType === 'DEPARTMENT' && data.targetDepartmentId) {
@@ -55,8 +81,8 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
     }
 
     // Build ACL viewerIds
-    let viewerIds: string[] = [currentUser.id]; // Assigner
-    
+    const viewerIds: string[] = [currentUser.id]; // Assigner
+
     // Add Assignees
     assigneesList.forEach(a => viewerIds.push(a.userId));
 
@@ -78,8 +104,8 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
         return u?.departmentId;
       }).filter(Boolean)));
 
-      const groupLeaders = users.filter(u => 
-        (u.roles.includes('GROUP_LEADER') || u.roles.includes('HEAD_OF_DEPT')) && 
+      const groupLeaders = users.filter(u =>
+        (u.roles.includes('GROUP_LEADER') || u.roles.includes('HEAD_OF_DEPT')) &&
         assigneeDeptIds.includes(u.departmentId)
       );
       groupLeaders.forEach(u => viewerIds.push(u.id));
@@ -87,10 +113,9 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
 
     const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
     const nowMs = Date.now();
-    // Use a timestamp-based suffix so codes/ids never collide across users or
-    // across role-filtered lists (the previous `tasks.length + 1` was neither
-    // unique nor correctly padded past 9).
-    const taskId = `TSK_2026_${nowMs}`;
+    // `genId` appends random entropy so document ids are unique even when two
+    // tasks are created in the same millisecond (a bare timestamp is not).
+    const taskId = genId('TSK_2026');
     const newCode = `CV-2026-${nowMs.toString().slice(-6)}`;
 
     const newTask: Task = {
@@ -115,7 +140,7 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
       extensionRequests: [],
       activities: [
         {
-          id: `ACT_${nowMs}`,
+          id: genId('ACT'),
           taskId: taskId,
           actorId: currentUser.id,
           actorName: currentUser.fullName,
@@ -129,15 +154,14 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
       updatedAt: now,
     };
 
-    const updatedTasks = [newTask, ...tasks];
-    setTasks(updatedTasks);
-    storage.saveTasks(updatedTasks);
-    firebaseService.saveTask(newTask);
+    const ok = await commit([newTask, ...tasks], newTask);
+    if (!ok) return null;
 
-    // Notify Assignees
-    assigneesList.forEach(assignee => {
+    // Notify Assignees. These are secondary: a failed notification must not undo
+    // the task itself, so they are reported but not rolled back.
+    await Promise.all(assigneesList.map(async assignee => {
       const notif: AppNotification = {
-        id: `NOTIF_${Date.now()}_${assignee.userId}`,
+        id: genId('NOTIF'),
         recipientUserId: assignee.userId,
         title: 'Công việc mới được giao',
         message: `${currentUser.fullName} đã giao công việc: "${data.title}" (Hạn: ${data.deadline}).`,
@@ -146,18 +170,23 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
         createdAt: now,
       };
       storage.addNotification(notif);
-      firebaseService.saveNotification(notif);
-    });
+      try {
+        await firebaseService.saveNotification(notif);
+      } catch (err) {
+        console.error('Failed to send task notification:', err);
+      }
+    }));
 
+    notify('success', 'Đã phát hành công việc thành công.');
     return newTask;
   };
 
-  const updateTaskProgress = (
-    taskId: string, 
-    newStatus: TaskStatus, 
+  const updateTaskProgress = async (
+    taskId: string,
+    newStatus: TaskStatus,
     reportNotes?: string
-  ) => {
-    if (!currentUser) return;
+  ): Promise<boolean> => {
+    if (!currentUser) return false;
     const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
     let targetTaskToSave: Task | null = null;
@@ -179,7 +208,7 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
       });
 
       const activity = {
-        id: `ACT_${Date.now()}`,
+        id: genId('ACT'),
         taskId: task.id,
         actorId: currentUser.id,
         actorName: currentUser.fullName,
@@ -201,15 +230,12 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
       return updatedTaskObj;
     });
 
-    setTasks(updatedTasks);
-    storage.saveTasks(updatedTasks);
-    if (targetTaskToSave) {
-      firebaseService.saveTask(targetTaskToSave);
-    }
+    if (!targetTaskToSave) return false;
+    return commit(updatedTasks, targetTaskToSave);
   };
 
-  const requestExtension = (taskId: string, requestedDeadline: string, reason: string) => {
-    if (!currentUser) return;
+  const requestExtension = async (taskId: string, requestedDeadline: string, reason: string): Promise<boolean> => {
+    if (!currentUser) return false;
     const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
     let targetTaskToSave: Task | null = null;
@@ -218,7 +244,7 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
       if (task.id !== taskId) return task;
 
       const extReq = {
-        id: `EXT_${Date.now()}`,
+        id: genId('EXT'),
         requestedByUserId: currentUser.id,
         requestedByUserName: currentUser.fullName,
         currentDeadline: task.deadline,
@@ -229,7 +255,7 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
       };
 
       const activity = {
-        id: `ACT_${Date.now()}`,
+        id: genId('ACT'),
         taskId: task.id,
         actorId: currentUser.id,
         actorName: currentUser.fullName,
@@ -250,20 +276,17 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
       return updatedTaskObj;
     });
 
-    setTasks(updatedTasks);
-    storage.saveTasks(updatedTasks);
-    if (targetTaskToSave) {
-      firebaseService.saveTask(targetTaskToSave);
-    }
+    if (!targetTaskToSave) return false;
+    return commit(updatedTasks, targetTaskToSave);
   };
 
-  const reviewExtension = (
-    taskId: string, 
-    extensionId: string, 
-    decision: 'APPROVED' | 'DECLINED', 
+  const reviewExtension = async (
+    taskId: string,
+    extensionId: string,
+    decision: 'APPROVED' | 'DECLINED',
     comment?: string
-  ) => {
-    if (!currentUser) return;
+  ): Promise<boolean> => {
+    if (!currentUser) return false;
     const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
     let targetTaskToSave: Task | null = null;
@@ -283,13 +306,13 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
       });
 
       const activity = {
-        id: `ACT_${Date.now()}`,
+        id: genId('ACT'),
         taskId: task.id,
         actorId: currentUser.id,
         actorName: currentUser.fullName,
         actorRole: ROLE_LABELS[activeRole],
         action: decision === 'APPROVED' ? ('APPROVE_EXTENSION' as const) : ('REJECT_EXTENSION' as const),
-        content: decision === 'APPROVED' 
+        content: decision === 'APPROVED'
           ? `Chấp thuận gia hạn thời hạn mới: ${newDeadline}. Ghi chú: ${comment || 'Đồng ý'}`
           : `Từ chối gia hạn. Ghi chú: ${comment || 'Giữ nguyên thời hạn cũ'}`,
         timestamp: now,
@@ -307,19 +330,16 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
       return updatedTaskObj;
     });
 
-    setTasks(updatedTasks);
-    storage.saveTasks(updatedTasks);
-    if (targetTaskToSave) {
-      firebaseService.saveTask(targetTaskToSave);
-    }
+    if (!targetTaskToSave) return false;
+    return commit(updatedTasks, targetTaskToSave);
   };
 
-  const approveTaskCompletion = (
-    taskId: string, 
-    decision: 'APPROVE' | 'REVISE', 
+  const approveTaskCompletion = async (
+    taskId: string,
+    decision: 'APPROVE' | 'REVISE',
     feedback?: string
-  ) => {
-    if (!currentUser) return;
+  ): Promise<boolean> => {
+    if (!currentUser) return false;
     const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
     let targetTaskToSave: Task | null = null;
@@ -330,13 +350,13 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
       const finalStatus: TaskStatus = decision === 'APPROVE' ? 'COMPLETED' : 'IN_PROGRESS';
 
       const activity = {
-        id: `ACT_${Date.now()}`,
+        id: genId('ACT'),
         taskId: task.id,
         actorId: currentUser.id,
         actorName: currentUser.fullName,
         actorRole: ROLE_LABELS[activeRole],
         action: decision === 'APPROVE' ? ('APPROVE_TASK' as const) : ('REJECT_TASK' as const),
-        content: decision === 'APPROVE' 
+        content: decision === 'APPROVE'
           ? `Đã nghiệm thu và xác nhận HOÀN THÀNH công việc. ${feedback ? 'Nhận xét: ' + feedback : ''}`
           : `Yêu cầu làm lại / bổ sung. ${feedback ? 'Lý do: ' + feedback : ''}`,
         timestamp: now,
@@ -353,18 +373,26 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
       return updatedTaskObj;
     });
 
-    setTasks(updatedTasks);
-    storage.saveTasks(updatedTasks);
-    if (targetTaskToSave) {
-      firebaseService.saveTask(targetTaskToSave);
-    }
+    if (!targetTaskToSave) return false;
+    return commit(updatedTasks, targetTaskToSave);
   };
 
-  const deleteTask = (taskId: string) => {
+  const deleteTask = async (taskId: string): Promise<boolean> => {
+    const previousTasks = tasks;
     const updatedTasks = tasks.filter(t => t.id !== taskId);
     setTasks(updatedTasks);
     storage.saveTasks(updatedTasks);
-    firebaseService.deleteTask(taskId).catch(err => console.error(err));
+
+    try {
+      await firebaseService.deleteTask(taskId);
+      return true;
+    } catch (err) {
+      console.error('Failed to delete task:', err);
+      setTasks(previousTasks);
+      storage.saveTasks(previousTasks);
+      notify('error', SAVE_FAILED);
+      return false;
+    }
   };
 
   return {

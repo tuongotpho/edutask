@@ -2,27 +2,15 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
-import { Task, TASK_PRIORITY_CONFIG, TASK_STATUS_CONFIG, TaskStatus } from '@/Edu-task/types/task';
-import { ROLE_LABELS } from '@/Edu-task/types/user';
+import { Task, TASK_PRIORITY_CONFIG, TASK_STATUS_CONFIG } from '@/Edu-task/types/task';
 import { ConfirmModal } from '@/Edu-task/components/common/ConfirmModal';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { format } from 'date-fns';
 import { 
   X, 
-  CheckCircle2, 
-  Clock, 
-  AlertCircle, 
-  User, 
-  Calendar, 
-  FileText, 
-  MessageSquare, 
-  Send,
   History,
-  Shield,
   FileCheck,
-  CheckSquare,
-  Sparkles,
   Trash2
 } from 'lucide-react';
 
@@ -34,13 +22,13 @@ interface TaskDetailModalProps {
 export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
   const { 
     currentUser, 
-    activeRole, 
-    users,
+    activeRole,
     updateTaskProgress, 
     requestExtension, 
     reviewExtension, 
     approveTaskCompletion,
-    deleteTask
+    deleteTask,
+    showToast
   } = useApp();
 
   const [reportNote, setReportNote] = useState('');
@@ -90,24 +78,27 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
   };
 
   // Handle Report Progress
-  const handleSubmitReport = () => {
+  const handleSubmitReport = async () => {
     if (!reportNote.trim()) {
-      alert('Vui lòng nhập nội dung báo cáo tiến độ.');
+      showToast('error', 'Vui lòng nhập nội dung báo cáo tiến độ.');
       return;
     }
-    updateTaskProgress(task.id, 'PENDING_APPROVAL', reportNote);
-    setReportNote('');
+    // Only clear the draft once the report is actually persisted.
+    if (await updateTaskProgress(task.id, 'PENDING_APPROVAL', reportNote)) {
+      setReportNote('');
+    }
   };
 
   // Handle Extension Request
-  const handleSendExtension = () => {
+  const handleSendExtension = async () => {
     if (!extReason.trim()) {
-      alert('Vui lòng nhập lý do xin gia hạn.');
+      showToast('error', 'Vui lòng nhập lý do xin gia hạn.');
       return;
     }
-    requestExtension(task.id, format(extDeadline, 'yyyy-MM-dd HH:mm'), extReason);
-    setShowExtensionForm(false);
-    setExtReason('');
+    if (await requestExtension(task.id, format(extDeadline, 'yyyy-MM-dd HH:mm'), extReason)) {
+      setShowExtensionForm(false);
+      setExtReason('');
+    }
   };
 
   return (
@@ -358,10 +349,9 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
         title="Xóa công việc"
         message="Bạn có chắc chắn muốn xóa vĩnh viễn công việc này không? Mọi dữ liệu liên quan sẽ bị mất."
         confirmText="Xóa vĩnh viễn"
-        onConfirm={() => {
+        onConfirm={async () => {
           setIsDeleteModalOpen(false);
-          deleteTask(task.id);
-          onClose();
+          if (await deleteTask(task.id)) onClose();
         }}
         onCancel={() => setIsDeleteModalOpen(false)}
       />

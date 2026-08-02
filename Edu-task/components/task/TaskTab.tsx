@@ -2,18 +2,14 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
-import { Task, TASK_PRIORITY_CONFIG, TASK_STATUS_CONFIG, TaskStatus, TaskPriority } from '@/Edu-task/types/task';
+import { TASK_PRIORITY_CONFIG, TASK_STATUS_CONFIG, TaskStatus, TaskPriority } from '@/Edu-task/types/task';
+import { canAssignTask, isAdmin } from '@/Edu-task/lib/permissions';
 import { 
   CheckSquare, 
   Search, 
   PlusCircle, 
-  Clock, 
-  CheckCircle2, 
   LayoutGrid, 
-  List, 
-  Shield, 
-  AlertTriangle,
-  UserCheck
+  List
 } from 'lucide-react';
 
 interface TaskTabProps {
@@ -22,18 +18,18 @@ interface TaskTabProps {
 }
 
 export function TaskTab({ onRequestNewTask, onSelectTask }: TaskTabProps) {
-  const { tasks, users, currentUser, activeRole } = useApp();
+  const { tasks, currentUser, activeRole } = useApp();
 
   const [viewMode, setViewMode] = useState<'BOARD' | 'LIST'>('BOARD');
   const [searchTerm, setSearchTerm] = useState('');
   const [selectedPriority, setSelectedPriority] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
 
-  const canAssign = activeRole === 'PRINCIPAL' || activeRole === 'VICE_PRINCIPAL' || activeRole === 'HEAD_OF_DEPT';
+  const canAssign = canAssignTask(currentUser, activeRole);
 
-  const visibleTasks = tasks.filter(task => {
-    return activeRole === 'ADMIN' || (task.viewerIds && task.viewerIds.includes(currentUser?.id || ''));
-  });
+  const visibleTasks = tasks.filter(task =>
+    isAdmin(currentUser, activeRole) || (task.viewerIds && task.viewerIds.includes(currentUser?.id || ''))
+  );
 
   // Filter tasks
   const filteredTasks = visibleTasks.filter(task => {

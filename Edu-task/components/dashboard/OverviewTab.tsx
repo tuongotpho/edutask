@@ -2,8 +2,9 @@
 
 import React from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
-import { LEAVE_TYPE_LABELS, LEAVE_SESSION_LABELS } from '@/Edu-task/types/leave';
+import { LEAVE_TYPE_LABELS } from '@/Edu-task/types/leave';
 import { TASK_PRIORITY_CONFIG, TASK_STATUS_CONFIG } from '@/Edu-task/types/task';
+import { canAssignTask, canViewLeave, isDeptLeader, isSchoolLeadership } from '@/Edu-task/lib/permissions';
 import { 
   FileText, 
   CheckSquare, 
@@ -12,7 +13,6 @@ import {
   CheckCircle2, 
   PlusCircle, 
   ArrowUpRight,
-  Users,
   ShieldCheck,
   CalendarDays
 } from 'lucide-react';
@@ -32,31 +32,11 @@ export function OverviewTab({
   onSelectTask,
   onGoToTab
 }: OverviewTabProps) {
-  const { currentUser, activeRole, leaves, tasks, users } = useApp();
+  const { currentUser, activeRole, leaves, tasks } = useApp();
 
-  const isSchoolLeadershipOrAdmin = 
-    activeRole === 'ADMIN' || 
-    activeRole === 'PRINCIPAL' || 
-    activeRole === 'VICE_PRINCIPAL' || 
-    activeRole === 'SECRETARY' || 
-    activeRole === 'INSPECTOR' ||
-    currentUser?.roles?.includes('ADMIN') ||
-    currentUser?.roles?.includes('PRINCIPAL') ||
-    currentUser?.roles?.includes('VICE_PRINCIPAL');
-
-  const isDeptHeader = 
-    activeRole === 'HEAD_OF_DEPT' || 
-    activeRole === 'GROUP_LEADER' || 
-    currentUser?.roles?.includes('HEAD_OF_DEPT') || 
-    currentUser?.roles?.includes('GROUP_LEADER');
-
-  const visibleLeaves = leaves.filter(l => {
-    if (isSchoolLeadershipOrAdmin) return true;
-    if (isDeptHeader) {
-      return l.departmentId === currentUser?.departmentId || l.applicantId === currentUser?.id;
-    }
-    return l.applicantId === currentUser?.id || l.substituteTeacherId === currentUser?.id;
-  });
+  const isSchoolLeadershipOrAdmin = isSchoolLeadership(currentUser, activeRole);
+  const isDeptHeader = isDeptLeader(currentUser, activeRole);
+  const visibleLeaves = leaves.filter(l => canViewLeave(currentUser, activeRole, l));
 
   const visibleTasks = (isSchoolLeadershipOrAdmin || isDeptHeader)
     ? tasks
@@ -100,7 +80,7 @@ export function OverviewTab({
             <span>Tạo Đơn Xin Nghỉ</span>
           </button>
           
-          {(activeRole === 'PRINCIPAL' || activeRole === 'VICE_PRINCIPAL' || activeRole === 'HEAD_OF_DEPT') && (
+          {canAssignTask(currentUser, activeRole) && (
             <button
               onClick={onRequestNewTask}
               className="px-4 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-md transition-all flex items-center space-x-2"

@@ -22,6 +22,15 @@ jobs:
       - name: Install Dependencies
         run: npm ci
 
+      # Type-check and unit tests gate the deploy. `tsc` alone is not enough —
+      # a missing runtime dependency once passed type-check and still broke the
+      # build — so the real build below remains the final gate.
+      - name: Type Check
+        run: npx tsc --noEmit
+
+      - name: Unit Tests
+        run: npm test
+
       - name: Build Project
         run: npm run build
         env:
@@ -42,6 +51,22 @@ jobs:
             echo "::error::Thiếu GitHub Secret FIREBASE_SERVICE_ACCOUNT_APP_FROM_AI! Vui lòng thêm secret vào GitHub Repo Settings -> Secrets -> Actions."
             exit 1
           fi
+
+      # Security rules are the ONLY authorization boundary for this app (the
+      # client talks to Firestore directly), so they must ship with the code.
+      # Deployed before hosting: if the new rules are rejected, the old frontend
+      # keeps running against the old rules instead of a mismatched pair.
+      - name: Deploy Firestore Security Rules
+        env:
+          GOOGLE_APPLICATION_CREDENTIALS: ${{ github.workspace }}/firebase-service-account.json
+          SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT_APP_FROM_AI || secrets.FIREBASE_SERVICE_ACCOUNT }}
+        run: |
+          printf '%s' "$SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
+          npx --yes firebase-tools@15 deploy \
+            --only firestore:rules \
+            --project app-from-ai \
+            --non-interactive
+          rm -f "$GOOGLE_APPLICATION_CREDENTIALS"
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0

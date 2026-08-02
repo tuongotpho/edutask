@@ -7,16 +7,17 @@ import {
   CheckSquare, 
   CalendarDays, 
   BarChart3, 
-  Settings, 
-  Users, 
   ShieldCheck,
-  PlusCircle,
-  HelpCircle,
-  Clock
+  PlusCircle
 } from 'lucide-react';
-import { isAdminEmail } from '@/Edu-task/lib/admin';
 import { useApp } from '@/Edu-task/context/AppContext';
-import { ROLE_LABELS } from '@/Edu-task/types/user';
+import {
+  canAssignTask,
+  canManageRbac,
+  canViewStats,
+  canViewLeave,
+  isSchoolLeadership,
+} from '@/Edu-task/lib/permissions';
 
 export type TabType = 'dashboard' | 'leave' | 'task' | 'schedule' | 'stats' | 'config';
 
@@ -35,40 +36,17 @@ export function Sidebar({
 }: SidebarProps) {
   const { currentUser, activeRole, leaves, tasks, users } = useApp();
 
-  const isLeadershipOrAdmin = 
-    activeRole === 'ADMIN' || 
-    activeRole === 'PRINCIPAL' || 
-    activeRole === 'VICE_PRINCIPAL' || 
-    activeRole === 'SECRETARY' || 
-    activeRole === 'INSPECTOR' ||
-    currentUser?.roles?.includes('ADMIN') ||
-    currentUser?.roles?.includes('PRINCIPAL') ||
-    currentUser?.roles?.includes('VICE_PRINCIPAL');
-
-  const visibleLeaves = leaves.filter(l => {
-    if (isLeadershipOrAdmin) return true;
-    if (activeRole === 'HEAD_OF_DEPT' || activeRole === 'GROUP_LEADER' || currentUser?.roles?.includes('HEAD_OF_DEPT') || currentUser?.roles?.includes('GROUP_LEADER')) {
-      return l.departmentId === currentUser?.departmentId || l.applicantId === currentUser?.id;
-    }
-    return l.applicantId === currentUser?.id || l.substituteTeacherId === currentUser?.id;
-  });
+  const isLeadershipOrAdmin = isSchoolLeadership(currentUser, activeRole);
+  const visibleLeaves = leaves.filter(l => canViewLeave(currentUser, activeRole, l));
 
   // Calculate pending review badges based on visible scope
   const pendingLeavesCount = visibleLeaves.filter(l => l.overallStatus === 'IN_REVIEW').length;
   const activeTasksCount = tasks.filter(t => t.status === 'ASSIGNED' || t.status === 'IN_PROGRESS' || t.status === 'PENDING_APPROVAL').length;
   const pendingUsersCount = users.filter(u => u.status === 'PENDING_APPROVAL').length;
 
-  const canAssignTasks = activeRole === 'PRINCIPAL' || activeRole === 'VICE_PRINCIPAL' || activeRole === 'HEAD_OF_DEPT' || activeRole === 'GROUP_LEADER' || activeRole === 'ADMIN';
-  const isAdmin = activeRole === 'ADMIN' || currentUser?.roles?.includes('ADMIN') || isAdminEmail(currentUser?.email);
-  const canViewStats = 
-    activeRole === 'ADMIN' || 
-    activeRole === 'PRINCIPAL' || 
-    activeRole === 'VICE_PRINCIPAL' || 
-    activeRole === 'HEAD_OF_DEPT' || 
-    activeRole === 'GROUP_LEADER' || 
-    activeRole === 'SECRETARY' || 
-    activeRole === 'INSPECTOR' ||
-    currentUser?.roles?.some(r => ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_OF_DEPT', 'GROUP_LEADER', 'SECRETARY', 'INSPECTOR'].includes(r));
+  const canAssignTasks = canAssignTask(currentUser, activeRole);
+  const isAdmin = canManageRbac(currentUser, activeRole);
+  const showStats = canViewStats(currentUser, activeRole);
 
   const menuItems = [
     {
@@ -97,7 +75,7 @@ export function Sidebar({
       icon: CalendarDays,
       badge: null,
     },
-    ...(canViewStats ? [{
+    ...(showStats ? [{
       id: 'stats' as TabType,
       label: 'Báo Cáo & Thống Kê',
       icon: BarChart3,

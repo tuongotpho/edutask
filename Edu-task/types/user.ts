@@ -51,17 +51,5 @@ export const ROLE_LABELS: Record<RoleType, string> = {
   ADMIN: 'Quản trị hệ thống',
 };
 
-export const PERMISSIONS = {
-  LEAVE_CREATE: 'leave:create',
-  LEAVE_APPROVE_DEPT: 'leave:approve_dept',
-  LEAVE_APPROVE_EXEC: 'leave:approve_exec',
-  LEAVE_VIEW_ALL: 'leave:view_all',
-  
-  TASK_CREATE: 'task:create',
-  TASK_ASSIGN_DEPT: 'task:assign_dept',
-  TASK_ASSIGN_ALL: 'task:assign_all',
-  TASK_VIEW_ALL: 'task:view_all',
-  
-  CONFIG_WORKFLOW: 'config:workflow',
-  MANAGE_USERS: 'config:users',
-} as const;
+// Permission keys and the role capability table now live in
+// `Edu-task/lib/permissions.ts`, which is what the app actually enforces.

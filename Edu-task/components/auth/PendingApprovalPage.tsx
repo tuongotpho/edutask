@@ -2,7 +2,7 @@
 
 import React from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
-import { Clock, ShieldAlert, LogOut, RefreshCw, CheckCircle } from 'lucide-react';
+import { Clock, ShieldAlert, LogOut, RefreshCw } from 'lucide-react';
 
 export function PendingApprovalPage() {
   const { currentUser, logout } = useApp();
@@ -47,7 +47,9 @@ export function PendingApprovalPage() {
           <div className="flex items-start space-x-2">
             <ShieldAlert className="w-4 h-4 text-amber-400 flex-shrink-0 mt-0.5" />
             <span>
-              Tài khoản của bạn đã được ghi nhận vào hệ thống nhà trường. Vui lòng liên hệ **Quản trị viên / Ban Giám Hiệu** để được duyệt tài khoản & phân công Tổ chuyên môn.
+              Tài khoản của bạn đã được ghi nhận vào hệ thống nhà trường. Vui lòng liên hệ{' '}
+              <strong className="text-white">Quản trị viên / Ban Giám Hiệu</strong>{' '}
+              để được duyệt tài khoản &amp; phân công Tổ chuyên môn.
             </span>
           </div>
         </div>

@@ -1,9 +1,9 @@
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { LeaveRequest, LeaveType, LeaveSession, LEAVE_TYPE_LABELS, LEAVE_SESSION_LABELS } from '@/Edu-task/types/leave';
-import { X, Calendar, AlertTriangle, FileText, Upload, Info } from 'lucide-react';
+import { X, AlertTriangle, FileText, Upload, Info } from 'lucide-react';
 
 interface LeaveFormModalProps {
   isOpen: boolean;
@@ -12,70 +12,53 @@ interface LeaveFormModalProps {
 }
 
 export function LeaveFormModal({ isOpen, editingLeave, onClose }: LeaveFormModalProps) {
-  const { currentUser, createLeaveRequest, updateLeaveRequest, getTeacherLeaveConflict } = useApp();
+  const { currentUser, createLeaveRequest, updateLeaveRequest, getTeacherLeaveConflict, showToast } = useApp();
 
-  const [leaveType, setLeaveType] = useState<LeaveType>('PAID');
-  const [startDate, setStartDate] = useState(new Date().toISOString().split('T')[0]);
-  const [endDate, setEndDate] = useState(new Date().toISOString().split('T')[0]);
-  const [session, setSession] = useState<LeaveSession>('FULL_DAY');
-  const [reason, setReason] = useState('');
-  const [notes, setNotes] = useState('');
+  // Seeded once per mount. The caller mounts this modal only while it is open
+  // and keys it by the request being edited, so a fresh open always starts from
+  // the right values — no state-syncing effect needed.
+  const today = new Date().toISOString().split('T')[0];
+  const [leaveType, setLeaveType] = useState<LeaveType>(editingLeave?.leaveType ?? 'PAID');
+  const [startDate, setStartDate] = useState(editingLeave?.startDate ?? today);
+  const [endDate, setEndDate] = useState(editingLeave?.endDate ?? today);
+  const [session, setSession] = useState<LeaveSession>(editingLeave?.session ?? 'FULL_DAY');
+  const [reason, setReason] = useState(editingLeave?.reason ?? '');
+  // Carried through unchanged: the form has no notes field, but an existing
+  // request may already have notes set by an approver.
+  const notes = editingLeave?.notes ?? '';
   const [isSubmitting, setIsSubmitting] = useState(false);
-
-  useEffect(() => {
-    if (editingLeave) {
-      setLeaveType(editingLeave.leaveType);
-      setStartDate(editingLeave.startDate);
-      setEndDate(editingLeave.endDate);
-      setSession(editingLeave.session);
-      setReason(editingLeave.reason);
-      setNotes(editingLeave.notes || '');
-    } else {
-      setLeaveType('PAID');
-      setStartDate(new Date().toISOString().split('T')[0]);
-      setEndDate(new Date().toISOString().split('T')[0]);
-      setSession('FULL_DAY');
-      setReason('');
-      setNotes('');
-    }
-  }, [editingLeave, isOpen]);
 
   if (!isOpen || !currentUser) return null;
 
   // Check for conflicts
   const conflict = getTeacherLeaveConflict(currentUser.id, startDate, endDate);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!reason.trim()) {
-      alert('Vui lòng điền lý do xin nghỉ');
+      showToast('error', 'Vui lòng điền lý do xin nghỉ.');
       return;
     }
 
+    const payload = {
+      leaveType,
+      startDate,
+      endDate,
+      session,
+      reason,
+      notes: notes || undefined,
+    };
+
     setIsSubmitting(true);
     try {
-      if (editingLeave) {
-        updateLeaveRequest(editingLeave.id, {
-          leaveType,
-          startDate,
-          endDate,
-          session,
-          reason,
-          notes: notes || undefined,
-        });
-      } else {
-        createLeaveRequest({
-          leaveType,
-          startDate,
-          endDate,
-          session,
-          reason,
-          notes: notes || undefined,
-        });
-      }
-      onClose();
-    } catch (err) {
-      alert('Có lỗi xảy ra khi gửi đơn xin nghỉ');
+      // A rejected write already surfaced a toast; keep the form open so the
+      // teacher does not lose what they typed.
+      const ok = editingLeave
+        ? await updateLeaveRequest(editingLeave.id, payload)
+        : (await createLeaveRequest(payload)) !== null;
+      if (ok) onClose();
+    } catch (err: unknown) {
+      showToast('error', err instanceof Error ? err.message : 'Có lỗi xảy ra khi gửi đơn xin nghỉ.');
     } finally {
       setIsSubmitting(false);
     }
@@ -209,13 +192,21 @@ export function LeaveFormModal({ isOpen, editingLeave, onClose }: LeaveFormModal
             />
           </div>
 
-          {/* Attachment upload box */}
+          {/* Attachment upload — not wired to storage yet, so it is presented as
+              unavailable rather than as a control that silently does nothing. */}
           <div>
-            <label className="block font-bold text-slate-800 mb-1">File minh chứng đính kèm (Giấy khám bệnh, Công văn...)</label>
-            <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 text-center bg-slate-50 hover:bg-slate-100 cursor-pointer transition-colors">
+            <div className="flex items-center justify-between mb-1">
+              <label className="block font-bold text-slate-800">File minh chứng đính kèm (Giấy khám bệnh, Công văn...)</label>
+              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold border border-slate-200">
+                SẮP RA MẮT
+              </span>
+            </div>
+            <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 text-center bg-slate-50 opacity-60 cursor-not-allowed">
               <Upload className="w-5 h-5 mx-auto text-slate-400 mb-1" />
-              <span className="text-slate-600 font-medium">Nhấp để chọn file hoặc kéo thả file vào đây</span>
-              <span className="block text-[10px] text-slate-400 mt-0.5">Hỗ trợ PDF, PNG, JPG (Tối đa 10MB)</span>
+              <span className="text-slate-600 font-medium">Tính năng đính kèm file đang được phát triển</span>
+              <span className="block text-[10px] text-slate-400 mt-0.5">
+                Tạm thời vui lòng nộp bản cứng minh chứng cho Văn thư nhà trường.
+              </span>
             </div>
           </div>
 

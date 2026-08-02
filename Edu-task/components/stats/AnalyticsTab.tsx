@@ -2,22 +2,13 @@
 
 import React from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
-import { BarChart3, PieChart, TrendingUp, CheckCircle2, Clock, AlertTriangle } from 'lucide-react';
+import { BarChart3 } from 'lucide-react';
+import { canViewStats } from '@/Edu-task/lib/permissions';
 
 export function AnalyticsTab() {
-  const { leaves, tasks, users, departments, currentUser, activeRole } = useApp();
+  const { leaves, tasks, departments, currentUser, activeRole } = useApp();
 
-  const canViewStats = 
-    activeRole === 'ADMIN' || 
-    activeRole === 'PRINCIPAL' || 
-    activeRole === 'VICE_PRINCIPAL' || 
-    activeRole === 'HEAD_OF_DEPT' || 
-    activeRole === 'GROUP_LEADER' || 
-    activeRole === 'SECRETARY' || 
-    activeRole === 'INSPECTOR' ||
-    currentUser?.roles?.some(r => ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_OF_DEPT', 'GROUP_LEADER', 'SECRETARY', 'INSPECTOR'].includes(r));
-
-  if (!canViewStats) {
+  if (!canViewStats(currentUser, activeRole)) {
     return (
       <div className="p-8 bg-white rounded-3xl border border-slate-200 text-center space-y-3 shadow-sm my-6">
         <div className="w-12 h-12 mx-auto rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 font-bold text-xl">
@@ -37,7 +28,6 @@ export function AnalyticsTab() {
 
   const totalTasks = tasks.length;
   const completedTasks = tasks.filter(t => t.status === 'COMPLETED').length;
-  const inProgressTasks = tasks.filter(t => t.status === 'IN_PROGRESS' || t.status === 'VIEWED' || t.status === 'ASSIGNED').length;
   const pendingApprovalTasks = tasks.filter(t => t.status === 'PENDING_APPROVAL').length;
 
   const completionRate = totalTasks > 0 ? Math.round((completedTasks / totalTasks) * 100) : 0;

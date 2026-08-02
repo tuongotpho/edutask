@@ -2,5 +2,5 @@
   "name": "EduTask - Hệ Thống Quản Lý Trường Học",
   "description": "Hệ thống quản lý công việc nội bộ và đơn xin nghỉ dành cho trường học",
   "requestFramePermissions": [],
-  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+  "majorCapabilities": []
 }

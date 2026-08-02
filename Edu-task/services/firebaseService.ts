@@ -2,9 +2,10 @@ import {
   collection,
   doc,
   setDoc,
-  getDocs,
   deleteDoc,
+  updateDoc,
   onSnapshot,
+  writeBatch,
   Unsubscribe,
   query,
   where,
@@ -12,57 +13,53 @@ import {
   DocumentData
 } from 'firebase/firestore';
 import { db } from '@/Edu-task/lib/firebase';
-import { User } from '@/Edu-task/types/user';
+import { sanitizeForFirestore } from '@/Edu-task/lib/utils';
+import { User, Department } from '@/Edu-task/types/user';
 import { LeaveRequest } from '@/Edu-task/types/leave';
 import { Task } from '@/Edu-task/types/task';
 import { AppNotification } from '@/Edu-task/types/notification';
-import { 
-  INITIAL_USERS, 
-  INITIAL_LEAVES, 
-  INITIAL_TASKS, 
-  INITIAL_NOTIFICATIONS 
-} from '@/Edu-task/lib/storage';
-
-// Helper to remove any undefined fields before sending to Firestore
-function sanitizeForFirestore<T>(obj: T): T {
-  if (obj === undefined) return null as unknown as T;
-  return JSON.parse(JSON.stringify(obj));
-}
 
 export const firebaseService = {
-  // --- Seed initial data to Firestore if empty ---
-  async seedInitialDataIfEmpty(): Promise<void> {
-    try {
-      const usersSnap = await getDocs(collection(db, 'users'));
-      if (usersSnap.empty) {
-        for (const u of INITIAL_USERS) {
-          await setDoc(doc(db, 'users', u.id), sanitizeForFirestore(u));
-        }
-      }
+  // --- Departments (shared config: must live server-side so every device and
+  // every user sees the same list, not just whoever created it) ---
+  subscribeDepartments(onUpdate: (departments: Department[]) => void): Unsubscribe {
+    return onSnapshot(collection(db, 'departments'), (snapshot) => {
+      const departments: Department[] = [];
+      snapshot.forEach((d) => departments.push(d.data() as Department));
+      departments.sort((a, b) => a.name.localeCompare(b.name, 'vi'));
+      onUpdate(departments);
+    });
+  },
 
-      const leavesSnap = await getDocs(collection(db, 'leaves'));
-      if (leavesSnap.empty) {
-        for (const l of INITIAL_LEAVES) {
-          await setDoc(doc(db, 'leaves', l.id), sanitizeForFirestore(l));
-        }
-      }
+  async saveDepartment(department: Department): Promise<void> {
+    await setDoc(doc(db, 'departments', department.id), sanitizeForFirestore(department), { merge: true });
+  },
 
-      const tasksSnap = await getDocs(collection(db, 'tasks'));
-      if (tasksSnap.empty) {
-        for (const t of INITIAL_TASKS) {
-          await setDoc(doc(db, 'tasks', t.id), sanitizeForFirestore(t));
-        }
-      }
+  async deleteDepartment(departmentId: string): Promise<void> {
+    await deleteDoc(doc(db, 'departments', departmentId));
+  },
 
-      const notifsSnap = await getDocs(collection(db, 'notifications'));
-      if (notifsSnap.empty) {
-        for (const n of INITIAL_NOTIFICATIONS) {
-          await setDoc(doc(db, 'notifications', n.id), sanitizeForFirestore(n));
-        }
-      }
-    } catch (err) {
-      console.error('Error seeding initial data to Firestore:', err);
-    }
+  // One-off migration of the built-in defaults the very first time this project
+  // runs against an empty `departments` collection. Batched so it either lands
+  // completely or not at all.
+  async seedDepartments(departments: Department[]): Promise<void> {
+    const batch = writeBatch(db);
+    departments.forEach(d => {
+      batch.set(doc(db, 'departments', d.id), sanitizeForFirestore(d));
+    });
+    await batch.commit();
+  },
+
+  // --- School settings ---
+  subscribeSchoolName(onUpdate: (name: string | null) => void): Unsubscribe {
+    return onSnapshot(doc(db, 'settings', 'school'), (snapshot) => {
+      const data = snapshot.data();
+      onUpdate(typeof data?.name === 'string' ? data.name : null);
+    });
+  },
+
+  async saveSchoolName(name: string): Promise<void> {
+    await setDoc(doc(db, 'settings', 'school'), { name }, { merge: true });
   },
 
   // --- Users ---
@@ -113,6 +110,10 @@ export const firebaseService = {
     await setDoc(doc(db, 'leaves', leave.id), sanitizeForFirestore(leave), { merge: true });
   },
 
+  async deleteLeave(leaveId: string): Promise<void> {
+    await deleteDoc(doc(db, 'leaves', leaveId));
+  },
+
   // --- Tasks ---
   subscribeTasks(onUpdate: (tasks: Task[]) => void, filters?: { role?: string; deptId?: string; userId?: string }): Unsubscribe {
     let q: Query<DocumentData> = collection(db, 'tasks');
@@ -137,12 +138,10 @@ export const firebaseService = {
     await setDoc(doc(db, 'tasks', task.id), sanitizeForFirestore(task), { merge: true });
   },
 
+  // Write failures must propagate: callers roll back their optimistic update and
+  // tell the user. Swallowing the error here would silently desync the UI.
   async deleteTask(taskId: string): Promise<void> {
-    try {
-      await deleteDoc(doc(db, 'tasks', taskId));
-    } catch (e) {
-      console.error('Error deleting task from Firebase:', e);
-    }
+    await deleteDoc(doc(db, 'tasks', taskId));
   },
 
   // --- Notifications ---
@@ -165,5 +164,18 @@ export const firebaseService = {
 
   async saveNotification(notif: AppNotification): Promise<void> {
     await setDoc(doc(db, 'notifications', notif.id), sanitizeForFirestore(notif), { merge: true });
+  },
+
+  // Security rules only permit the recipient to touch `isRead`, so this is a
+  // targeted update rather than a whole-document write.
+  async markNotificationRead(notifId: string): Promise<void> {
+    await updateDoc(doc(db, 'notifications', notifId), { isRead: true });
+  },
+
+  async markAllNotificationsRead(notifIds: string[]): Promise<void> {
+    if (notifIds.length === 0) return;
+    const batch = writeBatch(db);
+    notifIds.forEach(id => batch.update(doc(db, 'notifications', id), { isRead: true }));
+    await batch.commit();
   }
 };
