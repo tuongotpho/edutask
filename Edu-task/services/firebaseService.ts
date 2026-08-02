@@ -84,25 +84,54 @@ export const firebaseService = {
 
   // --- Leaves ---
   subscribeLeaves(onUpdate: (leaves: LeaveRequest[]) => void, filters?: { role?: string; deptId?: string; userId?: string }): Unsubscribe {
-    let q: Query<DocumentData> = collection(db, 'leaves');
+    const base = collection(db, 'leaves');
+    const sortNewestFirst = (leaves: LeaveRequest[]) =>
+      leaves.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+    const toLeaves = (snapshot: { forEach: (cb: (d: { data: () => DocumentData }) => void) => void }) => {
+      const leaves: LeaveRequest[] = [];
+      snapshot.forEach(d => leaves.push(d.data() as LeaveRequest));
+      return leaves;
+    };
 
-    // Applying basic frontend limits based on role to prevent massive fetches
-    // Firestore security rules will enforce this on the backend
-    if (filters) {
-      if (filters.role === 'GROUP_LEADER' || filters.role === 'HEAD_OF_DEPT') {
-        q = query(q, where('departmentId', '==', filters.deptId));
-      } else if (filters.role === 'TEACHER') {
-        q = query(q, where('applicantId', '==', filters.userId));
-      }
+    // A teacher must see the requests they filed AND the ones they were asked to
+    // cover. Firestore cannot express that as a single equality filter, so we run
+    // both queries and merge. (An `or()` query would read better but can require
+    // its own composite index; two plain equality filters are always servable.)
+    //
+    // Without the second query a substitute teacher never received the document
+    // at all, so the assignment was invisible to them no matter what the UI or
+    // the security rules allowed.
+    if (filters?.role === 'TEACHER' && filters.userId) {
+      let asApplicant: LeaveRequest[] = [];
+      let asSubstitute: LeaveRequest[] = [];
+
+      const emit = () => {
+        const byId = new Map<string, LeaveRequest>();
+        [...asApplicant, ...asSubstitute].forEach(l => byId.set(l.id, l));
+        onUpdate(sortNewestFirst(Array.from(byId.values())));
+      };
+
+      const unsubApplicant = onSnapshot(
+        query(base, where('applicantId', '==', filters.userId)),
+        snapshot => { asApplicant = toLeaves(snapshot); emit(); }
+      );
+      const unsubSubstitute = onSnapshot(
+        query(base, where('substituteTeacherId', '==', filters.userId)),
+        snapshot => { asSubstitute = toLeaves(snapshot); emit(); }
+      );
+
+      return () => { unsubApplicant(); unsubSubstitute(); };
+    }
+
+    // Applying basic frontend limits based on role to prevent massive fetches.
+    // Firestore security rules enforce the real boundary on the backend.
+    let q: Query<DocumentData> = base;
+    if (filters?.role === 'GROUP_LEADER' || filters?.role === 'HEAD_OF_DEPT') {
+      q = query(q, where('departmentId', '==', filters.deptId));
     }
 
     return onSnapshot(q, (snapshot) => {
-      const leaves: LeaveRequest[] = [];
-      snapshot.forEach((d) => {
-        leaves.push(d.data() as LeaveRequest);
-      });
-      leaves.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
-      onUpdate(leaves);
+      onUpdate(sortNewestFirst(toLeaves(snapshot)));
     });
   },
 

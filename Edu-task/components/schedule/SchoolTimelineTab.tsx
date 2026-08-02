@@ -6,6 +6,7 @@ import { LEAVE_TYPE_LABELS } from '@/Edu-task/types/leave';
 import { TASK_STATUS_CONFIG } from '@/Edu-task/types/task';
 import { CalendarDays } from 'lucide-react';
 import { isDeptLeader, isSchoolLeadership } from '@/Edu-task/lib/permissions';
+import { getDisplayTaskStatus } from '@/Edu-task/lib/taskStatus';
 
 export function SchoolTimelineTab() {
   const { users, leaves, tasks, currentUser, activeRole } = useApp();
@@ -121,8 +122,8 @@ export function SchoolTimelineTab() {
                       <div className="font-bold text-slate-900 line-clamp-1">{task.title}</div>
                       <div className="flex items-center justify-between mt-1 text-[10px]">
                         <span className="text-rose-600 font-semibold">Hạn: {task.deadline.split(' ')[0]}</span>
-                        <span className={`font-bold ${TASK_STATUS_CONFIG[task.status].color}`}>
-                          {TASK_STATUS_CONFIG[task.status].label}
+                        <span className={`font-bold ${TASK_STATUS_CONFIG[getDisplayTaskStatus(task)].color}`}>
+                          {TASK_STATUS_CONFIG[getDisplayTaskStatus(task)].label}
                         </span>
                       </div>
                     </div>

@@ -4,6 +4,7 @@ import React, { useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { TASK_PRIORITY_CONFIG, TASK_STATUS_CONFIG, TaskStatus, TaskPriority } from '@/Edu-task/types/task';
 import { canAssignTask, isAdmin } from '@/Edu-task/lib/permissions';
+import { getDisplayTaskStatus, isTaskOverdue } from '@/Edu-task/lib/taskStatus';
 import { 
   CheckSquare, 
   Search, 
@@ -34,13 +35,15 @@ export function TaskTab({ onRequestNewTask, onSelectTask }: TaskTabProps) {
   // Filter tasks
   const filteredTasks = visibleTasks.filter(task => {
     const term = searchTerm.toLowerCase();
-    const matchesSearch = 
+    const matchesSearch =
       task.title.toLowerCase().includes(term) ||
       task.description.toLowerCase().includes(term) ||
       task.code.toLowerCase().includes(term);
 
     const matchesPriority = selectedPriority === 'ALL' || task.priority === selectedPriority;
-    const matchesStatus = selectedStatus === 'ALL' || task.status === selectedStatus;
+    // Match on the displayed status so "Quá hạn" actually selects something:
+    // OVERDUE is derived from the deadline and is never stored on the document.
+    const matchesStatus = selectedStatus === 'ALL' || getDisplayTaskStatus(task) === selectedStatus;
 
     return matchesSearch && matchesPriority && matchesStatus;
   });
@@ -177,7 +180,13 @@ export function TaskTab({ onRequestNewTask, onSelectTask }: TaskTabProps) {
 
                       <div className="pt-2 border-t border-slate-100 flex items-center justify-between text-[10px]">
                         <span className="text-rose-600 font-bold">Deadline: {task.deadline.split(' ')[0]}</span>
-                        <span className="text-slate-400">{task.assignees.length} người nhận</span>
+                        {isTaskOverdue(task) ? (
+                          <span className="px-1.5 py-0.5 rounded bg-rose-100 text-rose-800 font-bold border border-rose-300">
+                            Quá hạn
+                          </span>
+                        ) : (
+                          <span className="text-slate-400">{task.assignees.length} người nhận</span>
+                        )}
                       </div>
                     </div>
                   ))}
@@ -206,9 +215,15 @@ export function TaskTab({ onRequestNewTask, onSelectTask }: TaskTabProps) {
                 </div>
 
                 <div className="text-right flex-shrink-0">
-                  <span className={`inline-block px-2.5 py-1 rounded text-xs font-bold ${TASK_STATUS_CONFIG[task.status].bg} ${TASK_STATUS_CONFIG[task.status].color}`}>
-                    {TASK_STATUS_CONFIG[task.status].label}
-                  </span>
+                  {(() => {
+                    const displayStatus = getDisplayTaskStatus(task);
+                    const config = TASK_STATUS_CONFIG[displayStatus];
+                    return (
+                      <span className={`inline-block px-2.5 py-1 rounded text-xs font-bold ${config.bg} ${config.color}`}>
+                        {config.label}
+                      </span>
+                    );
+                  })()}
                 </div>
               </div>
             ))}

@@ -286,6 +286,46 @@ Giữ lại `WorkflowRule` (chưa dùng) vì đây là nền cho tính năng c�
 
 ---
 
+## 5b. Đợt 5 — Lỗi phát hiện thêm sau khi rà lại
+
+Bản review ban đầu bị giới hạn thời gian và bỏ sót bốn lỗi thật. Rà lại lần hai tìm ra:
+
+#### B1. Giáo viên dạy thay không bao giờ nhìn thấy đơn mình phải dạy thay 🔴
+`subscribeLeaves` lọc `applicantId == userId` cho vai trò TEACHER. Nhưng theo thiết kế
+(và theo `firestore.rules`, và theo `canViewLeave`) người được phân công dạy thay **cũng**
+phải xem được đơn đó.
+
+Vì query không bao giờ lấy document về client, bộ lọc `l.substituteTeacherId === currentUser.id`
+ở Sidebar/LeaveTab **không thể khớp** — nó lọc trên dữ liệu chưa từng tồn tại. Kết quả: giáo
+viên được phân công dạy thay không nhận được thông tin gì trong ứng dụng.
+
+**Đã sửa:** chạy hai truy vấn (`applicantId` và `substituteTeacherId`) rồi gộp, khử trùng theo
+`id`. Cố ý không dùng `or()` — truy vấn tuyển có thể đòi composite index riêng, trong khi hai
+equality filter đơn lẻ thì Firestore luôn phục vụ được bằng index mặc định.
+
+#### B2. Hiển thị "3 cấp" nhưng luồng duyệt chỉ có 2 bước
+`createLeaveRequest` tạo đúng 2 bước (Nhóm/Tổ trưởng → BGH), nhưng LeaveTab ghi cứng
+`Bước ${i+1}/3` và `Đã hoàn tất (3/3)`. Đơn duyệt xong hiển thị "Bước 2/3" và không bao giờ
+tới 3. **Đã sửa:** suy ra từ `leave.steps.length`; sửa cả tiêu đề mô tả quy trình.
+
+#### B3. Trạng thái `OVERDUE` không nơi nào sinh ra
+`TaskStatus` khai báo `OVERDUE`, `TASK_STATUS_CONFIG` có nhãn, bộ lọc có tuỳ chọn "Quá hạn" —
+nhưng **không dòng code nào từng gán trạng thái này**. Lọc "Quá hạn" luôn trả về rỗng, và việc
+trễ hạn không có dấu hiệu nào.
+
+**Đã sửa:** thêm `lib/taskStatus.ts` với `isTaskOverdue` / `getDisplayTaskStatus` (trạng thái
+suy diễn, không lưu xuống DB). Bộ lọc và nhãn dùng trạng thái hiển thị; **cột Kanban vẫn dùng
+trạng thái gốc** để việc trễ hạn không biến mất khỏi cột quy trình của nó.
+Quy ước đã chốt: việc đã nộp nhưng chưa nghiệm thu vẫn tính là quá hạn — hạn chót là để *hoàn
+thành*, không phải để *nộp*.
+
+#### B4. Bộ lọc đơn nghỉ thiếu trạng thái "Đã hủy"
+Danh sách render được `CANCELLED` nhưng dropdown không có tuỳ chọn tương ứng. **Đã sửa.**
+
+**Kiểm chứng:** `tsc` ✅ · `npm test` ✅ **64/64** (thêm 11 test cho `taskStatus`) · `eslint` ✅ · `build` ✅
+
+---
+
 ## 6. Gợi Ý Nâng Cấp Tính Năng
 
 Sắp theo tỉ lệ **giá trị / công sức**, cao nhất trước.

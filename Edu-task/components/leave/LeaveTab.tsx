@@ -56,7 +56,7 @@ export function LeaveTab({ onRequestNewLeave, onSelectLeave, searchTerm = '' }: 
               Quản Lý Đơn Xin Nghỉ Phép & Công Tác
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Quy trình phê duyệt tự động 3 cấp: Tổ trưởng → Hiệu phó → Hiệu trưởng
+              Quy trình phê duyệt 2 cấp: Nhóm/Tổ trưởng chuyên môn → Ban Giám Hiệu
             </p>
           </div>
 
@@ -125,6 +125,7 @@ export function LeaveTab({ onRequestNewLeave, onSelectLeave, searchTerm = '' }: 
             <option value="APPROVED">Đã phê duyệt hoàn tất</option>
             <option value="REJECTED">Từ chối</option>
             <option value="REQUEST_EDIT">Yêu cầu sửa</option>
+            <option value="CANCELLED">Đã hủy</option>
           </select>
         </div>
       </div>
@@ -184,7 +185,12 @@ export function LeaveTab({ onRequestNewLeave, onSelectLeave, searchTerm = '' }: 
                   <div className="flex items-center space-x-1 text-[11px]">
                     <span className="text-slate-400 font-semibold">Bước duyệt:</span>
                     <span className="font-bold text-slate-800">
-                      {leave.overallStatus === 'APPROVED' ? 'Đã hoàn tất (3/3)' : `Bước ${leave.currentStepIndex + 1}/3 (${leave.steps[leave.currentStepIndex]?.levelLabel})`}
+                      {/* Derived from the request's own steps: the count was
+                          hardcoded to 3 while the workflow only ever creates 2,
+                          so a fully approved request read "Bước 2/3". */}
+                      {leave.overallStatus === 'APPROVED'
+                        ? `Đã hoàn tất (${leave.steps.length}/${leave.steps.length})`
+                        : `Bước ${leave.currentStepIndex + 1}/${leave.steps.length} (${leave.steps[leave.currentStepIndex]?.levelLabel ?? '—'})`}
                     </span>
                   </div>
 
