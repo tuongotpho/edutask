@@ -13,7 +13,7 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const [assigneeType, setAssigneeType] = useState<'INDIVIDUAL' | 'MULTIPLE' | 'DEPARTMENT'>('INDIVIDUAL');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [selectedDeptId, setSelectedDeptId] = useState('');
-  const [deadline, setDeadline] = useState('2026-08-05 17:00');
+  const [deadline, setDeadline] = useState('2026-08-05T17:00');
   const [priority, setPriority] = useState<TaskPriority>('NORMAL');
   const [bghCanView, setBghCanView] = useState(true);
   const [assigneeGroupLeadersCanView, setAssigneeGroupLeadersCanView] = useState(true);
@@ -43,7 +43,7 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
     ? availableUsers.filter(u => u.departmentId === selectedDeptId)
     : availableUsers.filter(u => selectedUserIds.includes(u.id));
 
-  const deadlineDateStr = deadline.split(' ')[0];
+  const deadlineDateStr = deadline.split('T')[0];
   const detectedConflicts = targetCheckUsers
     .map(u => ({ user: u, conflict: getTeacherLeaveConflict(u.id, deadlineDateStr, deadlineDateStr) }))
     .filter(item => item.conflict.hasConflict);
@@ -81,7 +81,7 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
         assigneeType,
         targetUserIds: selectedUserIds,
         targetDepartmentId: selectedDeptId || undefined,
-        deadline,
+        deadline: deadline.replace('T', ' '),
         priority,
         visibilitySettings: {
           bghCanView,
@@ -246,10 +246,9 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
             <div>
               <label className="block font-bold text-slate-800 mb-1">Hạn hoàn thành (Deadline) <span className="text-rose-500">*</span></label>
               <input
-                type="text"
+                type="datetime-local"
                 value={deadline}
                 onChange={(e) => setDeadline(e.target.value)}
-                placeholder="2026-08-05 17:00"
                 className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white font-semibold text-slate-900"
               />
             </div>

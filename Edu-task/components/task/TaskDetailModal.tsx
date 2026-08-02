@@ -39,7 +39,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
 
   const [reportNote, setReportNote] = useState('');
   const [showExtensionForm, setShowExtensionForm] = useState(false);
-  const [extDeadline, setExtDeadline] = useState('2026-08-10 17:00');
+  const [extDeadline, setExtDeadline] = useState('2026-08-10T17:00');
   const [extReason, setExtReason] = useState('');
   const [feedback, setFeedback] = useState('');
 
@@ -92,7 +92,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
       alert('Vui lòng nhập lý do xin gia hạn.');
       return;
     }
-    requestExtension(task.id, extDeadline, extReason);
+    requestExtension(task.id, extDeadline.replace('T', ' '), extReason);
     setShowExtensionForm(false);
     setExtReason('');
   };
@@ -223,10 +223,9 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
                 <div className="p-3 bg-white rounded-xl border border-indigo-200 space-y-2 mt-2">
                   <div className="font-bold text-slate-800 text-xs">Đơn xin gia hạn thời hạn</div>
                   <input
-                    type="text"
+                    type="datetime-local"
                     value={extDeadline}
                     onChange={(e) => setExtDeadline(e.target.value)}
-                    placeholder="Hạn mới (ví dụ: 2026-08-10 17:00)"
                     className="w-full p-2 border border-slate-200 rounded-lg text-xs"
                   />
                   <textarea
