@@ -1,6 +1,7 @@
 'use client';
 
 import React, { createContext, useContext, useState, useEffect } from 'react';
+import type { User as FirebaseAuthUser } from 'firebase/auth';
 import { User, RoleType, ROLE_LABELS, Department } from '@/Edu-task/types/user';
 import { LeaveRequest, LeaveType, LeaveSession, ApprovalStatus, LeaveHistoryLog } from '@/Edu-task/types/leave';
 import { Task, TaskPriority, TaskStatus } from '@/Edu-task/types/task';
@@ -157,58 +158,72 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [leaves, setLeaves] = useState<LeaveRequest[]>(() => storage.getLeaves());
   const [tasks, setTasks] = useState<Task[]>(() => storage.getTasks());
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [fbUser, setFbUser] = useState<FirebaseAuthUser | null>(null);
 
-  // Listen to Firebase Auth state
+  // Register the Firebase Auth listener exactly once (on mount). It only stores
+  // the raw Firebase user; deriving the app profile happens in the effect below
+  // so we never re-subscribe the listener every time `users` changes.
   useEffect(() => {
-    const unsubscribe = firebaseAuthService.onAuthChange(async (fbUser) => {
-      console.log('onAuthChange fired:', fbUser?.email);
-      if (fbUser) {
-        setIsAuthenticated(true);
-        const userEmail = fbUser.email?.toLowerCase();
-        let match = users.find(u => u.email.toLowerCase() === userEmail || u.id === fbUser.uid);
-        console.log('onAuthChange match found:', !!match, users.length);
-        
-        const adminEmailsStr = process.env.NEXT_PUBLIC_ADMIN_EMAILS || 'admin@gmail.com';
-        const adminEmails = adminEmailsStr.split(',').map(e => e.trim().toLowerCase());
-        
-        if (userEmail && adminEmails.includes(userEmail)) {
-          if (!match) {
-            match = await firebaseAuthService.seedAdminUserProfile();
-          } else {
-            match = {
-              ...match,
-              roles: ['ADMIN', 'PRINCIPAL', 'TEACHER'],
-              activeRole: match.activeRole || 'ADMIN',
-              status: 'ACTIVE',
-            };
-          }
-        }
+    const unsubscribe = firebaseAuthService.onAuthChange(setFbUser);
+    return () => unsubscribe();
+  }, []);
 
-        if (match) {
-          console.log('onAuthChange match found:', true, users.length, 'match.activeRole:', match.activeRole, 'fallback to:', match.roles[0]);
-          setCurrentUser(match);
-          setActiveRole(match.activeRole || match.roles[0] || 'ADMIN');
-          storage.setCurrentUserId(match.id);
+  // Derive the current app user whenever the auth state or the users list changes.
+  useEffect(() => {
+    if (!fbUser) {
+      setIsAuthenticated(false);
+      setCurrentUser(null);
+      return;
+    }
+
+    let cancelled = false;
+    (async () => {
+      setIsAuthenticated(true);
+      const userEmail = fbUser.email?.toLowerCase();
+      let match = users.find(u => u.email.toLowerCase() === userEmail || u.id === fbUser.uid);
+
+      const adminEmailsStr = process.env.NEXT_PUBLIC_ADMIN_EMAILS || 'admin@gmail.com';
+      const adminEmails = adminEmailsStr.split(',').map(e => e.trim().toLowerCase());
+
+      if (userEmail && adminEmails.includes(userEmail)) {
+        if (!match) {
+          match = await firebaseAuthService.seedAdminUserProfile();
         } else {
-          // New fallback user profile
-          const fallbackUser: User = {
-            id: fbUser.uid,
-            fullName: fbUser.displayName || userEmail || 'Người dùng',
-            email: userEmail || '',
-            departmentId: 'DEPT_TOAN_TIN',
-            departmentName: 'Tổ Toán - Tin',
-            roles: ['TEACHER'],
-            activeRole: 'TEACHER',
-            isTeachingStaff: true,
-            status: 'PENDING_APPROVAL',
+          match = {
+            ...match,
+            roles: ['ADMIN', 'PRINCIPAL', 'TEACHER'],
+            activeRole: match.activeRole || 'ADMIN',
+            status: 'ACTIVE',
           };
-          setCurrentUser(fallbackUser);
-          setActiveRole('TEACHER');
         }
       }
-    });
-    return () => unsubscribe();
-  }, [users]);
+
+      if (cancelled) return;
+
+      if (match) {
+        setCurrentUser(match);
+        setActiveRole(match.activeRole || match.roles[0] || 'ADMIN');
+        storage.setCurrentUserId(match.id);
+      } else {
+        // New user not yet in the users list -> show pending profile.
+        const fallbackUser: User = {
+          id: fbUser.uid,
+          fullName: fbUser.displayName || userEmail || 'Người dùng',
+          email: userEmail || '',
+          departmentId: 'DEPT_TOAN_TIN',
+          departmentName: 'Tổ Toán - Tin',
+          roles: ['TEACHER'],
+          activeRole: 'TEACHER',
+          isTeachingStaff: true,
+          status: 'PENDING_APPROVAL',
+        };
+        setCurrentUser(fallbackUser);
+        setActiveRole('TEACHER');
+      }
+    })();
+
+    return () => { cancelled = true; };
+  }, [fbUser, users]);
 
   // Subscribe to Firebase Firestore Realtime Database
   useEffect(() => {
@@ -228,7 +243,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         storage.saveUsers(mergedUsers);
         return mergedUsers;
       });
-    }, activeRole, currentUser.departmentId);
+    });
 
     const unsubLeaves = firebaseService.subscribeLeaves((fbLeaves) => {
       setLeaves(fbLeaves);

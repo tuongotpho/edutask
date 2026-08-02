@@ -1,75 +1,125 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    
+
     function isAuth() {
       return request.auth != null;
     }
-    
+
     function getUserData() {
       return get(/databases/$(database)/documents/users/$(request.auth.uid)).data;
     }
-    
+
+    // Admin is determined by the ROLE stored in the user's own profile.
+    // The email allow-list below is only a bootstrap escape hatch so the very
+    // first admin account can create its own profile. Keep it in sync with
+    // NEXT_PUBLIC_ADMIN_EMAILS but treat roles as the real source of truth.
+    function isBootstrapAdminEmail() {
+      return request.auth != null &&
+             request.auth.token.email in ['admin@gmail.com', 'admin@edutask.local'];
+    }
+
     function isAdmin() {
       let data = getUserData();
       let hasRole = data != null && data.roles.hasAny(['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL']);
-      let isEmailAdmin = request.auth != null && request.auth.token.email in ['admin@gmail.com', 'admin@edutask.local'];
-      return hasRole || isEmailAdmin;
+      return hasRole || isBootstrapAdminEmail();
     }
-    
+
     function isDeptLeader(deptId) {
       let data = getUserData();
-      return data != null && 
-             data.departmentId == deptId && 
+      return data != null &&
+             data.departmentId == deptId &&
              data.roles.hasAny(['HEAD_OF_DEPT', 'GROUP_LEADER']);
     }
 
     match /users/{userId} {
       allow read: if isAuth();
-      allow create: if isAuth() && (isAdmin() || request.auth.uid == userId);
+
+      // A user may create ONLY their own profile, and only as a pending
+      // TEACHER. This blocks the privilege-escalation hole where anyone could
+      // self-register as ['ADMIN'] / status 'ACTIVE'. Admins (or the bootstrap
+      // admin email) may create any profile.
+      allow create: if isAuth() && (
+        isAdmin() ||
+        (request.auth.uid == userId &&
+         request.resource.data.id == userId &&
+         request.resource.data.roles == ['TEACHER'] &&
+         request.resource.data.status == 'PENDING_APPROVAL')
+      );
+
+      // A user may edit their own profile but NOT their roles, status, or
+      // department (those are approval-controlled). Admins may edit anything.
       allow update: if isAuth() && (
-        isAdmin() || 
-        (request.auth.uid == userId && 
+        isAdmin() ||
+        (request.auth.uid == userId &&
          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roles', 'status', 'departmentId']))
       );
+
       allow delete: if isAdmin();
     }
-    
+
     match /leaves/{leaveId} {
       allow read: if isAuth() && (
-        isAdmin() || 
+        isAdmin() ||
         resource.data.applicantId == request.auth.uid ||
         resource.data.substituteTeacherId == request.auth.uid ||
         isDeptLeader(resource.data.departmentId)
       );
-      
-      allow write: if isAuth() && (
-        isAdmin() || 
-        request.resource.data.applicantId == request.auth.uid ||
-        isDeptLeader(request.resource.data.departmentId)
+
+      // Applicant creates their own request; it must start under review.
+      allow create: if isAuth() &&
+        request.resource.data.applicantId == request.auth.uid &&
+        request.resource.data.overallStatus == 'IN_REVIEW';
+
+      // Only admins or the department's leader may advance the approval flow.
+      // The applicant may still edit / cancel their own request, but may never
+      // set it to APPROVED themselves (enforces approval integrity server-side).
+      allow update: if isAuth() && (
+        isAdmin() ||
+        isDeptLeader(resource.data.departmentId) ||
+        (resource.data.applicantId == request.auth.uid &&
+         request.resource.data.overallStatus in ['IN_REVIEW', 'REQUEST_EDIT', 'CANCELLED'])
+      );
+
+      allow delete: if isAuth() && (
+        isAdmin() ||
+        resource.data.applicantId == request.auth.uid
       );
     }
-    
+
     match /tasks/{taskId} {
       allow read: if isAuth() && (
-        isAdmin() || 
+        isAdmin() ||
         (request.auth.uid in resource.data.viewerIds)
       );
-      
-      allow create: if isAuth();
-      
+
+      // The creator must be the assigner and must include themselves as a viewer.
+      allow create: if isAuth() &&
+        request.resource.data.assignerId == request.auth.uid &&
+        (request.auth.uid in request.resource.data.viewerIds);
+
       allow update: if isAuth() && (
-        isAdmin() || 
+        isAdmin() ||
         resource.data.assignerId == request.auth.uid ||
         (request.auth.uid in resource.data.viewerIds)
       );
-      
-      allow delete: if isAdmin() || resource.data.assignerId == request.auth.uid;
+
+      allow delete: if isAuth() && (
+        isAdmin() ||
+        resource.data.assignerId == request.auth.uid
+      );
     }
-    
+
     match /notifications/{notifId} {
       allow read: if isAuth() && resource.data.recipientUserId == request.auth.uid;
-      allow create: if isAuth();
+
+      // Any authenticated user can raise a notification for another user
+      // (e.g. "leave request needs approval"), but it must carry the required
+      // shape and start unread.
+      allow create: if isAuth() &&
+        request.resource.data.keys().hasAll(['recipientUserId', 'title', 'message']) &&
+        request.resource.data.isRead == false;
+
       allow update: if isAuth() && resource.data.recipientUserId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
       allow delete: if isAuth() && resource.data.recipientUserId == request.auth.uid;
     }

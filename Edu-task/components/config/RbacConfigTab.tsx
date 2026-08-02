@@ -16,6 +16,7 @@ import {
   PlusCircle,
   X
 } from 'lucide-react';
+import { ConfirmModal } from '@/Edu-task/components/common/ConfirmModal';
 
 export function RbacConfigTab() {
   const { 
@@ -40,6 +41,8 @@ export function RbacConfigTab() {
   const [deptFormName, setDeptFormName] = useState('');
   const [deptFormCode, setDeptFormCode] = useState('');
   const [deptFormDesc, setDeptFormDesc] = useState('');
+
+  const [deleteConfirm, setDeleteConfirm] = useState<{type: 'dept' | 'user' | null, id: string, name: string}>({type: null, id: '', name: ''});
 
   const isAdmin = activeRole === 'ADMIN' || currentUser?.roles?.includes('ADMIN') || isAdminEmail(currentUser?.email);
 
@@ -212,9 +215,7 @@ export function RbacConfigTab() {
                             alert(`Không thể xóa tổ ${dept.name} vì đang có ${userCount} thành viên thuộc tổ này.`);
                             return;
                           }
-                          if (confirm(`Bạn có chắc chắn muốn xóa tổ ${dept.name}?`)) {
-                            deleteDepartment(dept.id);
-                          }
+                          setDeleteConfirm({ type: 'dept', id: dept.id, name: dept.name });
                         }}
                         className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[11px]"
                       >
@@ -430,6 +431,24 @@ export function RbacConfigTab() {
 
       {/* User Accounts Management (Firestore DB) */}
       <UserAccountManager />
+      
+      <ConfirmModal
+        isOpen={deleteConfirm.type !== null}
+        title={deleteConfirm.type === 'dept' ? 'Xóa tổ bộ môn' : 'Xóa tài khoản'}
+        message={deleteConfirm.type === 'dept' 
+          ? `Bạn có chắc chắn muốn xóa tổ ${deleteConfirm.name}?` 
+          : `Bạn có chắc chắn muốn xóa tài khoản ${deleteConfirm.name}?`}
+        confirmText="Xóa"
+        onConfirm={() => {
+          if (deleteConfirm.type === 'dept') {
+            deleteDepartment(deleteConfirm.id);
+          } else if (deleteConfirm.type === 'user') {
+            // Note: user deletion logic is usually in UserAccountManager but just in case
+          }
+          setDeleteConfirm({ type: null, id: '', name: '' });
+        }}
+        onCancel={() => setDeleteConfirm({ type: null, id: '', name: '' })}
+      />
     </div>
   );
 }
@@ -439,6 +458,7 @@ function UserAccountManager() {
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
+  const [deleteConfirm, setDeleteConfirm] = useState<{type: 'user' | null, id: string, name: string}>({type: null, id: '', name: ''});
 
   const [fullName, setFullName] = useState('');
   const [email, setEmail] = useState('');
@@ -565,9 +585,7 @@ function UserAccountManager() {
                     {u.id !== 'USR_ADMIN' && !isAdminEmail(u.email) && (
                       <button
                         onClick={() => {
-                          if (confirm(`Bạn có chắc muốn xóa tài khoản ${u.fullName}?`)) {
-                            deleteUserProfile(u.id);
-                          }
+                          setDeleteConfirm({ type: 'user', id: u.id, name: u.fullName });
                         }}
                         className="text-rose-600 hover:text-rose-800 text-[11px] font-semibold inline-flex items-center gap-1"
                       >
@@ -676,6 +694,19 @@ function UserAccountManager() {
         />
       )}
 
+      <ConfirmModal
+        isOpen={deleteConfirm.type !== null}
+        title="Xóa tài khoản"
+        message={`Bạn có chắc chắn muốn xóa tài khoản ${deleteConfirm.name}?`}
+        confirmText="Xóa"
+        onConfirm={() => {
+          if (deleteConfirm.type === 'user') {
+            deleteUserProfile(deleteConfirm.id);
+          }
+          setDeleteConfirm({ type: null, id: '', name: '' });
+        }}
+        onCancel={() => setDeleteConfirm({ type: null, id: '', name: '' })}
+      />
     </div>
   );
 }

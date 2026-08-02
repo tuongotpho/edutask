@@ -82,11 +82,14 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
       }
     ];
 
-    const newCode = `ĐXN-2026-00${leaves.length + 1}`;
+    const nowMs = Date.now();
+    // Timestamp-based suffix so codes/ids are unique across users and across
+    // role-filtered lists (the previous `leaves.length + 1` collided easily).
+    const newCode = `ĐXN-2026-${nowMs.toString().slice(-6)}`;
     const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
     const newLeave: LeaveRequest = {
-      id: `LV_2026_${Date.now()}`,
+      id: `LV_2026_${nowMs}`,
       code: newCode,
       applicantId: currentUser.id,
       applicantName: currentUser.fullName,

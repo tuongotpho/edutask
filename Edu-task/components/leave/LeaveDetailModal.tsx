@@ -4,6 +4,7 @@ import React, { useState, useEffect } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { LeaveRequest, LEAVE_TYPE_LABELS, LEAVE_SESSION_LABELS, ApprovalStatus } from '@/Edu-task/types/leave';
 import { ROLE_LABELS } from '@/Edu-task/types/user';
+import { ConfirmModal } from '@/Edu-task/components/common/ConfirmModal';
 import { 
   X, 
   CheckCircle2, 
@@ -36,6 +37,7 @@ export function LeaveDetailModal({ leave, onClose, onEditLeave }: LeaveDetailMod
   const [isProcessing, setIsProcessing] = useState(false);
   const [showCancelPrompt, setShowCancelPrompt] = useState(false);
   const [cancelReasonInput, setCancelReasonInput] = useState('');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   useEffect(() => {
     if (leave) {
@@ -139,6 +141,8 @@ export function LeaveDetailModal({ leave, onClose, onEditLeave }: LeaveDetailMod
       setIsProcessing(false);
     }
   };
+
+  const isCanceledAndCanBeDeleted = (leave.applicantId === currentUser.id || activeRole === 'ADMIN' || currentUser.roles?.includes('ADMIN')) && leave.overallStatus === 'CANCELLED';
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
@@ -402,23 +406,30 @@ export function LeaveDetailModal({ leave, onClose, onEditLeave }: LeaveDetailMod
           )}
 
           {/* Delete Action Bar for Cancelled / Draft Leaves */}
-          {(leave.applicantId === currentUser.id || activeRole === 'ADMIN' || currentUser.roles?.includes('ADMIN')) && leave.overallStatus === 'CANCELLED' && (
+          {isCanceledAndCanBeDeleted && (
             <div className="flex justify-end pt-1">
               <button
                 type="button"
-                onClick={() => {
-                  if (confirm('Bạn có chắc chắn muốn XÓA vĩnh viễn đơn nghỉ phép này khỏi danh sách?')) {
-                    deleteLeaveRequest(leave.id);
-                    alert('Đã xóa đơn khỏi danh sách.');
-                    onClose();
-                  }
-                }}
+                onClick={() => setIsDeleteModalOpen(true)}
                 className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-slate-200 transition-all"
               >
                 🗑️ Xóa Đơn Khỏi Danh Sách
               </button>
             </div>
           )}
+
+          <ConfirmModal
+            isOpen={isDeleteModalOpen}
+            title="Xóa đơn nghỉ phép"
+            message="Bạn có chắc chắn muốn XÓA vĩnh viễn đơn nghỉ phép này khỏi danh sách?"
+            confirmText="Xóa vĩnh viễn"
+            onConfirm={() => {
+              setIsDeleteModalOpen(false);
+              deleteLeaveRequest(leave.id);
+              onClose();
+            }}
+            onCancel={() => setIsDeleteModalOpen(false)}
+          />
 
           {/* Action Box for Authorized Approver */}
           {canApprove && (

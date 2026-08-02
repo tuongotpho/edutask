@@ -4,6 +4,9 @@ import React, { useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { TaskPriority, TASK_PRIORITY_CONFIG } from '@/Edu-task/types/task';
 import { X, CheckSquare, AlertTriangle, Users, Calendar, Shield, Paperclip, Sparkles } from 'lucide-react';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { format } from 'date-fns';
 
 export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: () => void }) {
   const { currentUser, activeRole, users, departments, createTask, getTeacherLeaveConflict } = useApp();
@@ -13,7 +16,12 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const [assigneeType, setAssigneeType] = useState<'INDIVIDUAL' | 'MULTIPLE' | 'DEPARTMENT'>('INDIVIDUAL');
   const [selectedUserIds, setSelectedUserIds] = useState<string[]>([]);
   const [selectedDeptId, setSelectedDeptId] = useState('');
-  const [deadline, setDeadline] = useState('2026-08-05T17:00');
+  const [deadline, setDeadline] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 3);
+    d.setHours(17, 0, 0, 0);
+    return d;
+  });
   const [priority, setPriority] = useState<TaskPriority>('NORMAL');
   const [bghCanView, setBghCanView] = useState(true);
   const [assigneeGroupLeadersCanView, setAssigneeGroupLeadersCanView] = useState(true);
@@ -43,7 +51,7 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
     ? availableUsers.filter(u => u.departmentId === selectedDeptId)
     : availableUsers.filter(u => selectedUserIds.includes(u.id));
 
-  const deadlineDateStr = deadline.split('T')[0];
+  const deadlineDateStr = format(deadline, 'yyyy-MM-dd');
   const detectedConflicts = targetCheckUsers
     .map(u => ({ user: u, conflict: getTeacherLeaveConflict(u.id, deadlineDateStr, deadlineDateStr) }))
     .filter(item => item.conflict.hasConflict);
@@ -81,7 +89,7 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
         assigneeType,
         targetUserIds: selectedUserIds,
         targetDepartmentId: selectedDeptId || undefined,
-        deadline: deadline.replace('T', ' '),
+        deadline: format(deadline, 'yyyy-MM-dd HH:mm'),
         priority,
         visibilitySettings: {
           bghCanView,
@@ -245,10 +253,14 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
           <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
             <div>
               <label className="block font-bold text-slate-800 mb-1">Hạn hoàn thành (Deadline) <span className="text-rose-500">*</span></label>
-              <input
-                type="datetime-local"
-                value={deadline}
-                onChange={(e) => setDeadline(e.target.value)}
+              <DatePicker
+                selected={deadline}
+                onChange={(date: Date | null) => date && setDeadline(date)}
+                showTimeSelect
+                timeFormat="HH:mm"
+                timeIntervals={15}
+                timeCaption="Giờ"
+                dateFormat="dd/MM/yyyy h:mm aa"
                 className="w-full p-2.5 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white font-semibold text-slate-900"
               />
             </div>

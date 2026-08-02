@@ -86,10 +86,15 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
     }
 
     const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
-    const newCode = `CV-2026-00${tasks.length + 1}`;
+    const nowMs = Date.now();
+    // Use a timestamp-based suffix so codes/ids never collide across users or
+    // across role-filtered lists (the previous `tasks.length + 1` was neither
+    // unique nor correctly padded past 9).
+    const taskId = `TSK_2026_${nowMs}`;
+    const newCode = `CV-2026-${nowMs.toString().slice(-6)}`;
 
     const newTask: Task = {
-      id: `TSK_2026_${Date.now()}`,
+      id: taskId,
       code: newCode,
       title: data.title,
       description: data.description,
@@ -110,8 +115,8 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks }
       extensionRequests: [],
       activities: [
         {
-          id: `ACT_${Date.now()}`,
-          taskId: `TSK_2026_${Date.now()}`,
+          id: `ACT_${nowMs}`,
+          taskId: taskId,
           actorId: currentUser.id,
           actorName: currentUser.fullName,
           actorRole: ROLE_LABELS[activeRole],

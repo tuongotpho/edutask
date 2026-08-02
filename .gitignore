@@ -33,3 +33,7 @@ next-env.d.ts
 .firebase/
 firebase-debug.log*
 firestore-debug.log*
+# Firebase Admin SDK service-account private keys — must never be committed
+*firebase-adminsdk*.json
+*-service-account*.json
+serviceAccountKey.json

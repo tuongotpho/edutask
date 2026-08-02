@@ -4,6 +4,10 @@ import React, { useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { Task, TASK_PRIORITY_CONFIG, TASK_STATUS_CONFIG, TaskStatus } from '@/Edu-task/types/task';
 import { ROLE_LABELS } from '@/Edu-task/types/user';
+import { ConfirmModal } from '@/Edu-task/components/common/ConfirmModal';
+import DatePicker from 'react-datepicker';
+import 'react-datepicker/dist/react-datepicker.css';
+import { format } from 'date-fns';
 import { 
   X, 
   CheckCircle2, 
@@ -41,9 +45,15 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
 
   const [reportNote, setReportNote] = useState('');
   const [showExtensionForm, setShowExtensionForm] = useState(false);
-  const [extDeadline, setExtDeadline] = useState('2026-08-10T17:00');
+  const [extDeadline, setExtDeadline] = useState<Date>(() => {
+    const d = new Date();
+    d.setDate(d.getDate() + 1);
+    d.setHours(17, 0, 0, 0);
+    return d;
+  });
   const [extReason, setExtReason] = useState('');
   const [feedback, setFeedback] = useState('');
+  const [isDeleteModalOpen, setIsDeleteModalOpen] = useState(false);
 
   if (!task || !currentUser) return null;
 
@@ -95,7 +105,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
       alert('Vui lòng nhập lý do xin gia hạn.');
       return;
     }
-    requestExtension(task.id, extDeadline.replace('T', ' '), extReason);
+    requestExtension(task.id, format(extDeadline, 'yyyy-MM-dd HH:mm'), extReason);
     setShowExtensionForm(false);
     setExtReason('');
   };
@@ -118,12 +128,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
           <div className="flex items-center space-x-2">
             {isAdminOrAssigner && (
               <button 
-                onClick={() => {
-                  if (confirm('Bạn có chắc chắn muốn xóa vĩnh viễn công việc này không? Mọi dữ liệu liên quan sẽ bị mất.')) {
-                    deleteTask(task.id);
-                    onClose();
-                  }
-                }}
+                onClick={() => setIsDeleteModalOpen(true)}
                 className="p-1.5 hover:bg-rose-500/20 text-slate-300 hover:text-rose-400 rounded-lg transition-colors"
                 title="Xóa công việc"
               >
@@ -241,10 +246,14 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
               {showExtensionForm && (
                 <div className="p-3 bg-white rounded-xl border border-indigo-200 space-y-2 mt-2">
                   <div className="font-bold text-slate-800 text-xs">Đơn xin gia hạn thời hạn</div>
-                  <input
-                    type="datetime-local"
-                    value={extDeadline}
-                    onChange={(e) => setExtDeadline(e.target.value)}
+                  <DatePicker
+                    selected={extDeadline}
+                    onChange={(date: Date | null) => date && setExtDeadline(date)}
+                    showTimeSelect
+                    timeFormat="HH:mm"
+                    timeIntervals={15}
+                    timeCaption="Giờ"
+                    dateFormat="dd/MM/yyyy h:mm aa"
                     className="w-full p-2 border border-slate-200 rounded-lg text-xs"
                   />
                   <textarea
@@ -342,8 +351,20 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
           </div>
 
         </div>
-
       </div>
+      
+      <ConfirmModal
+        isOpen={isDeleteModalOpen}
+        title="Xóa công việc"
+        message="Bạn có chắc chắn muốn xóa vĩnh viễn công việc này không? Mọi dữ liệu liên quan sẽ bị mất."
+        confirmText="Xóa vĩnh viễn"
+        onConfirm={() => {
+          setIsDeleteModalOpen(false);
+          deleteTask(task.id);
+          onClose();
+        }}
+        onCancel={() => setIsDeleteModalOpen(false)}
+      />
     </div>
   );
 }

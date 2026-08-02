@@ -20,17 +20,12 @@ export function useAuthLogic({ users, setCurrentUser, setActiveRole, setIsAuthen
   };
 
   const loginWithFirebase = async (email: string, pass: string) => {
-    console.log('loginWithFirebase called with:', email);
     await firebaseAuthService.login(email, pass);
-    console.log('loginWithFirebase login success!');
     setIsAuthenticated(true);
     const match = users.find(u => u.email.toLowerCase() === email.toLowerCase());
-    console.log('loginWithFirebase match:', !!match, users.length);
     if (match) {
       setCurrentUser(match);
       setActiveRole(match.activeRole || match.roles[0]);
-    } else {
-      console.log('NO MATCH in loginWithFirebase for', email);
     }
   };
 
