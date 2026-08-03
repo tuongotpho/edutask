@@ -12,6 +12,7 @@ với luồng phê duyệt nhiều cấp cùng phân công giáo viên dạy tha
 | Dữ liệu | Firebase Firestore (realtime) + Firebase Auth |
 | Hosting | Firebase Hosting |
 | Kiểm thử | Vitest |
+| Cài trên máy | PWA (service worker + web manifest) |
 
 > **Lưu ý kiến trúc:** ứng dụng không có tầng server — trình duyệt nói chuyện trực tiếp
 > với Firestore. Vì vậy [`firestore.rules`](./firestore.rules) là **ranh giới bảo mật duy
@@ -107,6 +108,23 @@ Chỉ cập nhật quy tắc bảo mật:
 ```bash
 npx firebase deploy --only firestore:rules,storage
 ```
+
+## Cài như ứng dụng (PWA)
+
+Mở web trên điện thoại/máy tính rồi chọn **Cài đặt / Thêm vào màn hình chính**. Sau khi cài:
+
+- App **mở được kể cả khi mất mạng** — service worker precache toàn bộ giao diện ngay lúc
+  build, nên chạy được từ lần truy cập đầu tiên chứ không phải đợi lần thứ hai.
+- Dữ liệu khi ngoại tuyến là bản đã tải trước đó. **Không lưu được thay đổi khi offline** —
+  app hiện banner cảnh báo ngay, thay vì để người dùng điền xong form rồi mới báo lỗi.
+- Có bản mới thì app hiện nút *"Đã có phiên bản mới — bấm để cập nhật"*.
+
+Đổi icon: sửa `scripts/generate-icons.mjs` rồi chạy `node scripts/generate-icons.mjs`.
+Danh sách file precache được sinh tự động sau mỗi `npm run build`.
+
+> Service worker cố ý **không** cache bất kỳ request nào tới Firestore, Auth, Storage hay
+> Telegram — chỉ xử lý tài nguyên cùng origin. Nhờ vậy không bao giờ trả về dữ liệu API cũ,
+> và không can thiệp vào luồng đăng nhập.
 
 ## Vai trò & phân quyền
 
