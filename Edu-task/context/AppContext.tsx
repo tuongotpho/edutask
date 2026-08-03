@@ -3,7 +3,7 @@
 import React, { createContext, useContext, useState, useEffect, useCallback, useRef } from 'react';
 import type { User as FirebaseAuthUser } from 'firebase/auth';
 import { User, RoleType, Department } from '@/Edu-task/types/user';
-import { LeaveRequest, LeaveType, LeaveSession, ApprovalStatus } from '@/Edu-task/types/leave';
+import { LeaveRequest, LeaveType, LeaveSession, ApprovalStatus, AttachmentFile } from '@/Edu-task/types/leave';
 import { Task, TaskPriority, TaskStatus } from '@/Edu-task/types/task';
 import { AppNotification } from '@/Edu-task/types/notification';
 import { storage, INITIAL_DEPARTMENTS } from '@/Edu-task/lib/storage';
@@ -67,6 +67,8 @@ interface AppContextType {
     reason: string;
     substituteTeacherId?: string;
     notes?: string;
+    id?: string;
+    proofFiles?: AttachmentFile[];
   }) => Promise<LeaveRequest | null>;
 
   updateLeaveRequest: (
@@ -78,6 +80,7 @@ interface AppContextType {
       session: LeaveSession;
       reason: string;
       notes?: string;
+      proofFiles?: AttachmentFile[];
     }
   ) => Promise<boolean>;
 
@@ -117,6 +120,8 @@ interface AppContextType {
     targetDepartmentId?: string;
     deadline: string;
     priority: TaskPriority;
+    id?: string;
+    attachments?: AttachmentFile[];
     visibilitySettings?: {
       bghCanView?: boolean;
       assigneeGroupLeadersCanView?: boolean;

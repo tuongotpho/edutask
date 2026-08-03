@@ -45,6 +45,15 @@ export interface AttachmentFile {
   size: string;
   url: string;
   type: string;
+  /**
+   * Full object path inside the storage bucket (e.g. `leaves/LV_1/abc.pdf`).
+   * The download URL carries a token and cannot be turned back into a path, so
+   * without this the object could never be deleted.
+   */
+  storagePath?: string;
+  uploadedById?: string;
+  uploadedByName?: string;
+  uploadedAt?: string;
 }
 
 export interface LeaveRequest {

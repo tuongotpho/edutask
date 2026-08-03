@@ -1,0 +1,48 @@
+rules_version = '2';
+
+// Uploads live in the dedicated 'edutask' bucket, not the project default one.
+//
+// As with Firestore, the browser talks to Storage directly, so these rules are
+// the real boundary — the client-side checks only decide what to show.
+service firebase.storage {
+  match /b/{bucket}/o {
+
+    function isAuth() {
+      return request.auth != null;
+    }
+
+    // Firestore holds the roles, but Storage rules cannot read Firestore. Access
+    // is therefore scoped by PATH: a file lives under the id of the record it
+    // belongs to, and only signed-in staff may read. Fine-grained "who may see
+    // which leave request" stays enforced on the Firestore document that links
+    // to the file — the download URL alone is not guessable.
+    function isAllowedUpload() {
+      return isAuth()
+        && request.resource.size < 10 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*|application/pdf');
+    }
+
+    // Proof attached to a leave request (medical certificate, official letter).
+    match /leaves/{leaveId}/{fileName} {
+      allow read: if isAuth();
+      allow create: if isAllowedUpload();
+      // Files are immutable once uploaded; replacing one means deleting and
+      // re-uploading, which keeps the audit trail on the Firestore document honest.
+      allow update: if false;
+      allow delete: if isAuth();
+    }
+
+    // Deliverables and briefing material attached to a task.
+    match /tasks/{taskId}/{fileName} {
+      allow read: if isAuth();
+      allow create: if isAllowedUpload();
+      allow update: if false;
+      allow delete: if isAuth();
+    }
+
+    // Nothing else in this bucket is writable from the client.
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

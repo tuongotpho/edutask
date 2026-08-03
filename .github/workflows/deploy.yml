@@ -69,7 +69,7 @@ jobs:
       #   - roles/serviceusage.serviceUsageConsumer
       #   - roles/firebaserules.admin
       # then flip `continue-on-error` to false so drift becomes a hard failure.
-      - name: Deploy Firestore Security Rules
+      - name: Deploy Security Rules (Firestore + Storage)
         id: deploy_rules
         continue-on-error: true
         env:
@@ -79,14 +79,14 @@ jobs:
           printf '%s' "$SERVICE_ACCOUNT" > "$GOOGLE_APPLICATION_CREDENTIALS"
           trap 'rm -f "$GOOGLE_APPLICATION_CREDENTIALS"' EXIT
           npx --yes firebase-tools@15 deploy \
-            --only firestore:rules \
+            --only firestore:rules,storage \
             --project app-from-ai \
             --non-interactive
 
       - name: Warn if rules were not deployed
         if: steps.deploy_rules.outcome == 'failure'
         run: |
-          echo "::warning title=Firestore rules NOT deployed::CI could not deploy firestore.rules (usually a missing serviceusage.serviceUsageConsumer role on the deploy service account). The frontend below WILL ship. Apply firestore.rules manually in the Firebase Console, or grant the IAM roles listed in deploy.yml."
+          echo "::warning title=Security rules NOT deployed::CI could not deploy firestore.rules / storage.rules (usually a missing serviceusage.serviceUsageConsumer role on the deploy service account). The frontend below WILL ship. Apply both rule files manually in the Firebase Console, or grant the IAM roles listed in deploy.yml."
 
       - name: Deploy to Firebase Hosting
         uses: FirebaseExtended/action-hosting-deploy@v0

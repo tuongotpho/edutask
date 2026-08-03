@@ -19,5 +19,11 @@
       "database": "edutask",
       "rules": "firestore.rules"
     }
+  ],
+  "storage": [
+    {
+      "bucket": "edutask",
+      "rules": "storage.rules"
+    }
   ]
 }

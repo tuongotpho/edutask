@@ -6,6 +6,7 @@ import { LeaveRequest, LEAVE_TYPE_LABELS, ApprovalStatus } from '@/Edu-task/type
 import { ROLE_LABELS } from '@/Edu-task/types/user';
 import { ConfirmModal } from '@/Edu-task/components/common/ConfirmModal';
 import { canApproveLeaveStep, canViewLeave, isDeptLeader, isSchoolLeadership } from '@/Edu-task/lib/permissions';
+import { FileAttachments } from '@/Edu-task/components/common/FileAttachments';
 import { 
   X, 
   CheckCircle2, 
@@ -294,6 +295,15 @@ export function LeaveDetailModal({ leave, onClose, onEditLeave }: LeaveDetailMod
               </div>
             </div>
           </div>
+
+          {/* Proof of entitlement — the approver needs this before signing off. */}
+          <FileAttachments
+            label="File minh chứng đính kèm"
+            files={leave.proofFiles ?? []}
+            onUpload={async () => { throw new Error('Chỉ chỉnh sửa file trong màn hình sửa đơn.'); }}
+            onError={message => showToast('error', message)}
+            readOnly
+          />
 
           {/* Applicant Edit Option (If status is REQUEST_EDIT or IN_REVIEW) */}
           {leave.applicantId === currentUser.id && (leave.overallStatus === 'REQUEST_EDIT' || leave.overallStatus === 'IN_REVIEW') && (

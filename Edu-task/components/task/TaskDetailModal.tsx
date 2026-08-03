@@ -2,6 +2,7 @@
 
 import React, { useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
+import { FileAttachments } from '@/Edu-task/components/common/FileAttachments';
 import { Task, TASK_PRIORITY_CONFIG, TASK_STATUS_CONFIG } from '@/Edu-task/types/task';
 import { ConfirmModal } from '@/Edu-task/components/common/ConfirmModal';
 import DatePicker from 'react-datepicker';
@@ -160,6 +161,16 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
               {task.description}
             </div>
           </div>
+
+          {/* Briefing material attached by the assigner. Read-only here: files
+              are chosen when the task is issued. */}
+          <FileAttachments
+            label="Tài liệu đính kèm"
+            files={task.attachments ?? []}
+            onUpload={async () => { throw new Error('Không thể thêm file sau khi đã phát hành.'); }}
+            onError={message => showToast('error', message)}
+            readOnly
+          />
 
           {/* Assignees Progress Table */}
           <div>

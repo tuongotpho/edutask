@@ -5,6 +5,9 @@ import { useApp } from '@/Edu-task/context/AppContext';
 import { TaskPriority, TASK_PRIORITY_CONFIG } from '@/Edu-task/types/task';
 import { X, CheckSquare, AlertTriangle, Shield } from 'lucide-react';
 import { isSchoolLeadership } from '@/Edu-task/lib/permissions';
+import { genId } from '@/Edu-task/lib/utils';
+import { useAttachmentDraft } from '@/Edu-task/hooks/useAttachmentDraft';
+import { FileAttachments } from '@/Edu-task/components/common/FileAttachments';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
 import { format } from 'date-fns';
@@ -28,6 +31,21 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
   const [assigneeGroupLeadersCanView, setAssigneeGroupLeadersCanView] = useState(true);
   const [specificVicePrincipalIds, setSpecificVicePrincipalIds] = useState<string[]>([]);
   const [isSubmitting, setIsSubmitting] = useState(false);
+
+  // Mint the id up front so briefing files can be uploaded under it before the
+  // task document exists.
+  const [draftTaskId] = useState(() => genId('TSK_2026'));
+
+  const attachments = useAttachmentDraft({
+    scope: 'tasks',
+    recordId: draftTaskId,
+    uploader: { id: currentUser?.id ?? '', name: currentUser?.fullName ?? '' },
+  });
+
+  const handleClose = async () => {
+    await attachments.discard();
+    onClose();
+  };
 
   if (!isOpen || !currentUser) return null;
 
@@ -88,6 +106,8 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
         targetDepartmentId: assigneeType === 'DEPARTMENT' ? selectedDeptId : undefined,
         deadline: format(deadline, 'yyyy-MM-dd HH:mm'),
         priority,
+        id: draftTaskId,
+        attachments: attachments.files,
         visibilitySettings: {
           bghCanView,
           assigneeGroupLeadersCanView,
@@ -95,7 +115,10 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
         }
       });
       // Keep the form open when the write is rejected; a toast already explained.
-      if (created) onClose();
+      if (created) {
+        await attachments.commit();
+        onClose();
+      }
     } catch (err: unknown) {
       showToast('error', err instanceof Error ? err.message : 'Có lỗi xảy ra khi giao việc.');
     } finally {
@@ -119,7 +142,7 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -351,11 +374,21 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
             </div>
           )}
 
+          <FileAttachments
+            label="Tài liệu đính kèm (công văn, biểu mẫu, hướng dẫn...)"
+            hint="Người nhận việc sẽ tải được các file này"
+            files={attachments.files}
+            onUpload={attachments.upload}
+            onRemove={attachments.remove}
+            onError={message => showToast('error', message)}
+            disabled={isSubmitting}
+          />
+
           {/* Submit */}
           <div className="pt-2 flex items-center justify-end space-x-2 border-t border-slate-100">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold"
             >
               Hủy

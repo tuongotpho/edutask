@@ -3,7 +3,10 @@
 import React, { useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { LeaveRequest, LeaveType, LeaveSession, LEAVE_TYPE_LABELS, LEAVE_SESSION_LABELS } from '@/Edu-task/types/leave';
-import { X, AlertTriangle, FileText, Upload, Info } from 'lucide-react';
+import { X, AlertTriangle, FileText, Info } from 'lucide-react';
+import { genId } from '@/Edu-task/lib/utils';
+import { useAttachmentDraft } from '@/Edu-task/hooks/useAttachmentDraft';
+import { FileAttachments } from '@/Edu-task/components/common/FileAttachments';
 
 interface LeaveFormModalProps {
   isOpen: boolean;
@@ -28,6 +31,24 @@ export function LeaveFormModal({ isOpen, editingLeave, onClose }: LeaveFormModal
   const notes = editingLeave?.notes ?? '';
   const [isSubmitting, setIsSubmitting] = useState(false);
 
+  // A brand-new request has no id yet, but attachments need one for their
+  // storage path. Mint it here (stable for this mount) and hand it to
+  // createLeaveRequest so the uploaded files and the document agree.
+  const [draftLeaveId] = useState(() => editingLeave?.id ?? genId('LV_2026'));
+
+  const attachments = useAttachmentDraft({
+    scope: 'leaves',
+    recordId: draftLeaveId,
+    uploader: { id: currentUser?.id ?? '', name: currentUser?.fullName ?? '' },
+    initialFiles: editingLeave?.proofFiles ?? [],
+  });
+
+  const handleClose = async () => {
+    // Drop anything uploaded during this session; nothing will reference it.
+    await attachments.discard();
+    onClose();
+  };
+
   if (!isOpen || !currentUser) return null;
 
   // Check for conflicts
@@ -47,6 +68,7 @@ export function LeaveFormModal({ isOpen, editingLeave, onClose }: LeaveFormModal
       session,
       reason,
       notes: notes || undefined,
+      proofFiles: attachments.files,
     };
 
     setIsSubmitting(true);
@@ -55,8 +77,13 @@ export function LeaveFormModal({ isOpen, editingLeave, onClose }: LeaveFormModal
       // teacher does not lose what they typed.
       const ok = editingLeave
         ? await updateLeaveRequest(editingLeave.id, payload)
-        : (await createLeaveRequest(payload)) !== null;
-      if (ok) onClose();
+        : (await createLeaveRequest({ ...payload, id: draftLeaveId })) !== null;
+      if (ok) {
+        // Only now delete files the user removed: cancelling must not strand the
+        // saved request with a dead link.
+        await attachments.commit();
+        onClose();
+      }
     } catch (err: unknown) {
       showToast('error', err instanceof Error ? err.message : 'Có lỗi xảy ra khi gửi đơn xin nghỉ.');
     } finally {
@@ -82,7 +109,7 @@ export function LeaveFormModal({ isOpen, editingLeave, onClose }: LeaveFormModal
             </div>
           </div>
           <button
-            onClick={onClose}
+            onClick={handleClose}
             className="text-slate-400 hover:text-white p-1 rounded-lg hover:bg-slate-800 transition-colors"
           >
             <X className="w-5 h-5" />
@@ -192,29 +219,21 @@ export function LeaveFormModal({ isOpen, editingLeave, onClose }: LeaveFormModal
             />
           </div>
 
-          {/* Attachment upload — not wired to storage yet, so it is presented as
-              unavailable rather than as a control that silently does nothing. */}
-          <div>
-            <div className="flex items-center justify-between mb-1">
-              <label className="block font-bold text-slate-800">File minh chứng đính kèm (Giấy khám bệnh, Công văn...)</label>
-              <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold border border-slate-200">
-                SẮP RA MẮT
-              </span>
-            </div>
-            <div className="border-2 border-dashed border-slate-200 rounded-xl p-3 text-center bg-slate-50 opacity-60 cursor-not-allowed">
-              <Upload className="w-5 h-5 mx-auto text-slate-400 mb-1" />
-              <span className="text-slate-600 font-medium">Tính năng đính kèm file đang được phát triển</span>
-              <span className="block text-[10px] text-slate-400 mt-0.5">
-                Tạm thời vui lòng nộp bản cứng minh chứng cho Văn thư nhà trường.
-              </span>
-            </div>
-          </div>
+          <FileAttachments
+            label="File minh chứng đính kèm (Giấy khám bệnh, Công văn...)"
+            hint="Giấy khám bệnh, công văn, quyết định cử đi công tác…"
+            files={attachments.files}
+            onUpload={attachments.upload}
+            onRemove={attachments.remove}
+            onError={message => showToast('error', message)}
+            disabled={isSubmitting}
+          />
 
           {/* Buttons */}
           <div className="pt-2 flex items-center justify-end space-x-2 border-t border-slate-100">
             <button
               type="button"
-              onClick={onClose}
+              onClick={handleClose}
               className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold"
             >
               Hủy

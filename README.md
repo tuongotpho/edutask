@@ -37,7 +37,12 @@ với luồng phê duyệt nhiều cấp cùng phân công giáo viên dạy tha
    NEXT_PUBLIC_FIREBASE_APP_ID=...
    NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID=...
    NEXT_PUBLIC_ADMIN_EMAILS=admin@gmail.com
+   NEXT_PUBLIC_FIREBASE_UPLOAD_BUCKET=edutask
    ```
+   `NEXT_PUBLIC_FIREBASE_UPLOAD_BUCKET` là bucket Storage **riêng** dùng cho file đính
+   kèm (mặc định `edutask`), khác với `NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET` là bucket
+   mặc định của dự án. Cả Firestore và Storage đều dùng tài nguyên đặt tên riêng chứ
+   không dùng bản mặc định.
    `NEXT_PUBLIC_ADMIN_EMAILS` là danh sách email quản trị viên khởi tạo (phân tách bằng
    dấu phẩy). Giữ nó khớp với danh sách bootstrap trong `firestore.rules`.
 
@@ -73,7 +78,8 @@ Edu-task/
   services/              Lớp truy cập Firestore & Auth
   types/                 Kiểu dữ liệu dùng chung
 tests/                   Unit test (Vitest)
-firestore.rules          Quy tắc bảo mật — ranh giới bảo mật thật sự
+firestore.rules          Quy tắc bảo mật Firestore — ranh giới bảo mật thật sự
+storage.rules            Quy tắc bảo mật cho bucket file đính kèm
 ```
 
 ## Triển khai
@@ -99,7 +105,7 @@ npm run build && npx firebase deploy
 
 Chỉ cập nhật quy tắc bảo mật:
 ```bash
-npx firebase deploy --only firestore:rules
+npx firebase deploy --only firestore:rules,storage
 ```
 
 ## Vai trò & phân quyền

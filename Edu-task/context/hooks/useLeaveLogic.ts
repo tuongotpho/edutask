@@ -1,4 +1,4 @@
-import { LeaveRequest, LeaveType, LeaveSession, ApprovalStatus, LeaveHistoryLog } from '@/Edu-task/types/leave';
+import { LeaveRequest, LeaveType, LeaveSession, ApprovalStatus, LeaveHistoryLog, AttachmentFile } from '@/Edu-task/types/leave';
 import { User, RoleType, ROLE_LABELS } from '@/Edu-task/types/user';
 import { AppNotification } from '@/Edu-task/types/notification';
 import { storage } from '@/Edu-task/lib/storage';
@@ -71,6 +71,9 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
     reason: string;
     substituteTeacherId?: string;
     notes?: string;
+    /** Pre-generated so attachments can be uploaded under this id before saving. */
+    id?: string;
+    proofFiles?: AttachmentFile[];
   }): Promise<LeaveRequest | null> => {
     if (!currentUser) throw new Error('User not logged in');
 
@@ -106,7 +109,7 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
     const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
     const newLeave: LeaveRequest = {
-      id: genId('LV_2026'),
+      id: data.id ?? genId('LV_2026'),
       code: newCode,
       applicantId: currentUser.id,
       applicantName: currentUser.fullName,
@@ -123,7 +126,7 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
       substituteTeacherId: data.substituteTeacherId,
       substituteTeacherName: subName,
       substituteStatus: data.substituteTeacherId ? 'PENDING' : undefined,
-      proofFiles: [],
+      proofFiles: data.proofFiles ?? [],
       currentStepIndex: 0,
       steps,
       overallStatus: 'IN_REVIEW',
@@ -267,6 +270,7 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
       session: LeaveSession;
       reason: string;
       notes?: string;
+      proofFiles?: AttachmentFile[];
     }
   ): Promise<boolean> => {
     if (!currentUser) return false;
@@ -307,6 +311,7 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
         session: data.session,
         reason: data.reason,
         notes: data.notes,
+        proofFiles: data.proofFiles ?? leave.proofFiles,
         totalDays,
         currentStepIndex: 0,
         steps: resetSteps,

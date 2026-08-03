@@ -1,4 +1,5 @@
 import { Task, TaskPriority, TaskStatus } from '@/Edu-task/types/task';
+import { AttachmentFile } from '@/Edu-task/types/leave';
 import { User, RoleType, ROLE_LABELS } from '@/Edu-task/types/user';
 import { AppNotification } from '@/Edu-task/types/notification';
 import { storage } from '@/Edu-task/lib/storage';
@@ -48,6 +49,9 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks, 
     targetDepartmentId?: string;
     deadline: string;
     priority: TaskPriority;
+    /** Pre-generated so attachments can be uploaded under this id before saving. */
+    id?: string;
+    attachments?: AttachmentFile[];
     visibilitySettings?: {
       bghCanView?: boolean;
       assigneeGroupLeadersCanView?: boolean;
@@ -115,7 +119,7 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks, 
     const nowMs = Date.now();
     // `genId` appends random entropy so document ids are unique even when two
     // tasks are created in the same millisecond (a bare timestamp is not).
-    const taskId = genId('TSK_2026');
+    const taskId = data.id ?? genId('TSK_2026');
     const newCode = `CV-2026-${nowMs.toString().slice(-6)}`;
 
     const newTask: Task = {
@@ -130,7 +134,7 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks, 
       targetDepartmentId: data.targetDepartmentId,
       targetDepartmentName: deptName,
       assignees: assigneesList,
-      attachments: [],
+      attachments: data.attachments ?? [],
       deadline: data.deadline,
       startDate: now,
       priority: data.priority,
