@@ -9,6 +9,10 @@ import { AppNotification } from '@/Edu-task/types/notification';
 import { storage, INITIAL_DEPARTMENTS } from '@/Edu-task/lib/storage';
 import { genId } from '@/Edu-task/lib/utils';
 import { ToastKind, ToastMessage } from '@/Edu-task/components/common/Toast';
+import {
+  WorkflowConfig, TelegramConfig,
+  DEFAULT_WORKFLOW_CONFIG, DEFAULT_TELEGRAM_CONFIG,
+} from '@/Edu-task/types/settings';
 import { firebaseService } from '@/Edu-task/services/firebaseService';
 import { firebaseAuthService } from '@/Edu-task/services/firebaseAuthService';
 import { useAuthLogic } from './hooks/useAuthLogic';
@@ -30,6 +34,12 @@ interface AppContextType {
   toasts: ToastMessage[];
   showToast: (kind: ToastKind, text: string) => void;
   dismissToast: (id: string) => void;
+
+  // Approval flow & integrations (admin configurable)
+  workflowConfig: WorkflowConfig;
+  telegramConfig: TelegramConfig;
+  updateWorkflowConfig: (config: WorkflowConfig) => Promise<boolean>;
+  updateTelegramConfig: (config: TelegramConfig) => Promise<boolean>;
 
   // School & Department Config
   schoolName: string;
@@ -172,6 +182,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [fbUser, setFbUser] = useState<FirebaseAuthUser | null>(null);
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
+  const [workflowConfig, setWorkflowConfig] = useState<WorkflowConfig>(DEFAULT_WORKFLOW_CONFIG);
+  const [telegramConfig, setTelegramConfig] = useState<TelegramConfig>(DEFAULT_TELEGRAM_CONFIG);
 
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -329,6 +341,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       storage.saveSchoolName(name);
     });
 
+    // Never-configured settings resolve to null; fall back to the defaults so
+    // the app behaves exactly as it did before these became configurable.
+    const unsubWorkflow = firebaseService.subscribeWorkflowConfig(config => {
+      setWorkflowConfig(config ?? DEFAULT_WORKFLOW_CONFIG);
+    });
+
+    const unsubTelegram = firebaseService.subscribeTelegramConfig(config => {
+      setTelegramConfig(config ?? DEFAULT_TELEGRAM_CONFIG);
+    });
+
     return () => {
       unsubUsers();
       unsubLeaves();
@@ -336,6 +358,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       unsubNotifs();
       unsubDepartments();
       unsubSchoolName();
+      unsubWorkflow();
+      unsubTelegram();
     };
   }, [isAuthenticated, currentUserId, currentUserDeptId, canSeedConfig, activeRole]);
 
@@ -371,6 +395,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     tasks,
     setTasks,
     notify: showToast,
+    telegramConfig,
   });
 
   const { getTeacherLeaveConflict, createLeaveRequest, cancelLeaveRequest, deleteLeaveRequest, updateLeaveRequest, changeSubstituteTeacher, processLeaveStep } = useLeaveLogic({
@@ -381,7 +406,39 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setLeaves,
     setNotifications,
     notify: showToast,
+    workflowConfig,
+    telegramConfig,
   });
+
+  // Admin-only settings writes. Same optimistic-then-rollback shape as the rest
+  // of the app so a rejected write can never look like it succeeded.
+  const updateWorkflowConfig = async (config: WorkflowConfig): Promise<boolean> => {
+    const previous = workflowConfig;
+    setWorkflowConfig(config);
+    try {
+      await firebaseService.saveWorkflowConfig(config);
+      return true;
+    } catch (err) {
+      console.error('Failed to save workflow config:', err);
+      setWorkflowConfig(previous);
+      showToast('error', 'Không lưu được cấu hình luồng duyệt. Thay đổi đã được hoàn tác.');
+      return false;
+    }
+  };
+
+  const updateTelegramConfig = async (config: TelegramConfig): Promise<boolean> => {
+    const previous = telegramConfig;
+    setTelegramConfig(config);
+    try {
+      await firebaseService.saveTelegramConfig(config);
+      return true;
+    } catch (err) {
+      console.error('Failed to save Telegram config:', err);
+      setTelegramConfig(previous);
+      showToast('error', 'Không lưu được cấu hình Telegram. Thay đổi đã được hoàn tác.');
+      return false;
+    }
+  };
 
   // Notifications. Marking as read is best-effort and idempotent: the optimistic
   // update makes the badge respond instantly, and the realtime snapshot corrects
@@ -425,6 +482,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         toasts,
         showToast,
         dismissToast,
+        workflowConfig,
+        telegramConfig,
+        updateWorkflowConfig,
+        updateTelegramConfig,
         schoolName,
         departments,
         updateSchoolName,

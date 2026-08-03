@@ -12,7 +12,6 @@ import {
 import { 
   Settings, 
   ShieldCheck, 
-  GitBranch, 
   Edit, 
   Trash2, 
   UserPlus, 
@@ -24,6 +23,7 @@ import {
   X
 } from 'lucide-react';
 import { ConfirmModal } from '@/Edu-task/components/common/ConfirmModal';
+import { WorkflowConfigCard, TelegramConfigCard } from '@/Edu-task/components/config/WorkflowConfigCard';
 
 export function RbacConfigTab() {
   const { 
@@ -39,8 +39,6 @@ export function RbacConfigTab() {
     showToast
   } = useApp();
 
-  const [autoApprove1Day, setAutoApprove1Day] = useState(true);
-  const [allowSecretaryViewAll, setAllowSecretaryViewAll] = useState(true);
   const [isMatrixExpanded, setIsMatrixExpanded] = useState(false);
 
   const [editingSchoolName, setEditingSchoolName] = useState(schoolName);
@@ -210,53 +208,9 @@ export function RbacConfigTab() {
         </div>
       </div>
 
-      {/* Workflow Customization Rules */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-        <div className="flex items-start justify-between gap-3">
-          <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-            <GitBranch className="w-4 h-4 text-indigo-600" />
-            Cấu Hình Luồng Duyệt Linh Hoạt (Workflow Rules)
-          </h3>
-          <span className="px-2.5 py-1 rounded-full bg-slate-100 text-slate-600 text-[10px] font-bold border border-slate-200 flex-shrink-0">
-            SẮP RA MẮT
-          </span>
-        </div>
+      <WorkflowConfigCard />
 
-        <p className="text-xs text-slate-500 bg-amber-50 border border-amber-200 rounded-xl p-3">
-          Các tuỳ chọn dưới đây <strong>chưa có hiệu lực</strong>. Luồng duyệt hiện tại cố định 2 cấp:
-          Nhóm/Tổ trưởng chuyên môn → Ban Giám Hiệu. Phần cấu hình sẽ được bật trong bản cập nhật tới.
-        </p>
-
-        <div className="space-y-3 text-xs opacity-60">
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-            <div>
-              <span className="font-bold text-slate-800 block">Duyệt 1 chạm cho Ban Giám Hiệu (BGH)</span>
-              <span className="text-slate-500 text-[11px]">Chỉ cần 1 người trong Ban Giám Hiệu (Hiệu phó hoặc Hiệu trưởng) duyệt là đơn hoàn tất.</span>
-            </div>
-            <input
-              type="checkbox"
-              disabled
-              checked={autoApprove1Day}
-              onChange={(e) => setAutoApprove1Day(e.target.checked)}
-              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-not-allowed"
-            />
-          </div>
-
-          <div className="p-4 rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-between">
-            <div>
-              <span className="font-bold text-slate-800 block">Cấp quyền Văn thư xem toàn bộ hồ sơ đơn nghỉ để lưu trữ</span>
-              <span className="text-slate-500 text-[11px]">Văn thư trường có thể xem và xuất file PDF lưu trữ sổ sách hành chính.</span>
-            </div>
-            <input
-              type="checkbox"
-              disabled
-              checked={allowSecretaryViewAll}
-              onChange={(e) => setAllowSecretaryViewAll(e.target.checked)}
-              className="w-4 h-4 rounded text-indigo-600 focus:ring-indigo-500 cursor-not-allowed"
-            />
-          </div>
-        </div>
-      </div>
+      <TelegramConfigCard />
 
       {/* RBAC Matrix Table */}
       <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm p-6 space-y-4">

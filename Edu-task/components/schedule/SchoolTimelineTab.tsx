@@ -1,15 +1,18 @@
 'use client';
 
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { LEAVE_TYPE_LABELS } from '@/Edu-task/types/leave';
 import { TASK_STATUS_CONFIG } from '@/Edu-task/types/task';
-import { CalendarDays } from 'lucide-react';
+import { CalendarDays, LayoutGrid } from 'lucide-react';
+import { LeaveCalendar } from '@/Edu-task/components/schedule/LeaveCalendar';
+import { canViewLeave } from '@/Edu-task/lib/permissions';
 import { isDeptLeader, isSchoolLeadership } from '@/Edu-task/lib/permissions';
 import { getDisplayTaskStatus } from '@/Edu-task/lib/taskStatus';
 
-export function SchoolTimelineTab() {
+export function SchoolTimelineTab({ onSelectLeave }: { onSelectLeave?: (leaveId: string) => void }) {
   const { users, leaves, tasks, currentUser, activeRole } = useApp();
+  const [viewMode, setViewMode] = useState<'CALENDAR' | 'PEOPLE'>('CALENDAR');
 
   const isSchoolExecutiveOrAdmin = isSchoolLeadership(currentUser, activeRole);
   const showsWholeDepartment = isDeptLeader(currentUser, activeRole);
@@ -45,9 +48,40 @@ export function SchoolTimelineTab() {
         <p className="text-xs text-slate-500">
           {headerSub}
         </p>
+
+        <div className="pt-2 border-t border-slate-100 flex items-center gap-1 text-xs">
+          <button
+            type="button"
+            onClick={() => setViewMode('CALENDAR')}
+            className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition-all ${
+              viewMode === 'CALENDAR' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <CalendarDays className="w-3.5 h-3.5" />
+            <span>Lịch Tháng</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setViewMode('PEOPLE')}
+            className={`px-3 py-1.5 rounded-xl font-bold flex items-center gap-1.5 transition-all ${
+              viewMode === 'PEOPLE' ? 'bg-slate-900 text-white shadow-xs' : 'text-slate-600 hover:bg-slate-100'
+            }`}
+          >
+            <LayoutGrid className="w-3.5 h-3.5" />
+            <span>Theo Nhân Sự</span>
+          </button>
+        </div>
       </div>
 
+      {viewMode === 'CALENDAR' && (
+        <LeaveCalendar
+          leaves={leaves.filter(l => canViewLeave(currentUser, activeRole, l))}
+          onSelectLeave={onSelectLeave}
+        />
+      )}
+
       {/* Grid of Teachers with Status */}
+      {viewMode === 'PEOPLE' && (
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
         {displayUsers.map(teacher => {
           // Check active leaves for this teacher
@@ -135,6 +169,7 @@ export function SchoolTimelineTab() {
           );
         })}
       </div>
+      )}
 
     </div>
   );

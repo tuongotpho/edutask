@@ -8,6 +8,7 @@ import {
   CalendarDays, 
   BarChart3, 
   ShieldCheck,
+  History,
   PlusCircle
 } from 'lucide-react';
 import { useApp } from '@/Edu-task/context/AppContext';
@@ -19,7 +20,7 @@ import {
   isSchoolLeadership,
 } from '@/Edu-task/lib/permissions';
 
-export type TabType = 'dashboard' | 'leave' | 'task' | 'schedule' | 'stats' | 'config';
+export type TabType = 'dashboard' | 'leave' | 'task' | 'schedule' | 'stats' | 'audit' | 'config';
 
 interface SidebarProps {
   activeTab: TabType;
@@ -79,6 +80,12 @@ export function Sidebar({
       id: 'stats' as TabType,
       label: 'Báo Cáo & Thống Kê',
       icon: BarChart3,
+      badge: null,
+    }] : []),
+    ...(isLeadershipOrAdmin ? [{
+      id: 'audit' as TabType,
+      label: 'Nhật Ký Hoạt Động',
+      icon: History,
       badge: null,
     }] : []),
     ...(isAdmin ? [{

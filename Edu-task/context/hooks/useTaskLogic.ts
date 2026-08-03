@@ -6,6 +6,9 @@ import { storage } from '@/Edu-task/lib/storage';
 import { genId } from '@/Edu-task/lib/utils';
 import { firebaseService } from '@/Edu-task/services/firebaseService';
 import { ToastKind } from '@/Edu-task/components/common/Toast';
+import { TelegramConfig } from '@/Edu-task/types/settings';
+import { telegramService, telegramMessages } from '@/Edu-task/services/telegramService';
+import { TASK_PRIORITY_CONFIG } from '@/Edu-task/types/task';
 
 interface TaskLogicProps {
   currentUser: User | null;
@@ -14,11 +17,12 @@ interface TaskLogicProps {
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
   notify: (kind: ToastKind, text: string) => void;
+  telegramConfig: TelegramConfig;
 }
 
 const SAVE_FAILED = 'Không lưu được lên máy chủ. Thay đổi đã được hoàn tác — vui lòng thử lại.';
 
-export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks, notify }: TaskLogicProps) {
+export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks, notify, telegramConfig }: TaskLogicProps) {
 
   /**
    * Applies an optimistic update, then persists it. If the write is rejected
@@ -179,6 +183,17 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks, 
       } catch (err) {
         console.error('Failed to send task notification:', err);
       }
+    }));
+
+    // Group announcement; never allowed to affect the task that already saved.
+    void telegramService.notify(telegramConfig, 'TASK_ASSIGNED', telegramMessages.taskAssigned({
+      title: data.title,
+      assignerName: currentUser.fullName,
+      assigneeSummary: assigneesList.length > 0
+        ? assigneesList.map(a => a.userName).join(', ')
+        : 'Chưa có người nhận',
+      deadline: data.deadline,
+      priorityLabel: TASK_PRIORITY_CONFIG[data.priority].label,
     }));
 
     notify('success', 'Đã phát hành công việc thành công.');

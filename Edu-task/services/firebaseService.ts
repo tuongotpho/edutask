@@ -18,6 +18,7 @@ import { User, Department } from '@/Edu-task/types/user';
 import { LeaveRequest } from '@/Edu-task/types/leave';
 import { Task } from '@/Edu-task/types/task';
 import { AppNotification } from '@/Edu-task/types/notification';
+import { WorkflowConfig, TelegramConfig } from '@/Edu-task/types/settings';
 
 export const firebaseService = {
   // --- Departments (shared config: must live server-side so every device and
@@ -60,6 +61,50 @@ export const firebaseService = {
 
   async saveSchoolName(name: string): Promise<void> {
     await setDoc(doc(db, 'settings', 'school'), { name }, { merge: true });
+  },
+
+  // Approval-flow configuration. Falls back to null so callers can apply their
+  // own defaults rather than guessing from a partially written document.
+  subscribeWorkflowConfig(onUpdate: (config: WorkflowConfig | null) => void): Unsubscribe {
+    return onSnapshot(doc(db, 'settings', 'workflow'), snapshot => {
+      const data = snapshot.data();
+      if (!data || typeof data.deptOnlyMaxDays !== 'number') {
+        onUpdate(null);
+        return;
+      }
+      onUpdate({
+        deptOnlyMaxDays: data.deptOnlyMaxDays,
+        alwaysExecutiveTypes: Array.isArray(data.alwaysExecutiveTypes) ? data.alwaysExecutiveTypes : [],
+      });
+    });
+  },
+
+  async saveWorkflowConfig(config: WorkflowConfig): Promise<void> {
+    await setDoc(doc(db, 'settings', 'workflow'), sanitizeForFirestore(config), { merge: true });
+  },
+
+  subscribeTelegramConfig(onUpdate: (config: TelegramConfig | null) => void): Unsubscribe {
+    return onSnapshot(doc(db, 'settings', 'telegram'), snapshot => {
+      const data = snapshot.data();
+      if (!data) {
+        onUpdate(null);
+        return;
+      }
+      onUpdate({
+        enabled: !!data.enabled,
+        botToken: typeof data.botToken === 'string' ? data.botToken : '',
+        chatId: typeof data.chatId === 'string' ? data.chatId : '',
+        events: {
+          LEAVE_CREATED: data.events?.LEAVE_CREATED !== false,
+          LEAVE_DECIDED: data.events?.LEAVE_DECIDED !== false,
+          TASK_ASSIGNED: data.events?.TASK_ASSIGNED !== false,
+        },
+      });
+    });
+  },
+
+  async saveTelegramConfig(config: TelegramConfig): Promise<void> {
+    await setDoc(doc(db, 'settings', 'telegram'), sanitizeForFirestore(config), { merge: true });
   },
 
   // --- Users ---

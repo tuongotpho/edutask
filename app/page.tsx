@@ -29,6 +29,10 @@ const AnalyticsTab = dynamic(
   () => import('@/Edu-task/components/stats/AnalyticsTab').then(m => m.AnalyticsTab),
   { ssr: false, loading }
 );
+const AuditLogTab = dynamic(
+  () => import('@/Edu-task/components/config/AuditLogTab').then(m => m.AuditLogTab),
+  { ssr: false, loading }
+);
 const RbacConfigTab = dynamic(
   () => import('@/Edu-task/components/config/RbacConfigTab').then(m => m.RbacConfigTab),
   { ssr: false, loading }
@@ -127,11 +131,15 @@ function EduTaskMainApp() {
           )}
 
           {activeTab === 'schedule' && (
-            <SchoolTimelineTab />
+            <SchoolTimelineTab onSelectLeave={(id) => setSelectedLeaveId(id)} />
           )}
 
           {activeTab === 'stats' && (
             <AnalyticsTab />
+          )}
+
+          {activeTab === 'audit' && (
+            <AuditLogTab />
           )}
 
           {activeTab === 'config' && (

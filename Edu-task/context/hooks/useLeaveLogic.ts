@@ -7,6 +7,10 @@ import { findLeaveConflict, LeaveConflictResult } from '@/Edu-task/lib/leaveConf
 import { canApproveLeaveStep } from '@/Edu-task/lib/permissions';
 import { firebaseService } from '@/Edu-task/services/firebaseService';
 import { ToastKind } from '@/Edu-task/components/common/Toast';
+import { buildApprovalSteps } from '@/Edu-task/lib/workflow';
+import { WorkflowConfig, TelegramConfig } from '@/Edu-task/types/settings';
+import { telegramService, telegramMessages } from '@/Edu-task/services/telegramService';
+import { LEAVE_TYPE_LABELS } from '@/Edu-task/types/leave';
 
 interface LeaveLogicProps {
   currentUser: User | null;
@@ -16,11 +20,13 @@ interface LeaveLogicProps {
   setLeaves: React.Dispatch<React.SetStateAction<LeaveRequest[]>>;
   setNotifications: React.Dispatch<React.SetStateAction<AppNotification[]>>;
   notify: (kind: ToastKind, text: string) => void;
+  workflowConfig: WorkflowConfig;
+  telegramConfig: TelegramConfig;
 }
 
 const SAVE_FAILED = 'Không lưu được lên máy chủ. Thay đổi đã được hoàn tác — vui lòng thử lại.';
 
-export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeaves, setNotifications, notify }: LeaveLogicProps) {
+export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeaves, setNotifications, notify, workflowConfig, telegramConfig }: LeaveLogicProps) {
 
   /**
    * Applies an optimistic update, then persists it. On rejection (offline, or
@@ -89,18 +95,9 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
       subName = sub?.fullName;
     }
 
-    const steps = [
-      {
-        level: 'GROUP_LEADER' as RoleType,
-        levelLabel: 'Nhóm trưởng / Tổ trưởng chuyên môn',
-        status: 'PENDING' as ApprovalStatus,
-      },
-      {
-        level: 'VICE_PRINCIPAL' as RoleType,
-        levelLabel: 'Ban Giám Hiệu',
-        status: 'PENDING' as ApprovalStatus,
-      }
-    ];
+    // Length and leave type decide whether Ban Giám Hiệu is involved; the school
+    // configures the threshold in the RBAC screen.
+    const steps = buildApprovalSteps(workflowConfig, data.leaveType, totalDays);
 
     const nowMs = Date.now();
     // `genId` guarantees a unique document id even for same-millisecond creates;
@@ -159,6 +156,18 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
         isRead: false,
         createdAt: now,
       })));
+
+    // Group announcement. Fire-and-forget by design: a Telegram outage must not
+    // affect a request that is already saved.
+    void telegramService.notify(telegramConfig, 'LEAVE_CREATED', telegramMessages.leaveCreated({
+      applicantName: currentUser.fullName,
+      departmentName: currentUser.departmentName,
+      leaveTypeLabel: LEAVE_TYPE_LABELS[data.leaveType].label,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      totalDays,
+      reason: data.reason,
+    }));
 
     notify('success', 'Đã gửi đơn xin nghỉ phép thành công.');
     return newLeave;
@@ -405,12 +414,16 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
     const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
     let targetLeaveToSave: LeaveRequest | null = null;
+    // Captured before the update advances the pointer, so the announcement names
+    // the step that was actually signed rather than the next one.
+    let currentStepIndexAtDecision = 0;
 
     const updatedLeaves = leaves.map(leave => {
       if (leave.id !== leaveId) return leave;
 
       const steps = [...leave.steps];
       const currIdx = leave.currentStepIndex;
+      currentStepIndexAtDecision = currIdx;
       const targetStep = steps[currIdx];
 
       if (!canApproveLeaveStep({
@@ -504,7 +517,24 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
     });
 
     if (!targetLeaveToSave) return false;
-    return commit(updatedLeaves, targetLeaveToSave);
+    const saved = await commit(updatedLeaves, targetLeaveToSave);
+    if (!saved) return false;
+
+    const decided = targetLeaveToSave as LeaveRequest;
+    const decisionLabel =
+      decision === 'APPROVED'
+        ? (decided.overallStatus === 'APPROVED' ? 'ĐÃ DUYỆT HOÀN TẤT' : 'đã qua một cấp duyệt')
+        : decision === 'REJECTED' ? 'BỊ TỪ CHỐI' : 'YÊU CẦU CHỈNH SỬA';
+
+    void telegramService.notify(telegramConfig, 'LEAVE_DECIDED', telegramMessages.leaveDecided({
+      applicantName: decided.applicantName,
+      decisionLabel,
+      stepLabel: decided.steps[Math.min(currentStepIndexAtDecision, decided.steps.length - 1)]?.levelLabel ?? 'Người duyệt',
+      approverName: currentUser.fullName,
+      comment,
+    }));
+
+    return true;
   };
 
   return {
