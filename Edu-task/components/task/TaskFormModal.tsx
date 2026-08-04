@@ -126,12 +126,17 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
     }
   };
 
+  // The form is long — a principal also gets the visibility panel — and it used
+  // to grow the backdrop until it ran off a laptop screen, taking the submit
+  // buttons with it. The dialog is capped to the viewport instead: header and
+  // footer stay put, only the fields between them scroll, and the fields sit in
+  // two columns once there is width for them.
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
-        
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+
         {/* Header */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between flex-shrink-0">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-lg bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 flex items-center justify-center">
               <CheckSquare className="w-4 h-4" />
@@ -150,7 +155,8 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
         </div>
 
         {/* Form */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1 text-xs">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
 
           {/* Smart Leave Conflict Warning Box */}
           {detectedConflicts.length > 0 && (
@@ -168,6 +174,11 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
               </ul>
             </div>
           )}
+
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-x-6 gap-y-4 items-start">
+
+          {/* Left column: who the task goes to and when it is due */}
+          <div className="space-y-4">
 
           {/* Title */}
           <div>
@@ -242,7 +253,7 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
           {assigneeType !== 'DEPARTMENT' && (
             <div>
               <label className="block font-bold text-slate-800 mb-1">Chọn nhân sự thực hiện</label>
-              <div className="max-h-36 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 p-1 bg-slate-50">
+              <div className="max-h-40 overflow-y-auto border border-slate-200 rounded-xl divide-y divide-slate-100 p-1 bg-slate-50">
                 {availableUsers.map(u => {
                   const isSelected = selectedUserIds.includes(u.id);
                   return (
@@ -270,8 +281,9 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
             </div>
           )}
 
-          {/* Deadline & Priority */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+          {/* Deadline & Priority — side by side on a tablet, stacked again once
+              they are inside the narrower desktop column */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-1 gap-3">
             <div>
               <label className="block font-bold text-slate-800 mb-1">Hạn hoàn thành (Deadline) <span className="text-rose-500">*</span></label>
               <DatePicker
@@ -300,11 +312,16 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
             </div>
           </div>
 
+          </div>
+
+          {/* Right column: the briefing itself, who may watch it, and files */}
+          <div className="space-y-4">
+
           {/* Detailed Instructions */}
           <div>
             <label className="block font-bold text-slate-800 mb-1">Nội dung / Chỉ đạo chi tiết</label>
             <textarea
-              rows={3}
+              rows={4}
               value={description}
               onChange={(e) => setDescription(e.target.value)}
               placeholder="Mô tả cụ thể yêu cầu công việc, các tiêu chí nghiệm thu..."
@@ -384,19 +401,23 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
             disabled={isSubmitting}
           />
 
-          {/* Submit */}
-          <div className="pt-2 flex items-center justify-end space-x-2 border-t border-slate-100">
+          </div>
+          </div>
+        </div>
+
+          {/* Submit — pinned below the scroll area so it is always reachable */}
+          <div className="flex-shrink-0 px-6 py-4 border-t border-slate-200 bg-white flex items-center justify-end space-x-2">
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold"
+              className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold"
             >
               Hủy
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-sm transition-all"
+              className="px-5 py-2.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold shadow-sm transition-all"
             >
               Phát Hành Công Việc
             </button>
