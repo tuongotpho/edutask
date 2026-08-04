@@ -13,6 +13,10 @@ export const metadata: Metadata = {
     statusBarStyle: 'black-translucent',
   },
   icons: {
+    // Declaring `icons` at all suppresses the icon Next would otherwise infer
+    // from `app/icon.png`, so the favicon has to be named here explicitly or
+    // the tab falls back to a missing /favicon.ico.
+    icon: '/icon.png',
     apple: '/icons/apple-touch-icon.png',
   },
   formatDetection: {
@@ -21,7 +25,7 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#4f46e5',
+  themeColor: '#50b042',
   // Installed app should fill the device, including the notch area.
   viewportFit: 'cover',
   width: 'device-width',
