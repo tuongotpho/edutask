@@ -15,15 +15,29 @@ import {
   Edit, 
   Trash2, 
   UserPlus, 
-  Check, 
-  ChevronDown, 
+  Check,
+  ChevronDown,
   ChevronUp,
+  ChevronRight,
+  Users,
   Building2,
   PlusCircle,
   X
 } from 'lucide-react';
 import { ConfirmModal } from '@/Edu-task/components/common/ConfirmModal';
 import { WorkflowConfigCard, TelegramConfigCard } from '@/Edu-task/components/config/WorkflowConfigCard';
+
+/**
+ * Leaders first, then Vietnamese alphabetical order.
+ *
+ * `localeCompare` with 'vi' is what makes "Đ" sort after "D" instead of after
+ * "Z", which is where a plain code-point sort would put it.
+ */
+function compareMembers(a: User, b: User): number {
+  const rank = (u: User) =>
+    u.roles.includes('HEAD_OF_DEPT') ? 0 : u.roles.includes('GROUP_LEADER') ? 1 : 2;
+  return rank(a) - rank(b) || a.fullName.localeCompare(b.fullName, 'vi');
+}
 
 export function RbacConfigTab() {
   const { 
@@ -40,6 +54,7 @@ export function RbacConfigTab() {
   } = useApp();
 
   const [isMatrixExpanded, setIsMatrixExpanded] = useState(false);
+  const [expandedDeptId, setExpandedDeptId] = useState<string | null>(null);
 
   const [editingSchoolName, setEditingSchoolName] = useState(schoolName);
   const [isDeptModalOpen, setIsDeptModalOpen] = useState(false);
@@ -127,7 +142,7 @@ export function RbacConfigTab() {
               Quản Lý Danh Sách Tổ Chuyên Môn / Phòng Ban ({departments.length})
             </h3>
             <p className="text-xs text-slate-500 mt-0.5">
-              Cho phép Admin thêm mới, chỉnh sửa tên các Tổ chuyên môn. Hệ thống sẽ tự động cập nhật tên tổ trên hồ sơ giáo viên & đơn xin nghỉ.
+              Nhấp vào một tổ để xem danh sách giáo viên thuộc tổ đó. Hệ thống sẽ tự động cập nhật tên tổ trên hồ sơ giáo viên, đơn xin nghỉ & nhiệm vụ khi bạn đổi tên.
             </p>
           </div>
 
@@ -161,46 +176,131 @@ export function RbacConfigTab() {
             </thead>
             <tbody className="divide-y divide-slate-100 font-medium">
               {departments.map((dept) => {
-                const userCount = users.filter(u => u.departmentId === dept.id).length;
+                const members = users.filter(u => u.departmentId === dept.id);
+                const userCount = members.length;
+                const isExpanded = expandedDeptId === dept.id;
+                const toggle = () => setExpandedDeptId(isExpanded ? null : dept.id);
+
                 return (
-                  <tr key={dept.id} className="hover:bg-slate-50 transition-colors">
-                    <td className="p-3 font-mono font-bold text-indigo-700">{dept.code}</td>
-                    <td className="p-3 font-bold text-slate-900">{dept.name}</td>
-                    <td className="p-3 text-slate-500 hidden sm:table-cell">{dept.description || 'Chưa có mô tả'}</td>
-                    <td className="p-3 text-center font-bold text-slate-700">
-                      <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 text-[10px]">
-                        {userCount} thành viên
-                      </span>
-                    </td>
-                    <td className="p-3 text-right space-x-1">
-                      <button
-                        type="button"
-                        onClick={() => {
-                          setEditingDeptId(dept.id);
-                          setDeptFormName(dept.name);
-                          setDeptFormCode(dept.code);
-                          setDeptFormDesc(dept.description || '');
-                          setIsDeptModalOpen(true);
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px]"
-                      >
-                        Sửa
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => {
-                          if (userCount > 0) {
-                            showToast('error', `Không thể xóa tổ ${dept.name} vì đang có ${userCount} thành viên thuộc tổ này.`);
-                            return;
-                          }
-                          setDeleteConfirm({ type: 'dept', id: dept.id, name: dept.name });
-                        }}
-                        className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[11px]"
-                      >
-                        Xóa
-                      </button>
-                    </td>
-                  </tr>
+                  <React.Fragment key={dept.id}>
+                    <tr
+                      onClick={toggle}
+                      tabIndex={0}
+                      aria-expanded={isExpanded}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter' || e.key === ' ') {
+                          e.preventDefault();
+                          toggle();
+                        }
+                      }}
+                      className={`cursor-pointer transition-colors focus:outline-none focus:ring-2 focus:ring-inset focus:ring-indigo-400/40 ${
+                        isExpanded ? 'bg-indigo-50/60' : 'hover:bg-slate-50'
+                      }`}
+                    >
+                      <td className="p-3 font-mono font-bold text-indigo-700">
+                        <span className="flex items-center gap-1.5">
+                          {isExpanded
+                            ? <ChevronDown className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />
+                            : <ChevronRight className="w-3.5 h-3.5 text-slate-400 flex-shrink-0" />}
+                          {dept.code}
+                        </span>
+                      </td>
+                      <td className="p-3 font-bold text-slate-900">{dept.name}</td>
+                      <td className="p-3 text-slate-500 hidden sm:table-cell">{dept.description || 'Chưa có mô tả'}</td>
+                      <td className="p-3 text-center font-bold text-slate-700">
+                        <span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-800 text-[10px]">
+                          {userCount} thành viên
+                        </span>
+                      </td>
+                      {/* The row itself toggles the member list, so the action
+                          buttons have to keep their clicks to themselves. */}
+                      <td className="p-3 text-right space-x-1">
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setEditingDeptId(dept.id);
+                            setDeptFormName(dept.name);
+                            setDeptFormCode(dept.code);
+                            setDeptFormDesc(dept.description || '');
+                            setIsDeptModalOpen(true);
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-bold text-[11px]"
+                        >
+                          Sửa
+                        </button>
+                        <button
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            if (userCount > 0) {
+                              showToast('error', `Không thể xóa tổ ${dept.name} vì đang có ${userCount} thành viên thuộc tổ này.`);
+                              return;
+                            }
+                            setDeleteConfirm({ type: 'dept', id: dept.id, name: dept.name });
+                          }}
+                          className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[11px]"
+                        >
+                          Xóa
+                        </button>
+                      </td>
+                    </tr>
+
+                    {isExpanded && (
+                      <tr className="bg-slate-50/80">
+                        <td colSpan={5} className="p-0">
+                          <div className="px-4 py-3.5 border-t border-slate-200 space-y-2.5">
+                            <div className="text-[11px] font-bold uppercase tracking-wider text-slate-500 flex items-center gap-1.5">
+                              <Users className="w-3.5 h-3.5 text-indigo-600" />
+                              Giáo viên thuộc {dept.name} ({userCount})
+                            </div>
+
+                            {userCount === 0 ? (
+                              <p className="text-xs text-slate-400 italic">
+                                Chưa có giáo viên nào được gán vào tổ này. Gán tổ cho giáo viên ở mục &quot;Sửa Vai Trò&quot; bên dưới.
+                              </p>
+                            ) : (
+                              <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-2">
+                                {[...members].sort(compareMembers).map(m => (
+                                  <div
+                                    key={m.id}
+                                    className="p-2.5 rounded-xl bg-white border border-slate-200 flex items-start justify-between gap-2"
+                                  >
+                                    <div className="min-w-0 space-y-1">
+                                      <div className="font-bold text-slate-900 text-[12px] truncate">{m.fullName}</div>
+                                      <div className="text-[10px] text-slate-500 truncate">{m.email}</div>
+                                      {m.subject && (
+                                        <div className="text-[10px] text-slate-400 truncate">Môn: {m.subject}</div>
+                                      )}
+                                      <div className="flex flex-wrap gap-1 pt-0.5">
+                                        {m.roles.map(r => (
+                                          <span
+                                            key={r}
+                                            className="px-1.5 py-0.5 rounded-md bg-indigo-50 text-indigo-700 text-[9px] font-bold border border-indigo-100"
+                                          >
+                                            {ROLE_LABELS[r] || r}
+                                          </span>
+                                        ))}
+                                      </div>
+                                    </div>
+                                    {/* The member count above includes accounts
+                                        still awaiting approval, so say which
+                                        ones they are rather than let the number
+                                        look wrong. */}
+                                    {m.status === 'PENDING_APPROVAL' && (
+                                      <span className="px-1.5 py-0.5 rounded-md bg-amber-100 text-amber-800 border border-amber-200 text-[9px] font-bold flex-shrink-0">
+                                        Chờ duyệt
+                                      </span>
+                                    )}
+                                  </div>
+                                ))}
+                              </div>
+                            )}
+                          </div>
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
                 );
               })}
             </tbody>
