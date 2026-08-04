@@ -1,25 +1,25 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { LEAVE_TYPE_LABELS, LEAVE_SESSION_LABELS, LeaveType } from '@/Edu-task/types/leave';
 import { canViewLeave, isSchoolLeadership } from '@/Edu-task/lib/permissions';
-import { 
-  FileText, 
-  Search, 
+import { matchesSearch } from '@/Edu-task/lib/utils';
+import {
+  FileText,
+  Search,
   PlusCircle
 } from 'lucide-react';
 
 interface LeaveTabProps {
   onRequestNewLeave: () => void;
   onSelectLeave: (leaveId: string) => void;
-  searchTerm?: string;
 }
 
-export function LeaveTab({ onRequestNewLeave, onSelectLeave, searchTerm = '' }: LeaveTabProps) {
+export function LeaveTab({ onRequestNewLeave, onSelectLeave }: LeaveTabProps) {
   const { leaves, departments, currentUser, activeRole } = useApp();
 
-  const [localSearch, setLocalSearch] = useState(searchTerm);
+  const [localSearch, setLocalSearch] = useState('');
   const [selectedDept, setSelectedDept] = useState('ALL');
   const [selectedType, setSelectedType] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
@@ -29,20 +29,25 @@ export function LeaveTab({ onRequestNewLeave, onSelectLeave, searchTerm = '' }: 
   // Filter leaves based on user role & department permission scope
   const visibleLeaves = leaves.filter(leave => canViewLeave(currentUser, activeRole, leave));
 
-  // Filter logic
-  const filteredLeaves = visibleLeaves.filter(leave => {
-    const term = localSearch.toLowerCase();
-    const matchesSearch = 
-      leave.applicantName.toLowerCase().includes(term) ||
-      leave.reason.toLowerCase().includes(term) ||
-      leave.code.toLowerCase().includes(term);
+  // Filter logic. Diacritics-insensitive and matched against applicant,
+  // reason, code, substitute teacher, and department so any of those fields
+  // can be searched from this tab.
+  const filteredLeaves = useMemo(() => visibleLeaves.filter(leave => {
+    const isSearchMatch = matchesSearch(
+      localSearch,
+      leave.applicantName,
+      leave.reason,
+      leave.code,
+      leave.substituteTeacherName,
+      leave.departmentName
+    );
 
     const matchesDept = selectedDept === 'ALL' || leave.departmentId === selectedDept;
     const matchesType = selectedType === 'ALL' || leave.leaveType === selectedType;
     const matchesStatus = selectedStatus === 'ALL' || leave.overallStatus === selectedStatus;
 
-    return matchesSearch && matchesDept && matchesType && matchesStatus;
-  });
+    return isSearchMatch && matchesDept && matchesType && matchesStatus;
+  }), [visibleLeaves, localSearch, selectedDept, selectedType, selectedStatus]);
 
   return (
     <div className="space-y-6">

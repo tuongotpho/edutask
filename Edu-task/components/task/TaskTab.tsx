@@ -1,10 +1,11 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { TASK_PRIORITY_CONFIG, TASK_STATUS_CONFIG, TaskStatus, TaskPriority } from '@/Edu-task/types/task';
 import { canAssignTask, isAdmin } from '@/Edu-task/lib/permissions';
 import { getDisplayTaskStatus, isTaskOverdue } from '@/Edu-task/lib/taskStatus';
+import { matchesSearch } from '@/Edu-task/lib/utils';
 import { 
   CheckSquare, 
   Search, 
@@ -32,21 +33,26 @@ export function TaskTab({ onRequestNewTask, onSelectTask }: TaskTabProps) {
     isAdmin(currentUser, activeRole) || (task.viewerIds && task.viewerIds.includes(currentUser?.id || ''))
   );
 
-  // Filter tasks
-  const filteredTasks = visibleTasks.filter(task => {
-    const term = searchTerm.toLowerCase();
-    const matchesSearch =
-      task.title.toLowerCase().includes(term) ||
-      task.description.toLowerCase().includes(term) ||
-      task.code.toLowerCase().includes(term);
+  // Filter tasks. Diacritics-insensitive and matched against title,
+  // description, code, and both the assigner's and every assignee's name so
+  // searching a teacher's name finds tasks they gave or received.
+  const filteredTasks = useMemo(() => visibleTasks.filter(task => {
+    const isSearchMatch = matchesSearch(
+      searchTerm,
+      task.title,
+      task.description,
+      task.code,
+      task.assignerName,
+      ...task.assignees.map(a => a.userName)
+    );
 
     const matchesPriority = selectedPriority === 'ALL' || task.priority === selectedPriority;
     // Match on the displayed status so "Quá hạn" actually selects something:
     // OVERDUE is derived from the deadline and is never stored on the document.
     const matchesStatus = selectedStatus === 'ALL' || getDisplayTaskStatus(task) === selectedStatus;
 
-    return matchesSearch && matchesPriority && matchesStatus;
-  });
+    return isSearchMatch && matchesPriority && matchesStatus;
+  }), [visibleTasks, searchTerm, selectedPriority, selectedStatus]);
 
   // Kanban Columns
   const columns: { status: TaskStatus; label: string; bg: string }[] = [

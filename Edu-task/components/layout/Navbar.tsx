@@ -1,8 +1,10 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { ROLE_LABELS } from '@/Edu-task/types/user';
+import { canViewLeave, isAdmin } from '@/Edu-task/lib/permissions';
+import { matchesSearch } from '@/Edu-task/lib/utils';
 import {
   Bell,
   Search,
@@ -10,10 +12,23 @@ import {
   CheckCircle2,
   CheckCheck,
   ChevronDown,
-  LogOut
+  LogOut,
+  FileText,
+  CheckSquare
 } from 'lucide-react';
 
-export function Navbar({ onSearch }: { onSearch?: (term: string) => void }) {
+// Scans the full task/leave lists on every keystroke, so debounce it —
+// unlike the per-tab search boxes, which filter a narrower, already-scoped list.
+const SEARCH_DEBOUNCE_MS = 200;
+const MAX_RESULTS_PER_GROUP = 5;
+
+export function Navbar({
+  onSelectTask,
+  onSelectLeave,
+}: {
+  onSelectTask?: (taskId: string) => void;
+  onSelectLeave?: (leaveId: string) => void;
+}) {
   const {
     currentUser,
     activeRole,
@@ -22,19 +37,52 @@ export function Navbar({ onSearch }: { onSearch?: (term: string) => void }) {
     notifications,
     markNotificationRead,
     markAllNotificationsRead,
-    logout
+    logout,
+    tasks,
+    leaves
   } = useApp();
 
   const [showRoleDropdown, setShowRoleDropdown] = useState(false);
   const [showUserDropdown, setShowUserDropdown] = useState(false);
   const [showNotifDropdown, setShowNotifDropdown] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
+  const [searchInput, setSearchInput] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [showSearchResults, setShowSearchResults] = useState(false);
 
   const unreadCount = notifications.filter(n => !n.isRead).length;
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchTerm(e.target.value);
-    if (onSearch) onSearch(e.target.value);
+  useEffect(() => {
+    const timer = setTimeout(() => setDebouncedSearch(searchInput), SEARCH_DEBOUNCE_MS);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const searchTerm = debouncedSearch.trim();
+
+  // Global search: reuses each tab's own permission scoping (viewerIds for
+  // tasks, canViewLeave for leaves) so results never leak records the user
+  // couldn't already see on the Task/Leave tabs themselves.
+  const matchedTasks = useMemo(() => {
+    if (!searchTerm) return [];
+    return tasks
+      .filter(task => isAdmin(currentUser, activeRole) || (task.viewerIds && task.viewerIds.includes(currentUser?.id || '')))
+      .filter(task => matchesSearch(searchTerm, task.title, task.description, task.code, task.assignerName, ...task.assignees.map(a => a.userName)))
+      .slice(0, MAX_RESULTS_PER_GROUP);
+  }, [tasks, currentUser, activeRole, searchTerm]);
+
+  const matchedLeaves = useMemo(() => {
+    if (!searchTerm) return [];
+    return leaves
+      .filter(leave => canViewLeave(currentUser, activeRole, leave))
+      .filter(leave => matchesSearch(searchTerm, leave.applicantName, leave.reason, leave.code, leave.substituteTeacherName, leave.departmentName))
+      .slice(0, MAX_RESULTS_PER_GROUP);
+  }, [leaves, currentUser, activeRole, searchTerm]);
+
+  const hasResults = matchedTasks.length > 0 || matchedLeaves.length > 0;
+
+  const closeSearch = () => {
+    setSearchInput('');
+    setDebouncedSearch('');
+    setShowSearchResults(false);
   };
 
   return (
@@ -57,18 +105,72 @@ export function Navbar({ onSearch }: { onSearch?: (term: string) => void }) {
           </div>
         </div>
 
-        {/* Middle Search Bar */}
-        <div className="flex-1 max-w-md hidden md:block">
+        {/* Middle Search Bar — searches everything (tasks + leaves) the user
+            can see, unlike the per-tab search boxes which stay scoped to
+            their own tab's content. */}
+        <div className="flex-1 max-w-md hidden md:block relative">
           <div className="relative">
             <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
             <input
               type="text"
-              value={searchTerm}
-              onChange={handleSearchChange}
+              value={searchInput}
+              onChange={(e) => { setSearchInput(e.target.value); setShowSearchResults(true); }}
+              onFocus={() => setShowSearchResults(true)}
+              onBlur={() => setTimeout(() => setShowSearchResults(false), 150)}
               placeholder="Tìm đơn xin nghỉ, công việc, giáo viên..."
               className="w-full pl-9 pr-4 py-1.5 text-sm rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20 focus:border-indigo-500 transition-all"
             />
           </div>
+
+          {showSearchResults && searchTerm && (
+            <div className="absolute left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-200 py-2 z-50 max-h-96 overflow-y-auto">
+              {!hasResults ? (
+                <div className="px-4 py-3 text-xs text-slate-500 text-center">Không tìm thấy kết quả phù hợp</div>
+              ) : (
+                <>
+                  {matchedTasks.length > 0 && (
+                    <div>
+                      <div className="px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400">Công việc</div>
+                      {matchedTasks.map(task => (
+                        <button
+                          key={task.id}
+                          type="button"
+                          onClick={() => { onSelectTask?.(task.id); closeSearch(); }}
+                          className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-start gap-2"
+                        >
+                          <CheckSquare className="w-3.5 h-3.5 text-emerald-600 mt-0.5 flex-shrink-0" />
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-xs font-semibold text-slate-900 truncate">{task.title}</span>
+                            <span className="block text-[10px] text-slate-500">{task.code} • Giao bởi: {task.assignerName}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+
+                  {matchedLeaves.length > 0 && (
+                    <div>
+                      <div className="px-4 py-1 text-[10px] font-bold uppercase tracking-wider text-slate-400 border-t border-slate-100 mt-1 pt-2">Đơn xin nghỉ</div>
+                      {matchedLeaves.map(leave => (
+                        <button
+                          key={leave.id}
+                          type="button"
+                          onClick={() => { onSelectLeave?.(leave.id); closeSearch(); }}
+                          className="w-full text-left px-4 py-2 hover:bg-slate-50 flex items-start gap-2"
+                        >
+                          <FileText className="w-3.5 h-3.5 text-indigo-600 mt-0.5 flex-shrink-0" />
+                          <span className="flex-1 min-w-0">
+                            <span className="block text-xs font-semibold text-slate-900 truncate">{leave.applicantName} • {leave.reason}</span>
+                            <span className="block text-[10px] text-slate-500">{leave.code}</span>
+                          </span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Right Actions: Role Switcher, User Selector, Notifications */}

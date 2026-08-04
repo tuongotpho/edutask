@@ -21,7 +21,35 @@ export const firebaseAuthService = {
   // Login with Email & Password
   async login(email: string, pass: string): Promise<FbUser> {
     const credential = await signInWithEmailAndPassword(auth, email, pass);
-    return credential.user;
+    const fbUser = credential.user;
+
+    // Self-heal: an Auth account can exist without a matching Firestore
+    // profile (e.g. register()'s post-signup setDoc was interrupted, or the
+    // account was provisioned outside the app). Without this, such users
+    // never get a `users/{uid}` doc and stay invisible to the admin list.
+    const userDocRef = doc(db, 'users', fbUser.uid);
+    const userDocSnap = await getDoc(userDocRef);
+
+    if (!userDocSnap.exists()) {
+      const isAdmin = isAdminEmail(fbUser.email);
+      const userProfile: User = {
+        id: fbUser.uid,
+        fullName: fbUser.displayName || fbUser.email || 'Người dùng',
+        email: fbUser.email || '',
+        avatarUrl: fbUser.photoURL || '',
+        phone: fbUser.phoneNumber || '',
+        departmentId: 'DEPT_TOAN_TIN',
+        departmentName: 'Tổ Toán - Tin',
+        roles: isAdmin ? ['ADMIN', 'PRINCIPAL'] : ['TEACHER'],
+        activeRole: isAdmin ? 'ADMIN' : 'TEACHER',
+        isTeachingStaff: true,
+        subject: 'Chưa phân công môn',
+        status: isAdmin ? 'ACTIVE' : 'PENDING_APPROVAL',
+      };
+      await setDoc(userDocRef, sanitizeForFirestore(userProfile));
+    }
+
+    return fbUser;
   },
 
   // Login or Register with Google (Gmail)

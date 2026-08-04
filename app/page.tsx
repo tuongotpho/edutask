@@ -57,7 +57,6 @@ function EduTaskMainApp() {
   const { leaves, tasks, currentUser, isAuthenticated } = useApp();
 
   const [activeTab, setActiveTab] = useState<TabType>('dashboard');
-  const [searchTerm, setSearchTerm] = useState('');
 
   // Modals state
   const [isLeaveFormOpen, setIsLeaveFormOpen] = useState(false);
@@ -91,7 +90,10 @@ function EduTaskMainApp() {
   return (
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased flex flex-col">
       {/* Top Navigation */}
-      <Navbar onSearch={setSearchTerm} />
+      <Navbar
+        onSelectTask={(id) => { setActiveTab('task'); setSelectedTaskId(id); }}
+        onSelectLeave={(id) => { setActiveTab('leave'); setSelectedLeaveId(id); }}
+      />
 
       {/* Main Content Layout */}
       <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col md:flex-row">
@@ -119,7 +121,6 @@ function EduTaskMainApp() {
             <LeaveTab
               onRequestNewLeave={handleOpenNewLeave}
               onSelectLeave={(id) => setSelectedLeaveId(id)}
-              searchTerm={searchTerm}
             />
           )}
 
