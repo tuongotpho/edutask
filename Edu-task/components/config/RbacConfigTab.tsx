@@ -50,6 +50,8 @@ export function RbacConfigTab() {
     updateDepartment,
     deleteDepartment,
     users,
+    leaves,
+    tasks,
     showToast
   } = useApp();
 
@@ -181,6 +183,17 @@ export function RbacConfigTab() {
                 const isExpanded = expandedDeptId === dept.id;
                 const toggle = () => setExpandedDeptId(isExpanded ? null : dept.id);
 
+                // Mirrors the guards in `deleteDepartment`, in the same order,
+                // so the button is dead before the click rather than after —
+                // and says which record is holding the department.
+                const leaveCount = leaves.filter(l => l.departmentId === dept.id).length;
+                const taskCount = tasks.filter(t => t.targetDepartmentId === dept.id).length;
+                const blockReason =
+                  userCount > 0 ? `Còn ${userCount} thành viên thuộc tổ này`
+                  : leaveCount > 0 ? `Còn ${leaveCount} đơn xin nghỉ thuộc tổ này`
+                  : taskCount > 0 ? `Còn ${taskCount} nhiệm vụ được giao cho tổ này`
+                  : null;
+
                 return (
                   <React.Fragment key={dept.id}>
                     <tr
@@ -229,20 +242,28 @@ export function RbacConfigTab() {
                         >
                           Sửa
                         </button>
-                        <button
-                          type="button"
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            if (userCount > 0) {
-                              showToast('error', `Không thể xóa tổ ${dept.name} vì đang có ${userCount} thành viên thuộc tổ này.`);
-                              return;
-                            }
-                            setDeleteConfirm({ type: 'dept', id: dept.id, name: dept.name });
-                          }}
-                          className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[11px]"
+                        {/* A disabled button swallows hover events in some
+                            browsers, so the tooltip lives on the wrapper. */}
+                        <span
+                          className="inline-block"
+                          title={blockReason ? `Không thể xóa: ${blockReason}.` : `Xóa tổ ${dept.name}`}
                         >
-                          Xóa
-                        </button>
+                          <button
+                            type="button"
+                            disabled={!!blockReason}
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setDeleteConfirm({ type: 'dept', id: dept.id, name: dept.name });
+                            }}
+                            className={`px-2.5 py-1 rounded-lg font-bold text-[11px] ${
+                              blockReason
+                                ? 'bg-slate-100 text-slate-400 cursor-not-allowed'
+                                : 'bg-rose-50 hover:bg-rose-100 text-rose-700'
+                            }`}
+                          >
+                            Xóa
+                          </button>
+                        </span>
                       </td>
                     </tr>
 
@@ -254,6 +275,14 @@ export function RbacConfigTab() {
                               <Users className="w-3.5 h-3.5 text-indigo-600" />
                               Giáo viên thuộc {dept.name} ({userCount})
                             </div>
+
+                            {/* A `title` tooltip is unreachable on a touch
+                                screen, so the reason is spelled out here too. */}
+                            {blockReason && (
+                              <p className="text-[11px] text-slate-500">
+                                Chưa xóa được tổ này: <strong className="text-slate-700">{blockReason.toLowerCase()}</strong>.
+                              </p>
+                            )}
 
                             {userCount === 0 ? (
                               <p className="text-xs text-slate-400 italic">

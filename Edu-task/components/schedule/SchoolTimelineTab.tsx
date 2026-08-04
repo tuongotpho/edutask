@@ -1,29 +1,79 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { LEAVE_TYPE_LABELS } from '@/Edu-task/types/leave';
 import { TASK_STATUS_CONFIG } from '@/Edu-task/types/task';
-import { CalendarDays, LayoutGrid } from 'lucide-react';
+import { CalendarDays, LayoutGrid, Search } from 'lucide-react';
+import { matchesSearch } from '@/Edu-task/lib/utils';
 import { LeaveCalendar } from '@/Edu-task/components/schedule/LeaveCalendar';
 import { canViewLeave } from '@/Edu-task/lib/permissions';
 import { isDeptLeader, isSchoolLeadership } from '@/Edu-task/lib/permissions';
 import { getDisplayTaskStatus } from '@/Edu-task/lib/taskStatus';
 
 export function SchoolTimelineTab({ onSelectLeave }: { onSelectLeave?: (leaveId: string) => void }) {
-  const { users, leaves, tasks, currentUser, activeRole } = useApp();
+  const { users, leaves, tasks, departments, currentUser, activeRole } = useApp();
   const [viewMode, setViewMode] = useState<'CALENDAR' | 'PEOPLE'>('CALENDAR');
+
+  const [peopleSearch, setPeopleSearch] = useState('');
+  const [peopleDept, setPeopleDept] = useState('ALL');
+  const [peopleStatus, setPeopleStatus] = useState<'ALL' | 'ON_LEAVE' | 'HAS_TASK' | 'FREE'>('ALL');
 
   const isSchoolExecutiveOrAdmin = isSchoolLeadership(currentUser, activeRole);
   const showsWholeDepartment = isDeptLeader(currentUser, activeRole);
 
-  const displayUsers = isSchoolExecutiveOrAdmin
-    ? users
-    : showsWholeDepartment
-    ? users.filter(u => u.departmentId === currentUser?.departmentId)
-    : users.filter(u => u.id === currentUser?.id);
+  const displayUsers = useMemo(() => (
+    isSchoolExecutiveOrAdmin
+      ? users
+      : showsWholeDepartment
+      ? users.filter(u => u.departmentId === currentUser?.departmentId)
+      : users.filter(u => u.id === currentUser?.id)
+  ), [users, isSchoolExecutiveOrAdmin, showsWholeDepartment, currentUser?.departmentId, currentUser?.id]);
 
   const todayStr = new Date().toISOString().split('T')[0];
+
+  /**
+   * Whoever needs attention first, first.
+   *
+   * The grid used to follow the raw user order, so on a staff list of any size
+   * the people actually absent today were scattered among colleagues with
+   * nothing on. Absent today outranks carrying open work, which outranks free;
+   * ties fall back to Vietnamese alphabetical order.
+   */
+  const peopleRows = useMemo(() => {
+    const rows = displayUsers.map(teacher => {
+      const activeLeaves = leaves.filter(l =>
+        l.applicantId === teacher.id &&
+        (l.overallStatus === 'APPROVED' || l.overallStatus === 'IN_REVIEW')
+      );
+      const isOnLeaveToday = activeLeaves.some(l => l.startDate <= todayStr && l.endDate >= todayStr);
+      const teacherTasks = tasks.filter(t =>
+        t.assignees.some(a => a.userId === teacher.id) && t.status !== 'COMPLETED'
+      );
+      return { teacher, activeLeaves, isOnLeaveToday, teacherTasks };
+    });
+
+    const rank = (r: typeof rows[number]) => (r.isOnLeaveToday ? 0 : r.teacherTasks.length > 0 ? 1 : 2);
+    return rows.sort((a, b) => rank(a) - rank(b) || a.teacher.fullName.localeCompare(b.teacher.fullName, 'vi'));
+  }, [displayUsers, leaves, tasks, todayStr]);
+
+  const visibleRows = useMemo(() => peopleRows.filter(r => {
+    const isSearchMatch = matchesSearch(
+      peopleSearch,
+      r.teacher.fullName,
+      r.teacher.email,
+      r.teacher.subject,
+      r.teacher.departmentName
+    );
+    const matchesDept = peopleDept === 'ALL' || r.teacher.departmentId === peopleDept;
+    const matchesStatus =
+      peopleStatus === 'ALL' ? true
+      : peopleStatus === 'ON_LEAVE' ? r.isOnLeaveToday
+      : peopleStatus === 'HAS_TASK' ? r.teacherTasks.length > 0
+      : !r.isOnLeaveToday && r.teacherTasks.length === 0;
+
+    return isSearchMatch && matchesDept && matchesStatus;
+  }), [peopleRows, peopleSearch, peopleDept, peopleStatus]);
 
   let headerTitle = 'Lịch Nghỉ Phép & Khối Lượng Công Việc Cá Nhân';
   let headerSub = 'Theo dõi lịch nghỉ phép đã đăng ký và danh sách công việc đang được giao phụ trách.';
@@ -82,22 +132,63 @@ export function SchoolTimelineTab({ onSelectLeave }: { onSelectLeave?: (leaveId:
 
       {/* Grid of Teachers with Status */}
       {viewMode === 'PEOPLE' && (
-      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {displayUsers.map(teacher => {
-          // Check active leaves for this teacher
-          const activeLeaves = leaves.filter(l => 
-            l.applicantId === teacher.id && 
-            (l.overallStatus === 'APPROVED' || l.overallStatus === 'IN_REVIEW')
-          );
+      <div className="space-y-4">
 
-          const isOnLeaveToday = activeLeaves.some(l => l.startDate <= todayStr && l.endDate >= todayStr);
+        {/* Filters */}
+        <div className="bg-white rounded-3xl border border-slate-200 p-4 shadow-sm space-y-3">
+          <div className={`grid grid-cols-1 gap-3 text-xs ${isSchoolExecutiveOrAdmin ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
+            <div className="relative">
+              <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+              <input
+                type="text"
+                value={peopleSearch}
+                onChange={(e) => setPeopleSearch(e.target.value)}
+                placeholder="Tìm tên, email, môn dạy..."
+                className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              />
+            </div>
 
-          // Active tasks assigned to this teacher
-          const teacherTasks = tasks.filter(t => 
-            t.assignees.some(a => a.userId === teacher.id) &&
-            t.status !== 'COMPLETED'
-          );
+            {/* Only leadership sees more than one department, so the filter
+                would be a dropdown of one for everybody else. */}
+            {isSchoolExecutiveOrAdmin && (
+              <select
+                value={peopleDept}
+                onChange={(e) => setPeopleDept(e.target.value)}
+                className="w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-800 font-medium"
+              >
+                <option value="ALL">-- Tất cả Tổ chuyên môn --</option>
+                {departments.map(d => (
+                  <option key={d.id} value={d.id}>{d.name}</option>
+                ))}
+              </select>
+            )}
 
+            <select
+              value={peopleStatus}
+              onChange={(e) => setPeopleStatus(e.target.value as typeof peopleStatus)}
+              className="w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-800 font-medium"
+            >
+              <option value="ALL">-- Tất cả trạng thái --</option>
+              <option value="ON_LEAVE">Đang nghỉ hôm nay</option>
+              <option value="HAS_TASK">Đang có việc được giao</option>
+              <option value="FREE">Sẵn sàng, chưa có việc</option>
+            </select>
+          </div>
+
+          <p className="text-[11px] text-slate-500 border-t border-slate-100 pt-2.5">
+            Hiển thị <strong className="text-slate-700">{visibleRows.length}</strong>/{peopleRows.length} nhân sự · Tự động xếp theo thứ tự: đang nghỉ hôm nay → đang có việc → còn lại.
+          </p>
+        </div>
+
+        {visibleRows.length === 0 ? (
+          <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center shadow-sm space-y-2">
+            <LayoutGrid className="w-10 h-10 mx-auto text-slate-300" />
+            <p className="font-semibold text-sm text-slate-700">Không tìm thấy nhân sự nào</p>
+            <p className="text-xs text-slate-400">Thử đổi từ khóa hoặc bỏ bớt bộ lọc</p>
+          </div>
+        ) : (
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+        {visibleRows.map(({ teacher, activeLeaves, isOnLeaveToday, teacherTasks }) => {
           return (
             <div 
               key={teacher.id} 
@@ -168,6 +259,8 @@ export function SchoolTimelineTab({ onSelectLeave }: { onSelectLeave?: (leaveId:
             </div>
           );
         })}
+        </div>
+        )}
       </div>
       )}
 

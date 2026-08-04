@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import dynamic from 'next/dynamic';
 import { AppProvider, useApp } from '@/Edu-task/context/AppContext';
 import { Navbar } from '@/Edu-task/components/layout/Navbar';
@@ -12,6 +12,7 @@ import { LoginPage } from '@/Edu-task/components/auth/LoginPage';
 import { PendingApprovalPage } from '@/Edu-task/components/auth/PendingApprovalPage';
 import { ToastViewport } from '@/Edu-task/components/common/Toast';
 import { LeaveRequest } from '@/Edu-task/types/leave';
+import { canAccessTab, DEFAULT_TAB, searchForTab, tabFromSearch } from '@/Edu-task/lib/tabRouting';
 
 // Split out of the initial bundle. The dashboard, leave and task tabs are what
 // a teacher opens every day; these are either role-gated (RBAC, analytics) or
@@ -54,9 +55,38 @@ const TaskDetailModal = dynamic(
   { ssr: false }
 );
 function EduTaskMainApp() {
-  const { leaves, tasks, currentUser, isAuthenticated } = useApp();
+  const { leaves, tasks, currentUser, activeRole, isAuthenticated } = useApp();
 
-  const [activeTab, setActiveTab] = useState<TabType>('dashboard');
+  const [activeTab, setActiveTab] = useState<TabType>(DEFAULT_TAB);
+
+  // The address bar is the source of truth for which tab is open, so a reload
+  // keeps you where you were, Back steps between tabs instead of leaving the
+  // app, and a tab can be linked to. Read after mount rather than during
+  // render: the page is statically exported, so the prerendered HTML knows
+  // nothing about the query string and reading it earlier would mismatch.
+  useEffect(() => {
+    const syncFromUrl = () => setActiveTab(tabFromSearch(window.location.search));
+    syncFromUrl();
+    window.addEventListener('popstate', syncFromUrl);
+    return () => window.removeEventListener('popstate', syncFromUrl);
+  }, []);
+
+  const goToTab = useCallback((tab: TabType) => {
+    setActiveTab(tab);
+    window.history.pushState(null, '', `${window.location.pathname}${searchForTab(tab)}`);
+  }, []);
+
+  // A link can name any tab, including one this role has no business opening,
+  // so the URL is checked against the same rule the sidebar uses.
+  const visibleTab = canAccessTab(currentUser, activeRole, activeTab) ? activeTab : DEFAULT_TAB;
+
+  // Correct the address bar rather than leave it claiming a tab that is not on
+  // screen — otherwise the refused link stays copyable and keeps misleading.
+  useEffect(() => {
+    if (visibleTab === activeTab) return;
+    setActiveTab(visibleTab);
+    window.history.replaceState(null, '', `${window.location.pathname}${searchForTab(visibleTab)}`);
+  }, [visibleTab, activeTab]);
 
   // Modals state
   const [isLeaveFormOpen, setIsLeaveFormOpen] = useState(false);
@@ -91,59 +121,59 @@ function EduTaskMainApp() {
     <div className="min-h-screen bg-slate-50 text-slate-900 font-sans antialiased flex flex-col">
       {/* Top Navigation */}
       <Navbar
-        onSelectTask={(id) => { setActiveTab('task'); setSelectedTaskId(id); }}
-        onSelectLeave={(id) => { setActiveTab('leave'); setSelectedLeaveId(id); }}
+        onSelectTask={(id) => { goToTab('task'); setSelectedTaskId(id); }}
+        onSelectLeave={(id) => { goToTab('leave'); setSelectedLeaveId(id); }}
       />
 
       {/* Main Content Layout */}
       <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col md:flex-row">
         {/* Sidebar */}
         <Sidebar
-          activeTab={activeTab}
-          setActiveTab={setActiveTab}
+          activeTab={visibleTab}
+          setActiveTab={goToTab}
           onRequestNewLeave={handleOpenNewLeave}
           onRequestNewTask={() => setIsTaskFormOpen(true)}
         />
 
         {/* Dynamic View Panel */}
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
-          {activeTab === 'dashboard' && (
+          {visibleTab === 'dashboard' && (
             <OverviewTab
               onRequestNewLeave={handleOpenNewLeave}
               onRequestNewTask={() => setIsTaskFormOpen(true)}
               onSelectLeave={(id) => setSelectedLeaveId(id)}
               onSelectTask={(id) => setSelectedTaskId(id)}
-              onGoToTab={(tab) => setActiveTab(tab)}
+              onGoToTab={goToTab}
             />
           )}
 
-          {activeTab === 'leave' && (
+          {visibleTab === 'leave' && (
             <LeaveTab
               onRequestNewLeave={handleOpenNewLeave}
               onSelectLeave={(id) => setSelectedLeaveId(id)}
             />
           )}
 
-          {activeTab === 'task' && (
+          {visibleTab === 'task' && (
             <TaskTab
               onRequestNewTask={() => setIsTaskFormOpen(true)}
               onSelectTask={(id) => setSelectedTaskId(id)}
             />
           )}
 
-          {activeTab === 'schedule' && (
+          {visibleTab === 'schedule' && (
             <SchoolTimelineTab onSelectLeave={(id) => setSelectedLeaveId(id)} />
           )}
 
-          {activeTab === 'stats' && (
+          {visibleTab === 'stats' && (
             <AnalyticsTab />
           )}
 
-          {activeTab === 'audit' && (
+          {visibleTab === 'audit' && (
             <AuditLogTab />
           )}
 
-          {activeTab === 'config' && (
+          {visibleTab === 'config' && (
             <RbacConfigTab />
           )}
         </main>

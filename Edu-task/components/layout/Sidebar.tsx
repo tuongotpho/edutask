@@ -14,11 +14,10 @@ import {
 import { useApp } from '@/Edu-task/context/AppContext';
 import {
   canAssignTask,
-  canManageRbac,
-  canViewStats,
   canViewLeave,
   isSchoolLeadership,
 } from '@/Edu-task/lib/permissions';
+import { canAccessTab } from '@/Edu-task/lib/tabRouting';
 
 export type TabType = 'dashboard' | 'leave' | 'task' | 'schedule' | 'stats' | 'audit' | 'config';
 
@@ -46,8 +45,11 @@ export function Sidebar({
   const pendingUsersCount = users.filter(u => u.status === 'PENDING_APPROVAL').length;
 
   const canAssignTasks = canAssignTask(currentUser, activeRole);
-  const isAdmin = canManageRbac(currentUser, activeRole);
-  const showStats = canViewStats(currentUser, activeRole);
+  // Shared with the URL handler in page.tsx: a tab hidden here must also be
+  // unreachable by typing its address.
+  const showStats = canAccessTab(currentUser, activeRole, 'stats');
+  const showAudit = canAccessTab(currentUser, activeRole, 'audit');
+  const isAdmin = canAccessTab(currentUser, activeRole, 'config');
 
   const menuItems = [
     {
@@ -82,7 +84,7 @@ export function Sidebar({
       icon: BarChart3,
       badge: null,
     }] : []),
-    ...(isLeadershipOrAdmin ? [{
+    ...(showAudit ? [{
       id: 'audit' as TabType,
       label: 'Nhật Ký Hoạt Động',
       icon: History,
