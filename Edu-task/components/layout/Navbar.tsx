@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useEffect, useMemo, useState } from 'react';
+import Image from 'next/image';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { ROLE_LABELS } from '@/Edu-task/types/user';
 import { canViewLeave, isAdmin } from '@/Edu-task/lib/permissions';
@@ -91,9 +92,14 @@ export function Navbar({
         
         {/* Left Brand & School Name */}
         <div className="flex items-center space-x-3 flex-shrink-0">
-          <div className="w-9 h-9 rounded-xl bg-gradient-to-tr from-indigo-600 to-blue-600 flex items-center justify-center font-bold text-white shadow-sm tracking-tight text-lg">
-            E
-          </div>
+          <Image
+            src="/brand-logo.png"
+            alt="EduTask"
+            width={36}
+            height={36}
+            priority
+            className="w-9 h-9 rounded-xl shadow-sm"
+          />
           <div>
             <div className="flex items-center gap-2">
               <span className="font-extrabold text-slate-900 tracking-tight text-base">EduTask</span>

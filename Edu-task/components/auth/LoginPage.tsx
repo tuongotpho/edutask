@@ -1,6 +1,7 @@
 'use client';
 
 import React, { useState } from 'react';
+import Image from 'next/image';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { 
   Lock, 
@@ -95,9 +96,14 @@ export function LoginPage() {
       {/* Main Container */}
       <div className="sm:mx-auto sm:w-full sm:max-w-md relative z-10">
         <div className="flex justify-center mb-3">
-          <div className="w-14 h-14 rounded-2xl bg-gradient-to-tr from-indigo-500 to-blue-600 flex items-center justify-center font-extrabold text-white text-2xl shadow-lg shadow-indigo-500/30">
-            E
-          </div>
+          <Image
+            src="/brand-logo.png"
+            alt="EduTask"
+            width={56}
+            height={56}
+            priority
+            className="w-14 h-14 rounded-2xl shadow-lg shadow-slate-900/40"
+          />
         </div>
         <h2 className="text-center text-2xl font-extrabold text-white tracking-tight">
           EduTask - Quản lý Nhà trường
