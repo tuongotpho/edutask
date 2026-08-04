@@ -92,11 +92,11 @@ export function LeaveFormModal({ isOpen, editingLeave, onClose }: LeaveFormModal
   };
 
   return (
-    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 overflow-y-auto animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-xl w-full shadow-2xl border border-slate-200 overflow-hidden my-8">
-        
+    <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
+      <div className="bg-white rounded-3xl max-w-2xl w-full max-h-[92vh] shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+
         {/* Header */}
-        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between">
+        <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between flex-shrink-0">
           <div className="flex items-center space-x-2.5">
             <div className="w-8 h-8 rounded-lg bg-indigo-500/20 text-indigo-400 border border-indigo-500/30 flex items-center justify-center">
               <FileText className="w-4 h-4" />
@@ -117,7 +117,8 @@ export function LeaveFormModal({ isOpen, editingLeave, onClose }: LeaveFormModal
         </div>
 
         {/* Form Body */}
-        <form onSubmit={handleSubmit} className="p-6 space-y-4 text-xs">
+        <form onSubmit={handleSubmit} className="flex flex-col min-h-0 flex-1 text-xs">
+        <div className="flex-1 overflow-y-auto p-6 space-y-4">
 
           {/* Applicant Info Banner */}
           <div className="p-3 rounded-xl bg-slate-50 border border-slate-200 flex items-center justify-between">
@@ -229,19 +230,21 @@ export function LeaveFormModal({ isOpen, editingLeave, onClose }: LeaveFormModal
             disabled={isSubmitting}
           />
 
-          {/* Buttons */}
-          <div className="pt-2 flex items-center justify-end space-x-2 border-t border-slate-100">
+        </div>
+
+          {/* Buttons — pinned below the scroll area so they stay reachable */}
+          <div className="flex-shrink-0 px-6 py-4 border-t border-slate-200 bg-white flex items-center justify-end space-x-2">
             <button
               type="button"
               onClick={handleClose}
-              className="px-4 py-2 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold"
+              className="px-4 py-2.5 rounded-xl border border-slate-200 hover:bg-slate-100 text-slate-700 font-semibold"
             >
               Hủy
             </button>
             <button
               type="submit"
               disabled={isSubmitting}
-              className="px-5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-sm transition-all"
+              className="px-5 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-bold shadow-sm transition-all"
             >
               {editingLeave ? 'Lưu & Gửi Lại Đơn Xin Nghỉ' : 'Gửi Đơn Xin Nghỉ'}
             </button>
