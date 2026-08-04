@@ -385,6 +385,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setUsers,
     leaves,
     setLeaves,
+    tasks,
+    setTasks,
     notify: showToast,
   });
 
