@@ -7,6 +7,7 @@ import { LeaveType, LEAVE_TYPE_LABELS } from '@/Edu-task/types/leave';
 import { TelegramEvent, TELEGRAM_EVENT_LABELS, isTelegramConfigured } from '@/Edu-task/types/settings';
 import { describeWorkflow } from '@/Edu-task/lib/workflow';
 import { telegramService } from '@/Edu-task/services/telegramService';
+import { CollapsibleCard } from '@/Edu-task/components/common/CollapsibleCard';
 
 /** Admin controls for the approval flow. These now actually take effect. */
 export function WorkflowConfigCard() {
@@ -42,16 +43,12 @@ export function WorkflowConfigCard() {
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-      <div>
-        <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-          <GitBranch className="w-4 h-4 text-indigo-600" />
-          Cấu Hình Luồng Duyệt Đơn Nghỉ
-        </h3>
-        <p className="text-xs text-slate-500 mt-0.5">
-          Quyết định khi nào đơn cần trình lên Ban Giám Hiệu. Áp dụng cho các đơn tạo sau khi lưu.
-        </p>
-      </div>
+    <CollapsibleCard
+      title="Cấu Hình Luồng Duyệt Đơn Nghỉ"
+      subtitle="Quyết định khi nào đơn cần trình lên Ban Giám Hiệu. Áp dụng cho các đơn tạo sau khi lưu."
+      icon={GitBranch}
+    >
+      <div className="space-y-4">
 
       {/* Live description of what the current draft means, in plain Vietnamese. */}
       <div className="p-3 rounded-2xl bg-indigo-50/70 border border-indigo-200 text-xs text-indigo-900 font-medium">
@@ -115,7 +112,8 @@ export function WorkflowConfigCard() {
           <span>{isSaving ? 'Đang lưu…' : 'Lưu Luồng Duyệt'}</span>
         </button>
       </div>
-    </div>
+      </div>
+    </CollapsibleCard>
   );
 }
 
@@ -163,27 +161,33 @@ export function TelegramConfigCard() {
   };
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-      <div className="flex items-start justify-between gap-3">
-        <div>
-          <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-            <Send className="w-4 h-4 text-sky-600" />
-            Thông Báo Qua Nhóm Telegram
-          </h3>
-          <p className="text-xs text-slate-500 mt-0.5">
-            Tự động đăng thông báo vào nhóm Telegram của trường. Bỏ trống để không gửi gì cả.
-          </p>
-        </div>
-        <label className="flex items-center gap-2 flex-shrink-0 cursor-pointer">
-          <input
-            type="checkbox"
-            checked={enabled}
-            onChange={e => setEnabled(e.target.checked)}
-            className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500"
-          />
-          <span className="text-xs font-bold text-slate-700">Bật</span>
-        </label>
-      </div>
+    <CollapsibleCard
+      title="Thông Báo Qua Nhóm Telegram"
+      subtitle="Tự động đăng thông báo vào nhóm Telegram của trường. Bỏ trống để không gửi gì cả."
+      icon={Send}
+      iconClassName="text-sky-600"
+      // Whether notifications are actually going out is the one thing worth
+      // seeing without opening the card.
+      badge={
+        <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold border ${
+          telegramConfig.enabled
+            ? 'bg-sky-50 text-sky-700 border-sky-200'
+            : 'bg-slate-100 text-slate-500 border-slate-200'
+        }`}>
+          {telegramConfig.enabled ? 'Đang bật' : 'Đang tắt'}
+        </span>
+      }
+    >
+      <div className="space-y-4">
+      <label className="flex items-center gap-2 cursor-pointer w-fit">
+        <input
+          type="checkbox"
+          checked={enabled}
+          onChange={e => setEnabled(e.target.checked)}
+          className="w-4 h-4 rounded text-sky-600 focus:ring-sky-500"
+        />
+        <span className="text-xs font-bold text-slate-700">Bật gửi thông báo Telegram</span>
+      </label>
 
       {/* The token is readable by any signed-in user because this app has no
           server. Say so plainly rather than letting an admin assume otherwise. */}
@@ -263,6 +267,7 @@ export function TelegramConfigCard() {
           <span>{isSaving ? 'Đang lưu…' : 'Lưu Cấu Hình'}</span>
         </button>
       </div>
-    </div>
+      </div>
+    </CollapsibleCard>
   );
 }

@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
+import React, { useMemo, useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { ROLE_LABELS, RoleType, User } from '@/Edu-task/types/user';
 import { isAdminEmail } from '@/Edu-task/lib/admin';
+import { matchesSearch } from '@/Edu-task/lib/utils';
 import {
   ALL_ROLES,
   PERMISSION_LABELS,
@@ -17,14 +18,15 @@ import {
   UserPlus, 
   Check,
   ChevronDown,
-  ChevronUp,
   ChevronRight,
+  Search,
   Users,
   Building2,
   PlusCircle,
   X
 } from 'lucide-react';
 import { ConfirmModal } from '@/Edu-task/components/common/ConfirmModal';
+import { CollapsibleCard } from '@/Edu-task/components/common/CollapsibleCard';
 import { WorkflowConfigCard, TelegramConfigCard } from '@/Edu-task/components/config/WorkflowConfigCard';
 
 /**
@@ -55,7 +57,6 @@ export function RbacConfigTab() {
     showToast
   } = useApp();
 
-  const [isMatrixExpanded, setIsMatrixExpanded] = useState(false);
   const [expandedDeptId, setExpandedDeptId] = useState<string | null>(null);
 
   const [editingSchoolName, setEditingSchoolName] = useState(schoolName);
@@ -101,16 +102,12 @@ export function RbacConfigTab() {
       </div>
 
       {/* 1. School Name Settings Card */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-        <div className="flex items-center space-x-2">
-          <Building2 className="w-5 h-5 text-indigo-600" />
-          <h3 className="text-sm font-bold text-slate-900">Cấu Hình Thông Tin Trường Học</h3>
-        </div>
-        <p className="text-xs text-slate-500">
-          Tên trường học hiển thị đồng bộ trên thanh điều hướng, tiêu đề ứng dụng, các đơn xin nghỉ phép và báo cáo thống kê.
-        </p>
-
-        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 pt-1">
+      <CollapsibleCard
+        title="Cấu Hình Thông Tin Trường Học"
+        subtitle="Tên trường học hiển thị đồng bộ trên thanh điều hướng, tiêu đề ứng dụng, các đơn xin nghỉ phép và báo cáo thống kê."
+        icon={Building2}
+      >
+        <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3">
           <input
             type="text"
             value={editingSchoolName}
@@ -133,21 +130,15 @@ export function RbacConfigTab() {
             <span>Lưu Tên Trường</span>
           </button>
         </div>
-      </div>
+      </CollapsibleCard>
 
       {/* 2. Department Management Card */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-          <div>
-            <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
-              <Building2 className="w-5 h-5 text-indigo-600" />
-              Quản Lý Danh Sách Tổ Chuyên Môn / Phòng Ban ({departments.length})
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Nhấp vào một tổ để xem danh sách giáo viên thuộc tổ đó. Hệ thống sẽ tự động cập nhật tên tổ trên hồ sơ giáo viên, đơn xin nghỉ & nhiệm vụ khi bạn đổi tên.
-            </p>
-          </div>
-
+      <CollapsibleCard
+        title="Quản Lý Danh Sách Tổ Chuyên Môn / Phòng Ban"
+        subtitle="Nhấp vào một tổ để xem danh sách giáo viên thuộc tổ đó. Hệ thống sẽ tự động cập nhật tên tổ trên hồ sơ giáo viên, đơn xin nghỉ & nhiệm vụ khi bạn đổi tên."
+        icon={Building2}
+        badge={<span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold">{departments.length} tổ</span>}
+        headerAction={
           <button
             type="button"
             onClick={() => {
@@ -157,13 +148,13 @@ export function RbacConfigTab() {
               setDeptFormDesc('');
               setIsDeptModalOpen(true);
             }}
-            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm flex items-center justify-center space-x-1.5 transition-all flex-shrink-0"
+            className="px-4 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs shadow-sm flex items-center justify-center space-x-1.5 transition-all"
           >
             <PlusCircle className="w-4 h-4" />
             <span>Thêm Tổ Mới</span>
           </button>
-        </div>
-
+        }
+      >
         {/* Department List Table */}
         <div className="border border-slate-200 rounded-2xl overflow-hidden">
           <table className="w-full text-left text-xs">
@@ -335,45 +326,20 @@ export function RbacConfigTab() {
             </tbody>
           </table>
         </div>
-      </div>
+      </CollapsibleCard>
 
       <WorkflowConfigCard />
 
       <TelegramConfigCard />
 
       {/* RBAC Matrix Table */}
-      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm p-6 space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-emerald-600" />
-              Ma Trận Phân Quyền Theo Vai Trò (Role-Based Access Control)
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">
-              Bảng tham chiếu (chỉ đọc) sinh trực tiếp từ quy tắc phân quyền đang chạy trong hệ thống
-            </p>
-          </div>
-          <button
-            type="button"
-            onClick={() => setIsMatrixExpanded(!isMatrixExpanded)}
-            className="px-3.5 py-2 rounded-xl border border-slate-200 bg-slate-50 hover:bg-slate-100 text-slate-800 text-xs font-bold flex items-center gap-2 transition-all shadow-2xs cursor-pointer"
-          >
-            {isMatrixExpanded ? (
-              <>
-                <ChevronUp className="w-4 h-4 text-slate-500" />
-                <span>Thu Nhỏ Ma Trận</span>
-              </>
-            ) : (
-              <>
-                <ChevronDown className="w-4 h-4 text-slate-500" />
-                <span>Mở Rộng Xem Ma Trận</span>
-              </>
-            )}
-          </button>
-        </div>
-
-        {isMatrixExpanded && (
-          <div className="overflow-x-auto animate-in fade-in duration-200 pt-2 border-t border-slate-100">
+      <CollapsibleCard
+        title="Ma Trận Phân Quyền Theo Vai Trò (Role-Based Access Control)"
+        subtitle="Bảng tham chiếu (chỉ đọc) sinh trực tiếp từ quy tắc phân quyền đang chạy trong hệ thống"
+        icon={ShieldCheck}
+        iconClassName="text-emerald-600"
+      >
+          <div className="overflow-x-auto">
             <table className="w-full text-left text-xs border-collapse">
               <thead>
                 <tr className="border-b border-slate-200 bg-slate-50">
@@ -406,8 +372,7 @@ export function RbacConfigTab() {
               </tbody>
             </table>
           </div>
-        )}
-      </div>
+      </CollapsibleCard>
 
       {/* Add / Edit Department Modal */}
       {isDeptModalOpen && (
@@ -540,8 +505,34 @@ function UserAccountManager() {
   const [departmentId, setDepartmentId] = useState(departments[0]?.id || 'DEPT_TOAN_TIN');
   const [role, setRole] = useState<RoleType>('TEACHER');
 
+  // A school of a few hundred staff makes an unfiltered table useless, so the
+  // list is searched, filtered and paged rather than rendered whole.
+  const [userSearch, setUserSearch] = useState('');
+  const [filterDeptId, setFilterDeptId] = useState('ALL');
+  const [filterRole, setFilterRole] = useState<'ALL' | RoleType>('ALL');
+  const [page, setPage] = useState(1);
+  const PAGE_SIZE = 20;
+
   const pendingUsers = users.filter(u => u.status === 'PENDING_APPROVAL');
-  const activeUsers = users.filter(u => u.status !== 'PENDING_APPROVAL');
+  const activeUsers = useMemo(() => users.filter(u => u.status !== 'PENDING_APPROVAL'), [users]);
+
+  const filteredUsers = useMemo(() => activeUsers
+    .filter(u =>
+      matchesSearch(userSearch, u.fullName, u.email, u.departmentName) &&
+      (filterDeptId === 'ALL' || u.departmentId === filterDeptId) &&
+      (filterRole === 'ALL' || u.roles.includes(filterRole))
+    )
+    .sort((a, b) => a.fullName.localeCompare(b.fullName, 'vi')),
+    [activeUsers, userSearch, filterDeptId, filterRole]);
+
+  const totalPages = Math.max(1, Math.ceil(filteredUsers.length / PAGE_SIZE));
+  // Clamping on read rather than resetting from an effect: narrowing a filter
+  // can drop the page count below the current page, and this keeps the table
+  // showing rows instead of blanking until a re-render catches up.
+  const currentPage = Math.min(page, totalPages);
+  const pagedUsers = filteredUsers.slice((currentPage - 1) * PAGE_SIZE, currentPage * PAGE_SIZE);
+
+  const resetToFirstPage = () => setPage(1);
 
   const deptMap: Record<string, string> = {};
   departments.forEach(d => { deptMap[d.id] = d.name; });
@@ -605,15 +596,13 @@ function UserAccountManager() {
       </div>
 
       {/* Active User Accounts List */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
-        <div className="flex items-center justify-between">
-          <div>
-            <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
-              <ShieldCheck className="w-4 h-4 text-indigo-600" />
-              Danh Sách Tài Khoản Đã Kích Hoạt ({activeUsers.length})
-            </h3>
-            <p className="text-xs text-slate-500 mt-0.5">Quản lý người dùng, gán nhiều vai trò (Multi-role) đồng bộ realtime với Firebase Firestore</p>
-          </div>
+      <CollapsibleCard
+        title="Danh Sách Tài Khoản Đã Kích Hoạt"
+        subtitle="Quản lý người dùng, gán nhiều vai trò (Multi-role) đồng bộ realtime với Firebase Firestore"
+        icon={ShieldCheck}
+        defaultOpen
+        badge={<span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold">{activeUsers.length} tài khoản</span>}
+        headerAction={
           <button
             onClick={() => setShowAddModal(true)}
             className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors shadow-xs flex items-center gap-1.5"
@@ -621,8 +610,49 @@ function UserAccountManager() {
             <UserPlus className="w-3.5 h-3.5" />
             <span>Thêm Tài Khoản Mới</span>
           </button>
+        }
+      >
+        {/* Search & filters */}
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2.5 mb-4 text-xs">
+          <div className="relative">
+            <Search className="w-3.5 h-3.5 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
+            <input
+              type="text"
+              value={userSearch}
+              onChange={(e) => { setUserSearch(e.target.value); resetToFirstPage(); }}
+              placeholder="Tìm tên, email, tổ..."
+              className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+            />
+          </div>
+
+          <select
+            value={filterDeptId}
+            onChange={(e) => { setFilterDeptId(e.target.value); resetToFirstPage(); }}
+            className="w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-800 font-medium"
+          >
+            <option value="ALL">-- Tất cả tổ chuyên môn --</option>
+            {departments.map(d => (
+              <option key={d.id} value={d.id}>{d.name}</option>
+            ))}
+          </select>
+
+          <select
+            value={filterRole}
+            onChange={(e) => { setFilterRole(e.target.value as 'ALL' | RoleType); resetToFirstPage(); }}
+            className="w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white text-slate-800 font-medium"
+          >
+            <option value="ALL">-- Tất cả vai trò --</option>
+            {ALL_ROLES.map(r => (
+              <option key={r} value={r}>{ROLE_LABELS[r]}</option>
+            ))}
+          </select>
         </div>
 
+        {filteredUsers.length === 0 ? (
+          <div className="p-8 text-center text-xs text-slate-500 bg-slate-50 rounded-2xl border border-slate-200">
+            Không tìm thấy tài khoản nào khớp bộ lọc.
+          </div>
+        ) : (
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
             <thead>
@@ -635,7 +665,7 @@ function UserAccountManager() {
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {activeUsers.map(u => (
+              {pagedUsers.map(u => (
                 <tr key={u.id} className="hover:bg-slate-50">
                   <td className="p-3 font-bold text-slate-900">{u.fullName}</td>
                   <td className="p-3 text-slate-600">{u.email}</td>
@@ -674,7 +704,42 @@ function UserAccountManager() {
             </tbody>
           </table>
         </div>
-      </div>
+        )}
+
+        {/* Paging */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 pt-3 mt-3 border-t border-slate-100 text-xs">
+          <span className="text-slate-500">
+            {filteredUsers.length === 0
+              ? 'Không có kết quả'
+              : <>Hiển thị <strong className="text-slate-800">{(currentPage - 1) * PAGE_SIZE + 1}–{Math.min(currentPage * PAGE_SIZE, filteredUsers.length)}</strong> trên tổng <strong className="text-slate-800">{filteredUsers.length}</strong> tài khoản</>}
+          </span>
+
+          {totalPages > 1 && (
+            <div className="flex items-center gap-1.5">
+              <button
+                type="button"
+                // Reconciles the stored page with the clamp before stepping, so
+                // two clicks in one tick still move two pages and a page left
+                // over from a wider filter cannot strand the stepper.
+                onClick={() => setPage(p => Math.max(Math.min(p, totalPages) - 1, 1))}
+                disabled={currentPage <= 1}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 font-bold text-slate-700 disabled:opacity-40 disabled:hover:bg-white"
+              >
+                Trước
+              </button>
+              <span className="px-2 font-bold text-slate-700">Trang {currentPage}/{totalPages}</span>
+              <button
+                type="button"
+                onClick={() => setPage(p => Math.min(Math.min(p, totalPages) + 1, totalPages))}
+                disabled={currentPage >= totalPages}
+                className="px-3 py-1.5 rounded-lg border border-slate-200 bg-white hover:bg-slate-100 font-bold text-slate-700 disabled:opacity-40 disabled:hover:bg-white"
+              >
+                Sau
+              </button>
+            </div>
+          )}
+        </div>
+      </CollapsibleCard>
 
       {/* Create New User Modal */}
       {showAddModal && (
