@@ -24,5 +24,12 @@
     }
   },
   "include": ["next-env.d.ts", "**/*.ts", "**/*.tsx", ".next/types/**/*.ts"],
-  "exclude": ["node_modules"]
+  // `functions/` is a separate npm package: its own tsconfig (CommonJS, Node
+  // types), its own node_modules, and a `src/shared/` folder generated at build
+  // time by scripts/sync-shared-logic.mjs. Type-checking it from here fails on
+  // a clean checkout — firebase-admin is not installed at the root and the
+  // generated folder does not exist yet — while passing on a developer machine
+  // that happens to have both lying around. It checks itself via
+  // `npm --prefix functions run build`, which the deploy predeploy hook runs.
+  "exclude": ["node_modules", "functions"]
 }
