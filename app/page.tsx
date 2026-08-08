@@ -46,6 +46,10 @@ const StudentsTab = dynamic(
   () => import('@/Edu-task/components/student/StudentsTab').then(m => m.StudentsTab),
   { ssr: false, loading }
 );
+const GiftedTab = dynamic(
+  () => import('@/Edu-task/components/gifted/GiftedTab').then(m => m.GiftedTab),
+  { ssr: false, loading }
+);
 const AnalyticsTab = dynamic(
   () => import('@/Edu-task/components/stats/AnalyticsTab').then(m => m.AnalyticsTab),
   { ssr: false, loading }
@@ -208,6 +212,10 @@ function EduTaskMainApp() {
 
           {visibleTab === 'students' && (
             <StudentsTab />
+          )}
+
+          {visibleTab === 'gifted' && (
+            <GiftedTab />
           )}
 
           {visibleTab === 'stats' && (

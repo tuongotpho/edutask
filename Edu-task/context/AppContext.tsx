@@ -36,6 +36,8 @@ import { ReminderSchedule } from '@/Edu-task/types/reminder';
 import { useEquipmentLogic, EquipmentInput, LoanInput } from './hooks/useEquipmentLogic';
 import { Equipment, EquipmentCondition, EquipmentLoan } from '@/Edu-task/types/equipment';
 import { useStudentLogic, StudentInput, ConductInput } from './hooks/useStudentLogic';
+import { useGiftedLogic, GiftedProgramInput, GiftedLessonInput } from './hooks/useGiftedLogic';
+import { GiftedProgram, GiftedProgramStatus } from '@/Edu-task/types/gifted';
 import {
   ClassAttendance, ConductRecord, Student, StudentAttendanceEntry,
 } from '@/Edu-task/types/student';
@@ -183,6 +185,18 @@ interface AppContextType {
   ) => Promise<boolean>;
   recordConduct: (data: ConductInput) => Promise<ConductRecord | null>;
   deleteConduct: (id: string) => Promise<boolean>;
+
+  // Bồi dưỡng Học sinh giỏi
+  giftedPrograms: GiftedProgram[];
+  createGiftedProgram: (data: GiftedProgramInput) => Promise<GiftedProgram | null>;
+  updateGiftedProgram: (id: string, data: Partial<GiftedProgramInput>) => Promise<boolean>;
+  setGiftedProgramStatus: (id: string, status: GiftedProgramStatus) => Promise<boolean>;
+  deleteGiftedProgram: (id: string) => Promise<boolean>;
+  addGiftedLesson: (programId: string, data: GiftedLessonInput) => Promise<boolean>;
+  updateGiftedLesson: (programId: string, lessonId: string, data: Partial<GiftedLessonInput>) => Promise<boolean>;
+  removeGiftedLesson: (programId: string, lessonId: string) => Promise<boolean>;
+  completeGiftedLesson: (programId: string, lessonId: string, note?: string) => Promise<boolean>;
+  reopenGiftedLesson: (programId: string, lessonId: string) => Promise<boolean>;
 
   // Auth & Account Management
   loginWithFirebase: (email: string, pass: string) => Promise<void>;
@@ -333,6 +347,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [students, setStudents] = useState<Student[]>([]);
   const [studentAttendance, setStudentAttendance] = useState<ClassAttendance[]>([]);
   const [conduct, setConduct] = useState<ConductRecord[]>([]);
+  const [giftedPrograms, setGiftedPrograms] = useState<GiftedProgram[]>([]);
 
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -573,6 +588,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setStudentAttendance, scheduleWindowStart
     );
     const unsubConduct = firebaseService.subscribeConduct(setConduct, scheduleWindowStart);
+    const unsubGifted = firebaseService.subscribeGiftedPrograms(setGiftedPrograms);
 
     return () => {
       unsubUsers();
@@ -597,6 +613,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       unsubStudents();
       unsubStudentAttendance();
       unsubConduct();
+      unsubGifted();
     };
   }, [
     isAuthenticated, currentUserId, currentUserDeptId, canSeedConfig, activeRole,
@@ -710,6 +727,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     students, setStudents,
     studentAttendance, setStudentAttendance,
     conduct, setConduct,
+    notify: showToast,
+  });
+
+  const {
+    createProgram: createGiftedProgram,
+    updateProgram: updateGiftedProgram,
+    setProgramStatus: setGiftedProgramStatus,
+    deleteProgram: deleteGiftedProgram,
+    addLesson: addGiftedLesson,
+    updateLesson: updateGiftedLesson,
+    removeLesson: removeGiftedLesson,
+    completeLesson: completeGiftedLesson,
+    reopenLesson: reopenGiftedLesson,
+  } = useGiftedLogic({
+    currentUser,
+    activeRole,
+    giftedPrograms,
+    setGiftedPrograms,
+    users,
     notify: showToast,
   });
 
@@ -887,6 +923,16 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         saveRoll,
         recordConduct,
         deleteConduct,
+        giftedPrograms,
+        createGiftedProgram,
+        updateGiftedProgram,
+        setGiftedProgramStatus,
+        deleteGiftedProgram,
+        addGiftedLesson,
+        updateGiftedLesson,
+        removeGiftedLesson,
+        completeGiftedLesson,
+        reopenGiftedLesson,
         loginWithFirebase,
         loginWithGoogle,
         registerWithFirebase,

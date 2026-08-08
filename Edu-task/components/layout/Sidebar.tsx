@@ -14,7 +14,8 @@ import {
   ClipboardList,
   CalendarCheck,
   Target,
-  GraduationCap
+  GraduationCap,
+  Award
 } from 'lucide-react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import {
@@ -27,7 +28,7 @@ import { APP_VERSION, describeVersion } from '@/Edu-task/lib/version';
 import { classesMissingRoll } from '@/Edu-task/lib/studentStats';
 import { toDateString } from '@/Edu-task/lib/schedule';
 
-export type TabType = 'dashboard' | 'leave' | 'task' | 'schedule' | 'lessons' | 'attendance' | 'meetings' | 'plans' | 'students' | 'stats' | 'audit' | 'config';
+export type TabType = 'dashboard' | 'leave' | 'task' | 'schedule' | 'lessons' | 'attendance' | 'meetings' | 'plans' | 'students' | 'gifted' | 'stats' | 'audit' | 'config';
 
 interface SidebarProps {
   activeTab: TabType;
@@ -44,7 +45,7 @@ export function Sidebar({
 }: SidebarProps) {
   const {
     currentUser, activeRole, leaves, tasks, users, makeups, bookings, attendance, meetings,
-    classes, studentAttendance,
+    classes, studentAttendance, giftedPrograms,
   } = useApp();
 
   const isLeadershipOrAdmin = isSchoolLeadership(currentUser, activeRole);
@@ -70,6 +71,10 @@ export function Sidebar({
     toDateString(new Date()),
     classes.filter(c => c.isActive).map(c => c.id)
   ).length;
+
+  const myPendingGiftedLessonsCount = giftedPrograms.reduce((acc, p) => {
+    return acc + p.lessons.filter(l => l.status === 'PENDING' && l.teacherId === currentUser?.id).length;
+  }, 0);
 
   const canAssignTasks = canAssignTask(currentUser, activeRole);
   // Shared with the URL handler in page.tsx: a tab hidden here must also be
@@ -141,6 +146,13 @@ export function Sidebar({
       // Counts classes with no roll taken today — the register's to-do list.
       badge: classesMissingRollToday > 0 ? classesMissingRollToday : null,
       badgeColor: 'bg-sky-100 text-sky-800',
+    },
+    {
+      id: 'gifted' as TabType,
+      label: 'Bồi Dưỡng HSG',
+      icon: Award,
+      badge: myPendingGiftedLessonsCount > 0 ? myPendingGiftedLessonsCount : null,
+      badgeColor: 'bg-amber-100 text-amber-800',
     },
     ...(showStats ? [{
       id: 'stats' as TabType,

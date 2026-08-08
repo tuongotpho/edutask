@@ -22,6 +22,7 @@ export const TAB_SLUGS: Record<TabType, string> = {
   meetings: 'cuoc-hop',
   plans: 'ke-hoach',
   students: 'hoc-sinh',
+  gifted: 'boi-duong-hsg',
   stats: 'bao-cao',
   audit: 'nhat-ky',
   config: 'quan-tri',

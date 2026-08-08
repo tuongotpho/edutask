@@ -33,6 +33,7 @@ import { Plan } from '@/Edu-task/types/plan';
 import { ReminderSchedule } from '@/Edu-task/types/reminder';
 import { Equipment, EquipmentLoan } from '@/Edu-task/types/equipment';
 import { ClassAttendance, ConductRecord, Student } from '@/Edu-task/types/student';
+import { GiftedProgram } from '@/Edu-task/types/gifted';
 
 export const firebaseService = {
   // --- Departments (shared config: must live server-side so every device and
@@ -608,5 +609,23 @@ export const firebaseService = {
     const batch = writeBatch(db);
     notifIds.forEach(id => batch.update(doc(db, 'notifications', id), { isRead: true }));
     await batch.commit();
+  },
+
+  // --- Bồi dưỡng Học sinh giỏi ---
+  subscribeGiftedPrograms(onUpdate: (programs: GiftedProgram[]) => void): Unsubscribe {
+    return onSnapshot(collection(db, 'giftedPrograms'), snapshot => {
+      const programs: GiftedProgram[] = [];
+      snapshot.forEach(d => programs.push(d.data() as GiftedProgram));
+      programs.sort((a, b) => (b.startDate ?? '').localeCompare(a.startDate ?? ''));
+      onUpdate(programs);
+    });
+  },
+
+  async saveGiftedProgram(program: GiftedProgram): Promise<void> {
+    await setDoc(doc(db, 'giftedPrograms', program.id), sanitizeForFirestore(program), { merge: true });
+  },
+
+  async deleteGiftedProgram(programId: string): Promise<void> {
+    await deleteDoc(doc(db, 'giftedPrograms', programId));
   }
 };

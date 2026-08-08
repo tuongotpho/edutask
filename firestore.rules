@@ -1,8 +1,11 @@
 // ============================================================================
 //  EduTask — Firestore Security Rules
 //
-//  PHIÊN BẢN: 2026-08-08 13:28
-//  Thay đổi:  Khoá Bot Token Telegram — `settings/telegram` nay chỉ quản trị
+//  PHIÊN BẢN: 2026-08-08 18:15
+//  Thay đổi:  Bổ sung module Bồi dưỡng Học sinh giỏi — `giftedPrograms`.
+//             Cho phép nhân sự đã xác thực truy cập và quản lý các chương trình,
+//             chuyên đề và tiết dạy bồi dưỡng HSG.
+//  Trước đó:  13:28 — Khoá Bot Token Telegram — `settings/telegram` nay chỉ quản trị
 //             đọc được. Trước đây MỌI tài khoản đọc được token, tức là ai cũng
 //             đăng bài vào nhóm Telegram của trường DANH NGHĨA nhà trường được.
 //             Việc gửi đã chuyển sang Cloud Function nên không client nào cần
@@ -630,6 +633,12 @@ service cloud.firestore {
 
       allow update: if isAuth() && resource.data.recipientUserId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
       allow delete: if isAuth() && resource.data.recipientUserId == request.auth.uid;
+    }
+
+    // --- Bồi dưỡng Học sinh giỏi ---
+    match /giftedPrograms/{programId} {
+      allow read: if isAuth();
+      allow create, update, delete: if isAuth();
     }
   }
 }
