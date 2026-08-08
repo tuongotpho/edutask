@@ -432,6 +432,31 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
       return { state: 'READY', value: count, unit: 'COUNT', tone: 'INFO' };
     },
   },
+  {
+    key: 'student.gifted_programs',
+    label: 'Đội tuyển HSG đang bồi dưỡng',
+    group: 'STUDENT',
+    linkTab: 'boi-duong-hsg',
+    resolve: ctx => {
+      const activePrograms = (ctx.giftedPrograms ?? []).filter(p => p.status === 'IN_PROGRESS');
+      if (activePrograms.length === 0) {
+        return { state: 'EMPTY', note: 'Chưa có đội tuyển HSG nào đang triển khai', zeroIsMeaningful: true };
+      }
+      const totalLessons = activePrograms.reduce((sum, p) => sum + p.lessons.length, 0);
+      const completedLessons = activePrograms.reduce(
+        (sum, p) => sum + p.lessons.filter(l => l.status === 'COMPLETED').length,
+        0
+      );
+      const progressPercent = totalLessons > 0 ? Math.round((completedLessons / totalLessons) * 100) : 0;
+      return {
+        state: 'READY',
+        value: activePrograms.length,
+        unit: 'COUNT',
+        tone: 'GOOD',
+        detail: `${completedLessons}/${totalLessons} tiết đã học (${progressPercent}%)`,
+      };
+    },
+  },
 
   // ---------------- Cơ sở vật chất ----------------
   {

@@ -95,7 +95,7 @@ export function MissionControl({ onNavigate }: MissionControlProps) {
   const {
     schoolName, users, leaves, tasks,
     attendance, bookings, makeups, meetings, plans, rooms, equipment, loans,
-    classes, students, studentAttendance, conduct,
+    classes, students, studentAttendance, conduct, giftedPrograms,
   } = useApp();
 
   const [showPlanned, setShowPlanned] = useState(false);
@@ -105,11 +105,11 @@ export function MissionControl({ onNavigate }: MissionControlProps) {
   const context = useMemo(
     () => buildMetricContext({
       users, leaves, tasks, attendance, bookings, makeups, meetings, plans, rooms, equipment, loans,
-      classes, students, studentAttendance, conduct,
+      classes, students, studentAttendance, conduct, giftedPrograms,
     }),
     [
       users, leaves, tasks, attendance, bookings, makeups, meetings, plans, rooms, equipment, loans,
-      classes, students, studentAttendance, conduct,
+      classes, students, studentAttendance, conduct, giftedPrograms,
     ]
   );
 
@@ -232,7 +232,7 @@ export function MissionControl({ onNavigate }: MissionControlProps) {
                 ({visible.length} chỉ số)
               </span>
             </h3>
-            <div className="grid grid-cols-2 lg:grid-cols-4 gap-3">
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-3.5">
               {visible.map(({ definition, outcome }) => (
                 <MetricTile
                   key={definition.key}

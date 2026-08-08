@@ -33,7 +33,7 @@ import { formatDateVi, toDateString } from '@/Edu-task/lib/schedule';
 import { canManageGifted } from '@/Edu-task/lib/permissions';
 
 const inputClass =
-  'w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-slate-50/50 focus:bg-white transition-all';
+  'w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200';
 
 export function GiftedTab() {
   const {
@@ -252,36 +252,51 @@ export function GiftedTab() {
   }, [giftedPrograms]);
 
   return (
-    <div className="space-y-6">
-      {/* Top Banner Header */}
-      <div className="bg-gradient-to-r from-amber-600 via-indigo-600 to-indigo-800 rounded-3xl p-6 text-white shadow-lg relative overflow-hidden">
-        <div className="absolute right-0 top-0 bottom-0 w-1/3 opacity-10 bg-[radial-gradient(ellipse_at_top_right,_var(--tw-gradient-stops))] from-white via-transparent to-transparent pointer-events-none" />
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-4">
-          <div>
-            <div className="flex items-center space-x-2 text-amber-200 text-xs font-bold uppercase tracking-wider mb-1">
-              <Award className="w-4 h-4" />
-              <span>Chương Trình Đào Tạo Mũi Nhọn</span>
+    <div className="space-y-8 pb-12">
+      {/* Premium Hero Banner */}
+      <div className="relative rounded-[2rem] p-8 sm:p-10 text-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden bg-slate-900 group">
+        {/* Abstract Mesh Gradient Background */}
+        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/40 via-indigo-600/40 to-purple-800/40 opacity-90 mix-blend-overlay transition-transform duration-1000 group-hover:scale-105"></div>
+        <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-pulse"></div>
+        <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-pulse" style={{ animationDelay: '2s' }}></div>
+        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-pulse" style={{ animationDelay: '4s' }}></div>
+        
+        {/* Glass Overlay */}
+        <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px] border border-white/10 rounded-[2rem]"></div>
+
+        <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
+          <div className="max-w-2xl">
+            <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1 rounded-full text-blue-200 text-xs font-bold uppercase tracking-widest mb-4 shadow-sm">
+              <Award className="w-3.5 h-3.5" />
+              <span>Đào Tạo Mũi Nhọn</span>
             </div>
-            <h2 className="text-2xl font-black tracking-tight">Bồi Dưỡng Học Sinh Giỏi</h2>
+            <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-2 text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-indigo-200">
+              Bồi Dưỡng Học Sinh Giỏi
+            </h2>
             <p className="text-xs text-indigo-100 mt-1 max-w-xl">
               Quản lý các chuyên đề bồi dưỡng đội tuyển HSG, phân công giảng dạy chi tiết theo từng tiết và xác nhận hoàn thành tiến độ.
             </p>
           </div>
 
           <div className="flex items-center space-x-3">
-            <div className="bg-white/10 backdrop-blur-md border border-white/20 px-4 py-2.5 rounded-2xl text-center">
-              <div className="text-xs text-indigo-100 font-medium">Tiến độ chung</div>
-              <div className="text-xl font-extrabold text-amber-300">
-                {overallStats.completedLessons}/{overallStats.totalLessons} tiết <span className="text-xs font-normal">({overallStats.percent}%)</span>
+            <div className="flex flex-col items-center justify-center bg-white/10 backdrop-blur-xl border border-white/20 px-6 py-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.1)]">
+              <div className="text-xs text-blue-200 font-semibold mb-1 uppercase tracking-wider">Tiến độ chung</div>
+              <div className="text-3xl font-black text-white flex items-baseline space-x-1">
+                <span>{overallStats.completedLessons}</span>
+                <span className="text-lg text-blue-300 font-bold">/ {overallStats.totalLessons}</span>
+              </div>
+              <div className="w-full bg-white/10 h-1.5 rounded-full mt-3 overflow-hidden">
+                <div className="bg-gradient-to-r from-blue-400 to-indigo-400 h-full rounded-full shadow-[0_0_10px_rgba(96,165,250,0.8)]" style={{ width: `${overallStats.percent}%` }}></div>
               </div>
             </div>
 
             <button
               onClick={handleOpenNewProgram}
-              className="bg-white text-indigo-950 hover:bg-amber-100 px-4 py-2.5 rounded-2xl font-bold text-xs flex items-center space-x-2 shadow-md transition-all active:scale-95"
+              className="relative overflow-hidden group bg-white text-blue-700 hover:text-blue-800 px-6 py-3.5 rounded-2xl font-extrabold text-sm flex items-center space-x-2 shadow-[0_8px_20px_rgba(255,255,255,0.2)] transition-all hover:scale-105 active:scale-95"
             >
-              <PlusCircle className="w-4 h-4 text-indigo-600" />
-              <span>Tạo Chương Trình</span>
+              <div className="absolute inset-0 bg-blue-50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
+              <PlusCircle className="w-5 h-5 text-blue-600 relative z-10 group-hover:rotate-90 transition-transform duration-500" />
+              <span className="relative z-10">Tạo Chương Trình</span>
             </button>
           </div>
         </div>
@@ -334,7 +349,7 @@ export function GiftedTab() {
           </div>
 
           {/* Program Header Card */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center space-x-2">
@@ -400,7 +415,7 @@ export function GiftedTab() {
           </div>
 
           {/* Lessons Table Section */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-extrabold text-slate-900">Danh Sách Tiết Học / Chuyên Đề</h3>
@@ -583,7 +598,7 @@ export function GiftedTab() {
         /* PROGRAM LIST VIEW */
         <div className="space-y-6">
           {/* Filters & Control Bar */}
-          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-4">
+          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               {/* Search Bar */}
               <div className="relative sm:col-span-2">
@@ -655,22 +670,25 @@ export function GiftedTab() {
 
           {/* Cards Grid */}
           {filteredPrograms.length === 0 ? (
-            <div className="text-center py-16 bg-white rounded-3xl border border-slate-200 p-8 shadow-sm">
-              <Award className="w-12 h-12 text-slate-300 mx-auto mb-3" />
-              <h3 className="text-base font-bold text-slate-800">Không tìm thấy chương trình bồi dưỡng nào</h3>
-              <p className="text-xs text-slate-500 mt-1">
+            <div className="text-center py-20 bg-white/50 backdrop-blur-xl rounded-[2rem] border border-white p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden">
+              <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-purple-50/50 -z-10"></div>
+              <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
+                <Award className="w-10 h-10 text-blue-500" />
+              </div>
+              <h3 className="text-lg font-black text-slate-800">Không tìm thấy chương trình bồi dưỡng nào</h3>
+              <p className="text-sm text-slate-500 mt-2 max-w-md mx-auto">
                 Thử thay đổi bộ lọc tìm kiếm hoặc nhấn vào nút bên dưới để tạo mới chương trình bồi dưỡng.
               </p>
               <button
                 onClick={handleOpenNewProgram}
-                className="mt-4 inline-flex items-center space-x-2 bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs px-4 py-2.5 rounded-xl shadow-xs transition-all"
+                className="mt-6 inline-flex items-center space-x-2 bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-700 hover:to-indigo-700 text-white font-bold text-sm px-6 py-3 rounded-xl shadow-[0_8px_20px_rgba(37,99,235,0.3)] transition-all hover:-translate-y-1 active:scale-95"
               >
-                <PlusCircle className="w-4 h-4" />
+                <PlusCircle className="w-5 h-5" />
                 <span>Tạo Chương Trình Mới</span>
               </button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
               {filteredPrograms.map((program) => {
                 const totalLessons = program.lessons.length;
                 const completedLessons = program.lessons.filter(l => l.status === 'COMPLETED').length;
@@ -681,8 +699,10 @@ export function GiftedTab() {
                   <div
                     key={program.id}
                     onClick={() => setSelectedProgramId(program.id)}
-                    className="bg-white rounded-3xl border border-slate-200 p-5 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer flex flex-col justify-between space-y-4 group"
+                    className="relative bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(37,99,235,0.12)] hover:-translate-y-2 hover:border-blue-200/60 transition-all duration-500 cursor-pointer flex flex-col justify-between space-y-5 group overflow-hidden"
                   >
+                    {/* Decorative Background Blob */}
+                    <div className="absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
                     <div className="space-y-2">
                       <div className="flex items-center justify-between">
                         <div className="flex items-center space-x-2">
@@ -724,15 +744,17 @@ export function GiftedTab() {
 
                       {/* Progress Bar */}
                       <div>
-                        <div className="flex items-center justify-between text-xs mb-1">
-                          <span className="text-slate-600 font-medium">Tiến độ bài dạy</span>
-                          <span className="font-extrabold text-indigo-600">{completedLessons}/{totalLessons} tiết ({progressPct}%)</span>
+                        <div className="flex items-center justify-between text-xs mb-2">
+                          <span className="text-slate-500 font-bold uppercase tracking-wider text-[10px]">Tiến độ bài dạy</span>
+                          <span className="font-black text-blue-600">{completedLessons}/{totalLessons} <span className="font-medium text-slate-400">({progressPct}%)</span></span>
                         </div>
-                        <div className="w-full bg-slate-100 rounded-full h-2 overflow-hidden">
+                        <div className="w-full bg-slate-100 rounded-full h-2.5 overflow-hidden shadow-inner">
                           <div
-                            className="bg-indigo-600 h-2 rounded-full transition-all duration-300"
+                            className="bg-gradient-to-r from-blue-500 to-indigo-500 h-full rounded-full transition-all duration-1000 ease-out relative"
                             style={{ width: `${progressPct}%` }}
-                          />
+                          >
+                            <div className="absolute top-0 right-0 bottom-0 w-10 bg-gradient-to-l from-white/40 to-transparent"></div>
+                          </div>
                         </div>
                       </div>
 

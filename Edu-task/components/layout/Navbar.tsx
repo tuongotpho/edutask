@@ -16,7 +16,8 @@ import {
   ChevronDown,
   LogOut,
   FileText,
-  CheckSquare
+  CheckSquare,
+  Menu
 } from 'lucide-react';
 
 // Scans the full task/leave lists on every keystroke, so debounce it —
@@ -27,9 +28,11 @@ const MAX_RESULTS_PER_GROUP = 5;
 export function Navbar({
   onSelectTask,
   onSelectLeave,
+  onToggleMobileMenu,
 }: {
   onSelectTask?: (taskId: string) => void;
   onSelectLeave?: (leaveId: string) => void;
+  onToggleMobileMenu?: () => void;
 }) {
   const {
     currentUser,
@@ -89,22 +92,30 @@ export function Navbar({
 
   return (
     <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
+      <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
         
         {/* Left Brand & School Name */}
-        <div className="flex items-center space-x-3 flex-shrink-0">
+        <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
+          <button
+            type="button"
+            onClick={onToggleMobileMenu}
+            className="p-1.5 rounded-lg text-slate-600 hover:text-slate-900 hover:bg-slate-100 md:hidden transition-colors"
+            title="Mở danh mục quản lý"
+          >
+            <Menu className="w-5 h-5 text-indigo-600" />
+          </button>
           <Image
             src="/brand-logo.png"
             alt="EduTask"
             width={36}
             height={36}
             priority
-            className="w-9 h-9 rounded-xl shadow-sm"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl shadow-sm"
           />
           <div>
-            <div className="flex items-center gap-2">
-              <span className="font-extrabold text-slate-900 tracking-tight text-base">EduTask</span>
-              <span className="text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
+            <div className="flex items-center gap-1.5 sm:gap-2">
+              <span className="font-extrabold text-slate-900 tracking-tight text-sm sm:text-base">EduTask</span>
+              <span className="hidden sm:inline-block max-w-[140px] truncate text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
                 {schoolName}
               </span>
             </div>
@@ -181,7 +192,7 @@ export function Navbar({
         </div>
 
         {/* Right Actions: Role Switcher, User Selector, Notifications */}
-        <div className="flex items-center space-x-2 sm:space-x-3">
+        <div className="flex items-center space-x-1.5 sm:space-x-3 flex-shrink-0">
 
           {/* Quick Active Role Dropdown (RBAC tester) */}
           {currentUser && currentUser.roles.length > 1 && (
@@ -192,12 +203,12 @@ export function Navbar({
                   setShowUserDropdown(false);
                   setShowNotifDropdown(false);
                 }}
-                className="flex items-center space-x-1.5 px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50/80 hover:bg-indigo-100/80 text-indigo-900 text-xs font-semibold transition-colors"
+                className="flex items-center space-x-1 sm:space-x-1.5 px-2 sm:px-3 py-1.5 rounded-lg border border-indigo-200 bg-indigo-50/80 hover:bg-indigo-100/80 text-indigo-900 text-xs font-semibold transition-colors"
                 title="Đổi vai trò thao tác hiện tại"
               >
-                <ShieldAlert className="w-3.5 h-3.5 text-indigo-600" />
-                <span className="max-w-[120px] truncate">{ROLE_LABELS[activeRole]}</span>
-                <ChevronDown className="w-3.5 h-3.5 text-indigo-500" />
+                <ShieldAlert className="w-3.5 h-3.5 text-indigo-600 flex-shrink-0" />
+                <span className="max-w-[75px] sm:max-w-[120px] truncate text-[11px] sm:text-xs">{ROLE_LABELS[activeRole]}</span>
+                <ChevronDown className="w-3.5 h-3.5 text-indigo-500 flex-shrink-0" />
               </button>
 
               {showRoleDropdown && (

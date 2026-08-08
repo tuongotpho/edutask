@@ -15,7 +15,8 @@ import {
   CalendarCheck,
   Target,
   GraduationCap,
-  Award
+  Award,
+  X
 } from 'lucide-react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import {
@@ -35,13 +36,17 @@ interface SidebarProps {
   setActiveTab: (tab: TabType) => void;
   onRequestNewLeave: () => void;
   onRequestNewTask: () => void;
+  isMobileOpen?: boolean;
+  onCloseMobile?: () => void;
 }
 
 export function Sidebar({ 
   activeTab, 
   setActiveTab, 
   onRequestNewLeave, 
-  onRequestNewTask 
+  onRequestNewTask,
+  isMobileOpen = false,
+  onCloseMobile
 }: SidebarProps) {
   const {
     currentUser, activeRole, leaves, tasks, users, makeups, bookings, attendance, meetings,
@@ -175,71 +180,116 @@ export function Sidebar({
     }] : []),
   ];
 
+  const handleSelectTab = (tab: TabType) => {
+    setActiveTab(tab);
+    onCloseMobile?.();
+  };
+
+  const handleLeaveClick = () => {
+    onRequestNewLeave();
+    onCloseMobile?.();
+  };
+
+  const handleTaskClick = () => {
+    onRequestNewTask();
+    onCloseMobile?.();
+  };
+
   return (
-    <aside className="w-full md:w-64 bg-white border-r border-slate-200 flex flex-col justify-between p-4 flex-shrink-0">
-      <div className="space-y-6">
+    <>
+      {/* Mobile Drawer Backdrop Overlay */}
+      {isMobileOpen && (
+        <div
+          onClick={onCloseMobile}
+          className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs z-50 md:hidden animate-in fade-in duration-150"
+        />
+      )}
 
-        {/* Quick Action Buttons */}
-        <div className="space-y-2">
-          <button
-            onClick={onRequestNewLeave}
-            className="w-full py-2.5 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs flex items-center justify-center space-x-2 shadow-sm transition-all active:scale-98"
-          >
-            <PlusCircle className="w-4 h-4" />
-            <span>Tạo Đơn Xin Nghỉ</span>
-          </button>
+      {/* Sidebar Container — Desktop Column + Mobile Slide-Over Drawer */}
+      <aside
+        className={`bg-white border-r border-slate-200 flex-col justify-between p-4 flex-shrink-0 transition-all ${
+          isMobileOpen
+            ? 'fixed inset-y-0 left-0 w-72 z-50 shadow-2xl overflow-y-auto flex md:relative md:w-64 md:z-auto md:shadow-none md:overflow-visible'
+            : 'hidden md:flex md:w-64'
+        }`}
+      >
+        <div className="space-y-6">
 
-          {canAssignTasks && (
+          {/* Mobile Drawer Header */}
+          <div className="flex items-center justify-between pb-3 border-b border-slate-100 md:hidden">
+            <div className="text-xs font-bold uppercase tracking-wider text-slate-800 flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full bg-indigo-600" />
+              <span>Danh Mục Quản Lý</span>
+            </div>
             <button
-              onClick={onRequestNewTask}
-              className="w-full py-2 px-3.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs flex items-center justify-center space-x-2 transition-all active:scale-98"
+              onClick={onCloseMobile}
+              className="p-1 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors"
             >
-              <CheckSquare className="w-4 h-4 text-indigo-600" />
-              <span>Giao Việc Mới</span>
+              <X className="w-5 h-5" />
             </button>
-          )}
-        </div>
-
-        {/* Navigation List */}
-        <nav className="space-y-1">
-          <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider px-3 mb-2">
-            Danh Mục Quản Lý
           </div>
-          {menuItems.map((item) => {
-            const Icon = item.icon;
-            const isActive = activeTab === item.id;
-            return (
-              <button
-                key={item.id}
-                onClick={() => setActiveTab(item.id)}
-                className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
-                  isActive 
-                    ? 'bg-slate-900 text-white shadow-xs' 
-                    : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
-                }`}
-              >
-                <div className="flex items-center space-x-2.5">
-                  <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-400' : 'text-slate-400'}`} />
-                  <span>{item.label}</span>
-                </div>
-                {item.badge !== null && (
-                  <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-indigo-500 text-white' : item.badgeColor}`}>
-                    {item.badge}
-                  </span>
-                )}
-              </button>
-            );
-          })}
-        </nav>
-      </div>
 
-      {/* Footer Version Info. The version encodes the build date (2687 =
-          07/08/2026), so a screenshot alone identifies the build. */}
-      <div className="pt-4 border-t border-slate-100">
-        <div className="text-[10px] text-center text-slate-400" title={describeVersion()}>
-          EduTask ver {APP_VERSION} • Trường học Chuyển đổi số
+          {/* Quick Action Buttons */}
+          <div className="space-y-2">
+            <button
+              onClick={handleLeaveClick}
+              className="w-full py-2.5 px-3.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs flex items-center justify-center space-x-2 shadow-sm transition-all active:scale-98"
+            >
+              <PlusCircle className="w-4 h-4" />
+              <span>Tạo Đơn Xin Nghỉ</span>
+            </button>
+
+            {canAssignTasks && (
+              <button
+                onClick={handleTaskClick}
+                className="w-full py-2 px-3.5 rounded-xl border border-indigo-200 bg-indigo-50 hover:bg-indigo-100 text-indigo-700 font-semibold text-xs flex items-center justify-center space-x-2 transition-all active:scale-98"
+              >
+                <CheckSquare className="w-4 h-4 text-indigo-600" />
+                <span>Giao Việc Mới</span>
+              </button>
+            )}
+          </div>
+
+          {/* Navigation List */}
+          <nav className="space-y-1">
+            <div className="text-[10px] uppercase font-bold text-slate-400 tracking-wider px-3 mb-2">
+              Danh Mục Quản Lý
+            </div>
+            {menuItems.map((item) => {
+              const Icon = item.icon;
+              const isActive = activeTab === item.id;
+              return (
+                <button
+                  key={item.id}
+                  onClick={() => handleSelectTab(item.id)}
+                  className={`w-full flex items-center justify-between px-3 py-2.5 rounded-xl text-xs font-semibold transition-all ${
+                    isActive 
+                      ? 'bg-slate-900 text-white shadow-xs' 
+                      : 'text-slate-600 hover:bg-slate-100 hover:text-slate-900'
+                  }`}
+                >
+                  <div className="flex items-center space-x-2.5">
+                    <Icon className={`w-4 h-4 ${isActive ? 'text-indigo-400' : 'text-slate-400'}`} />
+                    <span>{item.label}</span>
+                  </div>
+                  {item.badge !== null && (
+                    <span className={`px-2 py-0.5 rounded-full text-[10px] font-bold ${isActive ? 'bg-indigo-500 text-white' : item.badgeColor}`}>
+                      {item.badge}
+                    </span>
+                  )}
+                </button>
+              );
+            })}
+          </nav>
         </div>
-      </div>
-    </aside>
+
+        {/* Footer Version Info */}
+        <div className="pt-4 border-t border-slate-100">
+          <div className="text-[10px] text-center text-slate-400" title={describeVersion()}>
+            EduTask ver {APP_VERSION} • Trường học Chuyển đổi số
+          </div>
+        </div>
+      </aside>
+    </>
   );
 }

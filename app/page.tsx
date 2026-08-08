@@ -119,6 +119,9 @@ function EduTaskMainApp() {
     window.history.replaceState(null, '', `${window.location.pathname}${searchForTab(visibleTab)}`);
   }, [visibleTab, activeTab]);
 
+  // Mobile Navigation Drawer State
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
   // Modals state
   const [isLeaveFormOpen, setIsLeaveFormOpen] = useState(false);
   const [editingLeave, setEditingLeave] = useState<LeaveRequest | null>(null);
@@ -154,16 +157,19 @@ function EduTaskMainApp() {
       <Navbar
         onSelectTask={(id) => { goToTab('task'); setSelectedTaskId(id); }}
         onSelectLeave={(id) => { goToTab('leave'); setSelectedLeaveId(id); }}
+        onToggleMobileMenu={() => setIsMobileMenuOpen(prev => !prev)}
       />
 
       {/* Main Content Layout */}
-      <div className="flex-1 max-w-7xl w-full mx-auto flex flex-col md:flex-row">
+      <div className="flex-1 w-full max-w-[1920px] mx-auto px-2 sm:px-4 lg:px-6 flex flex-col md:flex-row">
         {/* Sidebar */}
         <Sidebar
           activeTab={visibleTab}
           setActiveTab={goToTab}
           onRequestNewLeave={handleOpenNewLeave}
           onRequestNewTask={() => setIsTaskFormOpen(true)}
+          isMobileOpen={isMobileMenuOpen}
+          onCloseMobile={() => setIsMobileMenuOpen(false)}
         />
 
         {/* Dynamic View Panel */}

@@ -32,6 +32,7 @@ import { Plan } from './plan';
 import { ClassGroup, Room } from './schedule';
 import { ClassAttendance, ConductRecord, Student } from './student';
 import { Equipment, EquipmentLoan } from './equipment';
+import { GiftedProgram } from './gifted';
 
 export type MetricGroup =
   | 'STAFF'
@@ -125,6 +126,7 @@ export interface MetricContext {
   students: Student[];
   studentAttendance: ClassAttendance[];
   conduct: ConductRecord[];
+  giftedPrograms?: GiftedProgram[];
 }
 
 export interface MetricDefinition {
