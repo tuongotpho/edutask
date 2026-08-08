@@ -6,9 +6,6 @@ import { storage } from '@/Edu-task/lib/storage';
 import { genId } from '@/Edu-task/lib/utils';
 import { firebaseService } from '@/Edu-task/services/firebaseService';
 import { ToastKind } from '@/Edu-task/components/common/Toast';
-import { TelegramConfig } from '@/Edu-task/types/settings';
-import { telegramService, telegramMessages } from '@/Edu-task/services/telegramService';
-import { TASK_PRIORITY_CONFIG } from '@/Edu-task/types/task';
 
 interface TaskLogicProps {
   currentUser: User | null;
@@ -17,12 +14,11 @@ interface TaskLogicProps {
   tasks: Task[];
   setTasks: React.Dispatch<React.SetStateAction<Task[]>>;
   notify: (kind: ToastKind, text: string) => void;
-  telegramConfig: TelegramConfig;
 }
 
 const SAVE_FAILED = 'Không lưu được lên máy chủ. Thay đổi đã được hoàn tác — vui lòng thử lại.';
 
-export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks, notify, telegramConfig }: TaskLogicProps) {
+export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks, notify }: TaskLogicProps) {
 
   /**
    * Applies an optimistic update, then persists it. If the write is rejected
@@ -171,6 +167,10 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks, 
       const notif: AppNotification = {
         id: genId('NOTIF'),
         recipientUserId: assignee.userId,
+        // Rules require the sender to be the caller, so a notification can
+        // always be traced back to the account that raised it.
+        createdById: currentUser.id,
+        createdByName: currentUser.fullName,
         title: 'Công việc mới được giao',
         message: `${currentUser.fullName} đã giao công việc: "${data.title}" (Hạn: ${data.deadline}).`,
         type: 'TASK_ASSIGNED',
@@ -185,16 +185,7 @@ export function useTaskLogic({ currentUser, activeRole, users, tasks, setTasks, 
       }
     }));
 
-    // Group announcement; never allowed to affect the task that already saved.
-    void telegramService.notify(telegramConfig, 'TASK_ASSIGNED', telegramMessages.taskAssigned({
-      title: data.title,
-      assignerName: currentUser.fullName,
-      assigneeSummary: assigneesList.length > 0
-        ? assigneesList.map(a => a.userName).join(', ')
-        : 'Chưa có người nhận',
-      deadline: data.deadline,
-      priorityLabel: TASK_PRIORITY_CONFIG[data.priority].label,
-    }));
+    // Announced server-side by `onTaskCreatedTelegram`.
 
     notify('success', 'Đã phát hành công việc thành công.');
     return newTask;

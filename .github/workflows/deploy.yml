@@ -31,6 +31,21 @@ jobs:
       - name: Unit Tests
         run: npm test
 
+      # `firestore.rules` is the only authorization boundary this app has, so
+      # its behaviour is asserted against the real emulator rather than trusted
+      # to review. A hard gate on purpose: shipping rules that let one teacher
+      # read another's discipline record is worse than not shipping at all.
+      #
+      # The emulator runs on the JVM and firebase-tools requires JDK 21+.
+      - name: Setup Java for Firestore Emulator
+        uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      - name: Security Rules Tests
+        run: npm run test:rules
+
       - name: Build Project
         run: npm run build
         env:
@@ -42,6 +57,19 @@ jobs:
           NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
           NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
           NEXT_PUBLIC_ADMIN_EMAILS: ${{ secrets.NEXT_PUBLIC_ADMIN_EMAILS }}
+          # Web Push certificate (VAPID public key). Written inline rather than
+          # kept as a secret because it is genuinely public — it ships inside
+          # the client bundle by design, so hiding it here would protect
+          # nothing while adding a configuration step that, if forgotten, fails
+          # SILENTLY: the build succeeds, `isPushConfigured()` returns false,
+          # and the notification toggle simply never appears.
+          #
+          # The bot token in settings/telegram is the opposite case and must
+          # never be treated this way.
+          NEXT_PUBLIC_FIREBASE_VAPID_KEY: BBR-nnaEdYcwMXKpfBZS4RQ69c1MWNd8onwWItDvBE2dhNyeOX7-w-h8qAx0zn3yzsHT2Rj29O3ewj_1mcc1zZs
+          # Falls back to 'edutask' in lib/firebase.ts, so an unset secret is
+          # harmless — passed through for the case where it differs.
+          NEXT_PUBLIC_FIREBASE_UPLOAD_BUCKET: ${{ secrets.NEXT_PUBLIC_FIREBASE_UPLOAD_BUCKET }}
 
       - name: Check Firebase Service Account Secret
         env:

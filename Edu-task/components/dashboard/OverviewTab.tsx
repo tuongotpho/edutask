@@ -2,10 +2,8 @@
 
 import React from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
-import { LEAVE_TYPE_LABELS } from '@/Edu-task/types/leave';
-import { TASK_PRIORITY_CONFIG, TASK_STATUS_CONFIG } from '@/Edu-task/types/task';
 import { canAssignTask, canViewLeave, isDeptLeader, isSchoolLeadership } from '@/Edu-task/lib/permissions';
-import { 
+import {
   FileText, 
   CheckSquare, 
   AlertTriangle, 
@@ -16,20 +14,28 @@ import {
   ShieldCheck,
   CalendarDays
 } from 'lucide-react';
+import { MissionControl } from './MissionControl';
+import { DueSoonPanel } from '@/Edu-task/components/plan/DueSoonPanel';
+import { TabType } from '@/Edu-task/components/layout/Sidebar';
 
+/**
+ * The overview carries totals only.
+ *
+ * It used to end with two lists of individual leave requests and tasks. Those
+ * are gone: every figure they summarised is now a tile above, and the detail
+ * they showed lives in its own tab in the sidebar. Repeating it here made the
+ * page long and gave the same number two homes — so a reader had to work out
+ * which one to believe.
+ */
 interface OverviewTabProps {
   onRequestNewLeave: () => void;
   onRequestNewTask: () => void;
-  onSelectLeave: (leaveId: string) => void;
-  onSelectTask: (taskId: string) => void;
-  onGoToTab: (tab: any) => void;
+  onGoToTab: (tab: TabType) => void;
 }
 
-export function OverviewTab({ 
-  onRequestNewLeave, 
-  onRequestNewTask, 
-  onSelectLeave, 
-  onSelectTask,
+export function OverviewTab({
+  onRequestNewLeave,
+  onRequestNewTask,
   onGoToTab
 }: OverviewTabProps) {
   const { currentUser, activeRole, leaves, tasks } = useApp();
@@ -57,7 +63,20 @@ export function OverviewTab({
   return (
     <div className="space-y-6">
 
-      {/* Top Welcome Banner */}
+      {/* The operations screen leads for people who run the school; everyone
+          else gets their own due list instead, which is what they actually
+          need on opening the app. */}
+      {isSchoolLeadershipOrAdmin
+        ? <MissionControl onNavigate={onGoToTab} />
+        : <DueSoonPanel personalOnly />}
+
+      {/* Top Welcome Banner.
+          Hidden once Mission Control is on screen: it explains what EduTask is
+          to someone who runs the school and opens it every day, and its two
+          buttons are the same two already pinned at the top of the sidebar. Its
+          only real content — the active role — is in the navbar too. All it
+          does here is push the actual figures below the fold. */}
+      {!isSchoolLeadershipOrAdmin && (
       <div className="bg-slate-900 text-white rounded-3xl p-6 md:p-8 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 relative overflow-hidden">
         <div className="space-y-2 z-10 max-w-2xl">
           <div className="inline-flex items-center gap-2 px-3 py-1 rounded-full bg-indigo-500/20 text-indigo-300 text-xs font-semibold border border-indigo-500/30">
@@ -91,6 +110,7 @@ export function OverviewTab({
           )}
         </div>
       </div>
+      )}
 
       {/* Teacher Availability Alert Ticker (Leadership/Management Only) */}
       {(isSchoolLeadershipOrAdmin || isDeptHeader) && teachersOnLeaveToday.length > 0 && (
@@ -118,9 +138,16 @@ export function OverviewTab({
         </div>
       )}
 
-      {/* Metric Cards Grid */}
+      {/* Metric Cards Grid.
+          Hidden for anyone who already has Mission Control above: three of
+          these four tiles are the same readings under different names ("Đơn xin
+          nghỉ chờ duyệt", "Tránh giao trùng lịch" = "Giáo viên nghỉ hôm nay",
+          "Công việc hoàn thành"), and showing a number twice on one screen
+          invites the reader to wonder which one is right. The fourth, work in
+          progress, is now a registry metric so nothing is lost. */}
+      {!isSchoolLeadershipOrAdmin && (
       <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-        
+
         <div 
           onClick={() => onGoToTab('leave')}
           className="bg-white p-5 rounded-2xl border border-slate-200 hover:border-indigo-300 hover:shadow-md cursor-pointer transition-all space-y-2"
@@ -186,89 +213,8 @@ export function OverviewTab({
         </div>
 
       </div>
+      )}
 
-      {/* Main Content Grid: Leaves & Tasks Tables */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-
-        {/* Leave Requests Table */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-slate-900 text-base">Đơn Xin Nghỉ Phép Mới Nhất</h3>
-              <p className="text-xs text-slate-500">Danh sách các đơn vừa được khởi tạo trong trường</p>
-            </div>
-            <button
-              onClick={() => onGoToTab('leave')}
-              className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"
-            >
-              <span>Xem tất cả</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="divide-y divide-slate-100">
-            {visibleLeaves.slice(0, 4).map(leave => (
-              <div 
-                key={leave.id}
-                onClick={() => onSelectLeave(leave.id)}
-                className="py-3 hover:bg-slate-50 px-2 rounded-xl transition-colors cursor-pointer flex items-center justify-between"
-              >
-                <div>
-                  <div className="font-bold text-slate-900 text-xs">{leave.applicantName}</div>
-                  <div className="text-[10px] text-slate-500">{leave.departmentName} • {leave.startDate}</div>
-                  <div className="text-[11px] text-slate-700 mt-0.5 line-clamp-1">{leave.reason}</div>
-                </div>
-                <div className="text-right flex-shrink-0 ml-2">
-                  <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${LEAVE_TYPE_LABELS[leave.leaveType].bg}`}>
-                    {LEAVE_TYPE_LABELS[leave.leaveType].label}
-                  </span>
-                  <div className="text-[10px] text-slate-400 mt-1">{leave.overallStatus}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* Active Tasks Table */}
-        <div className="bg-white rounded-3xl border border-slate-200 shadow-sm p-6 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="font-bold text-slate-900 text-base">Chỉ Đạo & Giao Việc Mới Nhất</h3>
-              <p className="text-xs text-slate-500">Các nhiệm vụ đang triển khai trên toàn hệ thống</p>
-            </div>
-            <button
-              onClick={() => onGoToTab('task')}
-              className="text-xs font-bold text-indigo-600 hover:underline flex items-center gap-1"
-            >
-              <span>Xem tất cả</span>
-              <ArrowUpRight className="w-3.5 h-3.5" />
-            </button>
-          </div>
-
-          <div className="divide-y divide-slate-100">
-            {visibleTasks.slice(0, 4).map(task => (
-              <div 
-                key={task.id}
-                onClick={() => onSelectTask(task.id)}
-                className="py-3 hover:bg-slate-50 px-2 rounded-xl transition-colors cursor-pointer flex items-center justify-between"
-              >
-                <div>
-                  <div className="font-bold text-slate-900 text-xs line-clamp-1">{task.title}</div>
-                  <div className="text-[10px] text-slate-500">Giao bởi: {task.assignerName}</div>
-                  <div className="text-[10px] text-rose-600 font-semibold mt-0.5">Hạn: {task.deadline}</div>
-                </div>
-                <div className="text-right flex-shrink-0 ml-2">
-                  <span className={`inline-block px-2 py-0.5 rounded text-[10px] font-bold ${TASK_STATUS_CONFIG[task.status].bg} ${TASK_STATUS_CONFIG[task.status].color}`}>
-                    {TASK_STATUS_CONFIG[task.status].label}
-                  </span>
-                  <div className="text-[10px] text-slate-400 mt-1">{TASK_PRIORITY_CONFIG[task.priority].label}</div>
-                </div>
-              </div>
-            ))}
-          </div>
-        </div>
-
-      </div>
 
     </div>
   );

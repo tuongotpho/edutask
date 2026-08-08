@@ -1,6 +1,6 @@
 import { LeaveRequest, LeaveType, LeaveSession, ApprovalStatus, LeaveHistoryLog, AttachmentFile } from '@/Edu-task/types/leave';
 import { User, RoleType, ROLE_LABELS } from '@/Edu-task/types/user';
-import { AppNotification } from '@/Edu-task/types/notification';
+import { AppNotification, NotificationDraft } from '@/Edu-task/types/notification';
 import { storage } from '@/Edu-task/lib/storage';
 import { genId } from '@/Edu-task/lib/utils';
 import { findLeaveConflict, LeaveConflictResult } from '@/Edu-task/lib/leaveConflict';
@@ -8,9 +8,7 @@ import { canApproveLeaveStep } from '@/Edu-task/lib/permissions';
 import { firebaseService } from '@/Edu-task/services/firebaseService';
 import { ToastKind } from '@/Edu-task/components/common/Toast';
 import { buildApprovalSteps } from '@/Edu-task/lib/workflow';
-import { WorkflowConfig, TelegramConfig } from '@/Edu-task/types/settings';
-import { telegramService, telegramMessages } from '@/Edu-task/services/telegramService';
-import { LEAVE_TYPE_LABELS } from '@/Edu-task/types/leave';
+import { WorkflowConfig } from '@/Edu-task/types/settings';
 
 interface LeaveLogicProps {
   currentUser: User | null;
@@ -21,12 +19,11 @@ interface LeaveLogicProps {
   setNotifications: React.Dispatch<React.SetStateAction<AppNotification[]>>;
   notify: (kind: ToastKind, text: string) => void;
   workflowConfig: WorkflowConfig;
-  telegramConfig: TelegramConfig;
 }
 
 const SAVE_FAILED = 'Không lưu được lên máy chủ. Thay đổi đã được hoàn tác — vui lòng thử lại.';
 
-export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeaves, setNotifications, notify, workflowConfig, telegramConfig }: LeaveLogicProps) {
+export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeaves, setNotifications, notify, workflowConfig }: LeaveLogicProps) {
 
   /**
    * Applies an optimistic update, then persists it. On rejection (offline, or
@@ -51,7 +48,13 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
 
   // Notifications are secondary to the record they announce: a delivery failure
   // is logged but never rolls back the leave request itself.
-  const pushNotification = async (notif: AppNotification) => {
+  // Sender stamped here, not at the call site — see useEquipmentLogic.
+  const pushNotification = async (draft: NotificationDraft) => {
+    const notif: AppNotification = {
+      ...draft,
+      createdById: currentUser?.id ?? 'system',
+      createdByName: currentUser?.fullName ?? 'Hệ thống',
+    };
     storage.addNotification(notif);
     try {
       await firebaseService.saveNotification(notif);
@@ -157,17 +160,9 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
         createdAt: now,
       })));
 
-    // Group announcement. Fire-and-forget by design: a Telegram outage must not
-    // affect a request that is already saved.
-    void telegramService.notify(telegramConfig, 'LEAVE_CREATED', telegramMessages.leaveCreated({
-      applicantName: currentUser.fullName,
-      departmentName: currentUser.departmentName,
-      leaveTypeLabel: LEAVE_TYPE_LABELS[data.leaveType].label,
-      startDate: data.startDate,
-      endDate: data.endDate,
-      totalDays,
-      reason: data.reason,
-    }));
+    // The Telegram group announcement now happens server-side, in the
+    // `onLeaveCreatedTelegram` Cloud Function. It used to be sent from here,
+    // which required the bot token to be readable by every signed-in account.
 
     notify('success', 'Đã gửi đơn xin nghỉ phép thành công.');
     return newLeave;
@@ -414,16 +409,12 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
     const now = new Date().toISOString().replace('T', ' ').slice(0, 16);
 
     let targetLeaveToSave: LeaveRequest | null = null;
-    // Captured before the update advances the pointer, so the announcement names
-    // the step that was actually signed rather than the next one.
-    let currentStepIndexAtDecision = 0;
 
     const updatedLeaves = leaves.map(leave => {
       if (leave.id !== leaveId) return leave;
 
       const steps = [...leave.steps];
       const currIdx = leave.currentStepIndex;
-      currentStepIndexAtDecision = currIdx;
       const targetStep = steps[currIdx];
 
       if (!canApproveLeaveStep({
@@ -520,19 +511,8 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
     const saved = await commit(updatedLeaves, targetLeaveToSave);
     if (!saved) return false;
 
-    const decided = targetLeaveToSave as LeaveRequest;
-    const decisionLabel =
-      decision === 'APPROVED'
-        ? (decided.overallStatus === 'APPROVED' ? 'ĐÃ DUYỆT HOÀN TẤT' : 'đã qua một cấp duyệt')
-        : decision === 'REJECTED' ? 'BỊ TỪ CHỐI' : 'YÊU CẦU CHỈNH SỬA';
-
-    void telegramService.notify(telegramConfig, 'LEAVE_DECIDED', telegramMessages.leaveDecided({
-      applicantName: decided.applicantName,
-      decisionLabel,
-      stepLabel: decided.steps[Math.min(currentStepIndexAtDecision, decided.steps.length - 1)]?.levelLabel ?? 'Người duyệt',
-      approverName: currentUser.fullName,
-      comment,
-    }));
+    // Announced server-side by `onLeaveDecidedTelegram`, which reads the
+    // decision off the document itself rather than from this code path.
 
     return true;
   };

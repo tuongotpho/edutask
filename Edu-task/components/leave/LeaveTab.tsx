@@ -10,6 +10,23 @@ import {
   Search,
   PlusCircle
 } from 'lucide-react';
+import { StatusRow } from '@/Edu-task/components/common/StatusRow';
+import { EmptyState } from '@/Edu-task/components/common/Card';
+import { leaveTone } from '@/Edu-task/lib/statusTone';
+
+/**
+ * Wording for the status badge.
+ *
+ * Phrased as what it means to the reader, not as the enum: "Chờ duyệt" rather
+ * than "IN_REVIEW". Kept beside the list that shows it so the two cannot drift.
+ */
+const LEAVE_STATUS_TEXT: Record<string, string> = {
+  IN_REVIEW: 'Chờ duyệt',
+  APPROVED: 'Đã duyệt',
+  REJECTED: 'Đã từ chối',
+  REQUEST_EDIT: 'Yêu cầu sửa',
+  CANCELLED: 'Đã hủy',
+};
 
 interface LeaveTabProps {
   onRequestNewLeave: () => void;
@@ -135,87 +152,60 @@ export function LeaveTab({ onRequestNewLeave, onSelectLeave }: LeaveTabProps) {
         </div>
       </div>
 
-      {/* Leave Requests Table Card List */}
-      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
-        <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
-          <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">
-            Danh Sách Đơn Xin Nghỉ ({filteredLeaves.length} đơn)
-          </span>
-          <span className="text-[11px] text-slate-500">Nhấp vào dòng để xem chi tiết & phê duyệt</span>
-        </div>
-
-        {filteredLeaves.length === 0 ? (
-          <div className="p-12 text-center text-slate-500 space-y-2">
-            <FileText className="w-10 h-10 mx-auto text-slate-300 mb-2" />
-            <p className="font-semibold text-sm text-slate-700">Không tìm thấy đơn xin nghỉ nào</p>
-            <p className="text-xs text-slate-400">Thử thay đổi bộ lọc hoặc tạo đơn mới</p>
-          </div>
-        ) : (
-          <div className="divide-y divide-slate-100 text-xs">
-            {filteredLeaves.map((leave) => (
-              <div
-                key={leave.id}
-                onClick={() => onSelectLeave(leave.id)}
-                className="p-5 hover:bg-slate-50/80 transition-all cursor-pointer flex flex-col md:flex-row md:items-center justify-between gap-4"
-              >
-                {/* Left: Applicant & Reason */}
-                <div className="space-y-1.5 flex-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="px-2 py-0.5 rounded font-mono text-[10px] font-bold bg-slate-100 text-slate-700 border border-slate-200">
-                      {leave.code}
-                    </span>
-                    <span className="font-extrabold text-slate-900 text-sm">{leave.applicantName}</span>
-                    <span className="text-[11px] text-slate-500">• {leave.departmentName}</span>
-                  </div>
-
-                  <p className="text-slate-700 font-medium line-clamp-2 max-w-2xl">
-                    {leave.reason}
-                  </p>
-
-                  <div className="flex items-center space-x-3 text-[11px] text-slate-500 pt-1">
-                    <span>Thời gian: <strong className="text-slate-800">{leave.startDate} → {leave.endDate}</strong> ({leave.totalDays} ngày - {LEAVE_SESSION_LABELS[leave.session]})</span>
-                    {leave.substituteTeacherName && (
-                      <span className="text-indigo-600 font-semibold">• Dạy thay: {leave.substituteTeacherName}</span>
-                    )}
-                  </div>
-                </div>
-
-                {/* Right: Workflow Progress & Status */}
-                <div className="flex flex-col md:items-end space-y-2 flex-shrink-0">
-                  <div className={`px-3 py-1 rounded-full text-xs font-bold ${LEAVE_TYPE_LABELS[leave.leaveType].bg}`}>
-                    {LEAVE_TYPE_LABELS[leave.leaveType].label}
-                  </div>
-
-                  {/* Step status */}
-                  <div className="flex items-center space-x-1 text-[11px]">
-                    <span className="text-slate-400 font-semibold">Bước duyệt:</span>
-                    <span className="font-bold text-slate-800">
-                      {/* Derived from the request's own steps: the count was
-                          hardcoded to 3 while the workflow only ever creates 2,
-                          so a fully approved request read "Bước 2/3". */}
-                      {leave.overallStatus === 'APPROVED'
-                        ? `Đã hoàn tất (${leave.steps.length}/${leave.steps.length})`
-                        : `Bước ${leave.currentStepIndex + 1}/${leave.steps.length} (${leave.steps[leave.currentStepIndex]?.levelLabel ?? '—'})`}
-                    </span>
-                  </div>
-
-                  <span className={`text-[11px] font-bold ${
-                    leave.overallStatus === 'APPROVED' ? 'text-emerald-600' :
-                    leave.overallStatus === 'REJECTED' ? 'text-rose-600' :
-                    leave.overallStatus === 'CANCELLED' ? 'text-rose-700 bg-rose-50 px-2 py-0.5 rounded border border-rose-200' :
-                    leave.overallStatus === 'REQUEST_EDIT' ? 'text-amber-600' : 'text-indigo-600'
-                  }`}>
-                    ● {leave.overallStatus === 'APPROVED' ? 'Đã duyệt' :
-                       leave.overallStatus === 'REJECTED' ? 'Đã từ chối' :
-                       leave.overallStatus === 'CANCELLED' ? 'Đã HỦY đơn' :
-                       leave.overallStatus === 'REQUEST_EDIT' ? 'Yêu cầu sửa' : 'Đang xét duyệt'}
-                  </span>
-                </div>
-              </div>
-            ))}
-          </div>
-        )}
+      {/* Leave list */}
+      <div className="flex items-center justify-between gap-3 px-1">
+        <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">
+          Danh Sách Đơn Xin Nghỉ ({filteredLeaves.length} đơn)
+        </span>
+        <span className="text-[11px] text-slate-500">Nhấp vào dòng để xem chi tiết &amp; phê duyệt</span>
       </div>
+
+      {filteredLeaves.length === 0 ? (
+        <EmptyState
+          icon={FileText}
+          message="Không tìm thấy đơn xin nghỉ nào"
+          hint="Thử thay đổi bộ lọc hoặc tạo đơn mới"
+        />
+      ) : (
+        <div className="space-y-2">
+          {filteredLeaves.map(leave => (
+            <StatusRow
+              key={leave.id}
+              tone={leaveTone(leave.overallStatus)}
+              statusLabel={LEAVE_STATUS_TEXT[leave.overallStatus] ?? leave.overallStatus}
+              personName={leave.applicantName}
+              title={leave.applicantName}
+              titleMeta={leave.departmentName}
+              onClick={() => onSelectLeave(leave.id)}
+              trailing={
+                // Derived from the request's own steps: the count was hardcoded
+                // to 3 while the workflow only ever creates 2, so a fully
+                // approved request read "Bước 2/3".
+                leave.overallStatus === 'APPROVED'
+                  ? `Hoàn tất ${leave.steps.length}/${leave.steps.length}`
+                  : `Bước ${leave.currentStepIndex + 1}/${leave.steps.length}`
+              }
+              detail={
+                <>
+                  <span className="font-semibold text-slate-700">
+                    {LEAVE_TYPE_LABELS[leave.leaveType].label}
+                  </span>
+                  {' · '}
+                  {leave.startDate} → {leave.endDate}
+                  {' · '}
+                  {leave.totalDays} ngày ({LEAVE_SESSION_LABELS[leave.session]})
+                  {leave.substituteTeacherName && (
+                    <span className="text-indigo-600 font-semibold">
+                      {' · '}Dạy thay: {leave.substituteTeacherName}
+                    </span>
+                  )}
+                  <span className="block text-slate-500 mt-0.5 line-clamp-1">{leave.reason}</span>
+                </>
+              }
+            />
+          ))}
+        </div>
+      )}
 
     </div>
   );

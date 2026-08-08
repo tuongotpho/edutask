@@ -26,6 +26,26 @@ const SchoolTimelineTab = dynamic(
   () => import('@/Edu-task/components/schedule/SchoolTimelineTab').then(m => m.SchoolTimelineTab),
   { ssr: false, loading }
 );
+const ScheduleRegistrationTab = dynamic(
+  () => import('@/Edu-task/components/schedule/ScheduleRegistrationTab').then(m => m.ScheduleRegistrationTab),
+  { ssr: false, loading }
+);
+const AttendanceTab = dynamic(
+  () => import('@/Edu-task/components/attendance/AttendanceTab').then(m => m.AttendanceTab),
+  { ssr: false, loading }
+);
+const MeetingsTab = dynamic(
+  () => import('@/Edu-task/components/meeting/MeetingsTab').then(m => m.MeetingsTab),
+  { ssr: false, loading }
+);
+const PlansTab = dynamic(
+  () => import('@/Edu-task/components/plan/PlansTab').then(m => m.PlansTab),
+  { ssr: false, loading }
+);
+const StudentsTab = dynamic(
+  () => import('@/Edu-task/components/student/StudentsTab').then(m => m.StudentsTab),
+  { ssr: false, loading }
+);
 const AnalyticsTab = dynamic(
   () => import('@/Edu-task/components/stats/AnalyticsTab').then(m => m.AnalyticsTab),
   { ssr: false, loading }
@@ -82,8 +102,15 @@ function EduTaskMainApp() {
 
   // Correct the address bar rather than leave it claiming a tab that is not on
   // screen — otherwise the refused link stays copyable and keeps misleading.
+  // The state write here is not derived data being mirrored — it is a genuine
+  // correction that must stick. Rendering already reads `visibleTab`, so
+  // dropping it would look identical today; but `activeTab` would keep holding
+  // the refused tab, and the moment the user switched into a role that may open
+  // it they would be thrown there unannounced. Resetting it makes the refusal
+  // final. Runs at most once per refusal, so there is no cascade.
   useEffect(() => {
     if (visibleTab === activeTab) return;
+    // eslint-disable-next-line react-hooks/set-state-in-effect -- see above
     setActiveTab(visibleTab);
     window.history.replaceState(null, '', `${window.location.pathname}${searchForTab(visibleTab)}`);
   }, [visibleTab, activeTab]);
@@ -141,8 +168,6 @@ function EduTaskMainApp() {
             <OverviewTab
               onRequestNewLeave={handleOpenNewLeave}
               onRequestNewTask={() => setIsTaskFormOpen(true)}
-              onSelectLeave={(id) => setSelectedLeaveId(id)}
-              onSelectTask={(id) => setSelectedTaskId(id)}
               onGoToTab={goToTab}
             />
           )}
@@ -163,6 +188,26 @@ function EduTaskMainApp() {
 
           {visibleTab === 'schedule' && (
             <SchoolTimelineTab onSelectLeave={(id) => setSelectedLeaveId(id)} />
+          )}
+
+          {visibleTab === 'lessons' && (
+            <ScheduleRegistrationTab />
+          )}
+
+          {visibleTab === 'attendance' && (
+            <AttendanceTab />
+          )}
+
+          {visibleTab === 'meetings' && (
+            <MeetingsTab />
+          )}
+
+          {visibleTab === 'plans' && (
+            <PlansTab />
+          )}
+
+          {visibleTab === 'students' && (
+            <StudentsTab />
           )}
 
           {visibleTab === 'stats' && (

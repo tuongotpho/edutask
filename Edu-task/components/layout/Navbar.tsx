@@ -6,6 +6,7 @@ import { useApp } from '@/Edu-task/context/AppContext';
 import { ROLE_LABELS } from '@/Edu-task/types/user';
 import { canViewLeave, isAdmin } from '@/Edu-task/lib/permissions';
 import { matchesSearch } from '@/Edu-task/lib/utils';
+import { PushToggle } from '@/Edu-task/components/common/PushToggle';
 import {
   Bell,
   Search,
@@ -259,6 +260,9 @@ export function Navbar({
                     <span className="text-[10px] text-slate-500">{notifications.length} thông báo</span>
                   )}
                 </div>
+                {/* Placed here because this dropdown is where someone lands the
+                    moment they wonder why they missed something. */}
+                <PushToggle />
                 <div className="max-h-72 overflow-y-auto divide-y divide-slate-100">
                   {notifications.length === 0 ? (
                     <div className="p-4 text-center text-xs text-slate-500">Không có thông báo mới</div>

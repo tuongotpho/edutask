@@ -1,0 +1,21 @@
+{
+  "compilerOptions": {
+    // CommonJS on purpose. The shared domain logic is copied in from the app
+    // (see scripts/sync-shared-logic.mjs) and uses extensionless relative
+    // imports; under NodeNext ESM those would all need `.js` suffixes rewritten
+    // on the way in, which is one more transformation to get subtly wrong.
+    "module": "CommonJS",
+    "moduleResolution": "Node",
+    "target": "ES2022",
+    "lib": ["ES2022"],
+    "outDir": "lib",
+    "rootDir": "src",
+    "strict": true,
+    "noImplicitReturns": true,
+    "noUnusedLocals": true,
+    "esModuleInterop": true,
+    "skipLibCheck": true,
+    "sourceMap": true
+  },
+  "include": ["src"]
+}

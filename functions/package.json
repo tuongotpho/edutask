@@ -1,0 +1,24 @@
+{
+  "name": "edutask-functions",
+  "description": "Thông báo đẩy và lịch nhắc tự động cho EduTask",
+  "private": true,
+  "main": "lib/index.js",
+  "engines": {
+    "node": "22"
+  },
+  "scripts": {
+    "presync": "echo syncing shared logic",
+    "sync": "node ../scripts/sync-shared-logic.mjs",
+    "prebuild": "npm run sync",
+    "build": "tsc",
+    "serve": "npm run build && firebase emulators:start --only functions",
+    "logs": "firebase functions:log"
+  },
+  "dependencies": {
+    "firebase-admin": "^13.0.2",
+    "firebase-functions": "^7.3.2"
+  },
+  "devDependencies": {
+    "typescript": "^5.9.3"
+  }
+}

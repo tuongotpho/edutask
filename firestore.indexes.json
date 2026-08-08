@@ -1,0 +1,44 @@
+{
+  "//": [
+    "PHIÊN BẢN: 2026-08-08 — Composite index cho Firestore.",
+    "",
+    "Firestore tự tạo index cho từng trường đơn lẻ, nên PHẦN LỚN truy vấn trong app",
+    "không cần khai báo gì ở đây. Chỉ khi một truy vấn vừa lọc KHOẢNG trên trường này",
+    "(>=, <=) vừa lọc BẰNG trên trường khác thì mới bắt buộc composite index.",
+    "",
+    "Không khai báo thì truy vấn KHÔNG báo lỗi lúc build, mà chết lúc chạy: listener",
+    "văng lỗi, danh sách hiện RỖNG. Người dùng thấy 'không có bản ghi nào' trong khi",
+    "thực tế có — đúng kiểu lỗi nguy hiểm nhất vì nó trông y như dữ liệu trống thật.",
+    "",
+    "Đã rà toàn bộ firebaseService.ts: chỉ subscribeAttendance kết hợp hai loại lọc.",
+    "Các truy vấn còn lại (makeups, bookings, meetings, studentAttendance,",
+    "studentConduct, equipmentLoans, notifications, leaves, tasks) đều chỉ dùng MỘT",
+    "bộ lọc nên index mặc định đã phục vụ được.",
+    "",
+    "Riêng subscribeMeetings cố ý KHÔNG kết hợp array-contains với lọc khoảng — nó",
+    "lọc ngày ở phía client — chính là để tránh phải có thêm index ở đây."
+  ],
+
+  "indexes": [
+    {
+      "//": "Sổ nề nếp, phạm vi TỔ TRƯỞNG: lọc theo tổ + cửa sổ ngày.",
+      "collectionGroup": "attendance",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "departmentId", "order": "ASCENDING" },
+        { "fieldPath": "slot.date", "order": "ASCENDING" }
+      ]
+    },
+    {
+      "//": "Sổ nề nếp, phạm vi GIÁO VIÊN: chỉ bản ghi về chính mình + cửa sổ ngày.",
+      "collectionGroup": "attendance",
+      "queryScope": "COLLECTION",
+      "fields": [
+        { "fieldPath": "teacherId", "order": "ASCENDING" },
+        { "fieldPath": "slot.date", "order": "ASCENDING" }
+      ]
+    }
+  ],
+
+  "fieldOverrides": []
+}

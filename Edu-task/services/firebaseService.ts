@@ -19,6 +19,20 @@ import { LeaveRequest } from '@/Edu-task/types/leave';
 import { Task } from '@/Edu-task/types/task';
 import { AppNotification } from '@/Edu-task/types/notification';
 import { WorkflowConfig, TelegramConfig } from '@/Edu-task/types/settings';
+import {
+  ClassGroup,
+  DEFAULT_PERIOD_CONFIG,
+  PeriodConfig,
+  Room,
+} from '@/Edu-task/types/schedule';
+import { MakeupClass } from '@/Edu-task/types/makeup';
+import { RoomBooking } from '@/Edu-task/types/booking';
+import { AttendanceRecord } from '@/Edu-task/types/attendance';
+import { Meeting } from '@/Edu-task/types/meeting';
+import { Plan } from '@/Edu-task/types/plan';
+import { ReminderSchedule } from '@/Edu-task/types/reminder';
+import { Equipment, EquipmentLoan } from '@/Edu-task/types/equipment';
+import { ClassAttendance, ConductRecord, Student } from '@/Edu-task/types/student';
 
 export const firebaseService = {
   // --- Departments (shared config: must live server-side so every device and
@@ -105,6 +119,66 @@ export const firebaseService = {
 
   async saveTelegramConfig(config: TelegramConfig): Promise<void> {
     await setDoc(doc(db, 'settings', 'telegram'), sanitizeForFirestore(config), { merge: true });
+  },
+
+  /**
+   * How many teaching periods the school runs, and when. Every module finer
+   * than a whole session (make-up classes, room bookings, the lateness log)
+   * reads this, so it is shared config rather than per-feature settings.
+   */
+  subscribePeriodConfig(onUpdate: (config: PeriodConfig | null) => void): Unsubscribe {
+    return onSnapshot(doc(db, 'settings', 'periods'), snapshot => {
+      const data = snapshot.data();
+      if (!data || typeof data.morningPeriods !== 'number') {
+        onUpdate(null);
+        return;
+      }
+      onUpdate({
+        morningPeriods: data.morningPeriods,
+        afternoonPeriods: typeof data.afternoonPeriods === 'number' ? data.afternoonPeriods : 0,
+        // Falling back to the built-in timetable rather than `{}` keeps period
+        // labels and "which period is on now" working on a school that has
+        // never opened the settings screen.
+        times: data.times && typeof data.times === 'object' ? data.times : DEFAULT_PERIOD_CONFIG.times,
+      });
+    });
+  },
+
+  async savePeriodConfig(config: PeriodConfig): Promise<void> {
+    await setDoc(doc(db, 'settings', 'periods'), sanitizeForFirestore(config), { merge: true });
+  },
+
+  // --- Rooms & classes (shared catalogs, same server-owned shape as departments) ---
+  subscribeRooms(onUpdate: (rooms: Room[]) => void): Unsubscribe {
+    return onSnapshot(collection(db, 'rooms'), snapshot => {
+      const rooms: Room[] = [];
+      snapshot.forEach(d => rooms.push(d.data() as Room));
+      onUpdate(rooms);
+    });
+  },
+
+  async saveRoom(room: Room): Promise<void> {
+    await setDoc(doc(db, 'rooms', room.id), sanitizeForFirestore(room), { merge: true });
+  },
+
+  async deleteRoom(roomId: string): Promise<void> {
+    await deleteDoc(doc(db, 'rooms', roomId));
+  },
+
+  subscribeClasses(onUpdate: (classes: ClassGroup[]) => void): Unsubscribe {
+    return onSnapshot(collection(db, 'classes'), snapshot => {
+      const classes: ClassGroup[] = [];
+      snapshot.forEach(d => classes.push(d.data() as ClassGroup));
+      onUpdate(classes);
+    });
+  },
+
+  async saveClass(classGroup: ClassGroup): Promise<void> {
+    await setDoc(doc(db, 'classes', classGroup.id), sanitizeForFirestore(classGroup), { merge: true });
+  },
+
+  async deleteClass(classId: string): Promise<void> {
+    await deleteDoc(doc(db, 'classes', classId));
   },
 
   // --- Users ---
@@ -216,6 +290,289 @@ export const firebaseService = {
   // tell the user. Swallowing the error here would silently desync the UI.
   async deleteTask(taskId: string): Promise<void> {
     await deleteDoc(doc(db, 'tasks', taskId));
+  },
+
+  // --- Make-up classes & room bookings ---
+  //
+  // Both are scoped to a rolling date window rather than fetched whole. These
+  // collections grow by hundreds of rows a term and never stop, while the only
+  // rows anyone acts on are recent or upcoming ones — an unbounded subscription
+  // would grow the client's memory and read cost every single term.
+  //
+  // The window has no upper bound: a booking made for next June must still be
+  // visible, or the clash check would happily double-book it.
+
+  subscribeMakeups(onUpdate: (makeups: MakeupClass[]) => void, fromDate: string): Unsubscribe {
+    const q = query(collection(db, 'makeups'), where('makeupSlot.date', '>=', fromDate));
+    return onSnapshot(q, snapshot => {
+      const makeups: MakeupClass[] = [];
+      snapshot.forEach(d => makeups.push(d.data() as MakeupClass));
+      makeups.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      onUpdate(makeups);
+    });
+  },
+
+  async saveMakeup(makeup: MakeupClass): Promise<void> {
+    await setDoc(doc(db, 'makeups', makeup.id), sanitizeForFirestore(makeup), { merge: true });
+  },
+
+  async deleteMakeup(makeupId: string): Promise<void> {
+    await deleteDoc(doc(db, 'makeups', makeupId));
+  },
+
+  subscribeBookings(onUpdate: (bookings: RoomBooking[]) => void, fromDate: string): Unsubscribe {
+    const q = query(collection(db, 'bookings'), where('slot.date', '>=', fromDate));
+    return onSnapshot(q, snapshot => {
+      const bookings: RoomBooking[] = [];
+      snapshot.forEach(d => bookings.push(d.data() as RoomBooking));
+      bookings.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      onUpdate(bookings);
+    });
+  },
+
+  async saveBooking(booking: RoomBooking): Promise<void> {
+    await setDoc(doc(db, 'bookings', booking.id), sanitizeForFirestore(booking), { merge: true });
+  },
+
+  async deleteBooking(bookingId: string): Promise<void> {
+    await deleteDoc(doc(db, 'bookings', bookingId));
+  },
+
+  // --- Sổ nề nếp (supervisor's lateness log) ---
+  //
+  // Scoped by BOTH date and audience. Unlike bookings, these records are about
+  // named colleagues, so the query is narrowed to what the viewer is entitled
+  // to see rather than relying on the UI to hide rows — a teacher's browser
+  // should never receive the whole school's log in the first place.
+  subscribeAttendance(
+    onUpdate: (records: AttendanceRecord[]) => void,
+    fromDate: string,
+    scope: { seeAll: boolean; deptId?: string; userId?: string }
+  ): Unsubscribe {
+    const base = collection(db, 'attendance');
+    const sortNewestFirst = (records: AttendanceRecord[]) =>
+      records.sort((a, b) => (b.slot?.date ?? '').localeCompare(a.slot?.date ?? '') ||
+        (b.createdAt ?? '').localeCompare(a.createdAt ?? ''));
+    const toRecords = (snapshot: { forEach: (cb: (d: { data: () => DocumentData }) => void) => void }) => {
+      const records: AttendanceRecord[] = [];
+      snapshot.forEach(d => records.push(d.data() as AttendanceRecord));
+      return records;
+    };
+
+    let q: Query<DocumentData> = query(base, where('slot.date', '>=', fromDate));
+
+    if (!scope.seeAll) {
+      if (scope.deptId) {
+        // A department leader sees their department's log.
+        q = query(q, where('departmentId', '==', scope.deptId));
+      } else if (scope.userId) {
+        // Everyone else sees only records naming them.
+        q = query(q, where('teacherId', '==', scope.userId));
+      } else {
+        onUpdate([]);
+        return () => {};
+      }
+    }
+
+    return onSnapshot(q, snapshot => onUpdate(sortNewestFirst(toRecords(snapshot))));
+  },
+
+  async saveAttendance(record: AttendanceRecord): Promise<void> {
+    await setDoc(doc(db, 'attendance', record.id), sanitizeForFirestore(record), { merge: true });
+  },
+
+  async deleteAttendance(recordId: string): Promise<void> {
+    await deleteDoc(doc(db, 'attendance', recordId));
+  },
+
+  // --- Cuộc họp ---
+  subscribeMeetings(
+    onUpdate: (meetings: Meeting[]) => void,
+    fromDate: string,
+    scope: { seeAll: boolean; userId?: string }
+  ): Unsubscribe {
+    const base = collection(db, 'meetings');
+
+    // Leadership reads by date window. Everyone else reads by membership —
+    // and deliberately WITHOUT a date filter, because combining
+    // `array-contains` with a range on another field needs a dedicated
+    // composite index, which would fail closed on a fresh project until
+    // someone noticed the console error. Meetings number in the dozens per
+    // year, so trimming the window client-side costs nothing.
+    const q: Query<DocumentData> = scope.seeAll
+      ? query(base, where('date', '>=', fromDate))
+      : scope.userId
+        ? query(base, where('participantIds', 'array-contains', scope.userId))
+        : base;
+
+    if (!scope.seeAll && !scope.userId) {
+      onUpdate([]);
+      return () => {};
+    }
+
+    return onSnapshot(q, snapshot => {
+      const meetings: Meeting[] = [];
+      snapshot.forEach(d => {
+        const meeting = d.data() as Meeting;
+        if ((meeting.date ?? '') >= fromDate) meetings.push(meeting);
+      });
+      meetings.sort((a, b) =>
+        (b.date ?? '').localeCompare(a.date ?? '') ||
+        (b.startTime ?? '').localeCompare(a.startTime ?? '')
+      );
+      onUpdate(meetings);
+    });
+  },
+
+  async saveMeeting(meeting: Meeting): Promise<void> {
+    await setDoc(doc(db, 'meetings', meeting.id), sanitizeForFirestore(meeting), { merge: true });
+  },
+
+  async deleteMeeting(meetingId: string): Promise<void> {
+    await deleteDoc(doc(db, 'meetings', meetingId));
+  },
+
+  // --- Kế hoạch & lịch nhắc ---
+  //
+  // Both are small, school-wide reference data that every screen showing
+  // progress needs, so they are fetched whole rather than windowed. A school
+  // runs tens of plans, not thousands.
+  subscribePlans(onUpdate: (plans: Plan[]) => void): Unsubscribe {
+    return onSnapshot(collection(db, 'plans'), snapshot => {
+      const plans: Plan[] = [];
+      snapshot.forEach(d => plans.push(d.data() as Plan));
+      plans.sort((a, b) => (a.startDate ?? '').localeCompare(b.startDate ?? ''));
+      onUpdate(plans);
+    });
+  },
+
+  async savePlan(plan: Plan): Promise<void> {
+    await setDoc(doc(db, 'plans', plan.id), sanitizeForFirestore(plan), { merge: true });
+  },
+
+  async deletePlan(planId: string): Promise<void> {
+    await deleteDoc(doc(db, 'plans', planId));
+  },
+
+  subscribeReminders(onUpdate: (reminders: ReminderSchedule[]) => void): Unsubscribe {
+    return onSnapshot(collection(db, 'reminders'), snapshot => {
+      const reminders: ReminderSchedule[] = [];
+      snapshot.forEach(d => reminders.push(d.data() as ReminderSchedule));
+      reminders.sort((a, b) => a.title.localeCompare(b.title, 'vi'));
+      onUpdate(reminders);
+    });
+  },
+
+  async saveReminder(reminder: ReminderSchedule): Promise<void> {
+    await setDoc(doc(db, 'reminders', reminder.id), sanitizeForFirestore(reminder), { merge: true });
+  },
+
+  async deleteReminder(reminderId: string): Promise<void> {
+    await deleteDoc(doc(db, 'reminders', reminderId));
+  },
+
+  // --- Thiết bị & phiếu mượn ---
+  subscribeEquipment(onUpdate: (items: Equipment[]) => void): Unsubscribe {
+    return onSnapshot(collection(db, 'equipment'), snapshot => {
+      const items: Equipment[] = [];
+      snapshot.forEach(d => items.push(d.data() as Equipment));
+      onUpdate(items);
+    });
+  },
+
+  async saveEquipment(item: Equipment): Promise<void> {
+    await setDoc(doc(db, 'equipment', item.id), sanitizeForFirestore(item), { merge: true });
+  },
+
+  async deleteEquipment(equipmentId: string): Promise<void> {
+    await deleteDoc(doc(db, 'equipment', equipmentId));
+  },
+
+  /**
+   * Loans are windowed by `borrowDate`, but the window has to be generous:
+   * availability is computed from OPEN loans, so dropping an old one that was
+   * never returned would silently free up kit that is still missing. A year
+   * back keeps the register honest without unbounded growth.
+   */
+  subscribeLoans(onUpdate: (loans: EquipmentLoan[]) => void, fromDate: string): Unsubscribe {
+    const q = query(collection(db, 'equipmentLoans'), where('borrowDate', '>=', fromDate));
+    return onSnapshot(q, snapshot => {
+      const loans: EquipmentLoan[] = [];
+      snapshot.forEach(d => loans.push(d.data() as EquipmentLoan));
+      loans.sort((a, b) => (b.borrowDate ?? '').localeCompare(a.borrowDate ?? ''));
+      onUpdate(loans);
+    });
+  },
+
+  async saveLoan(loan: EquipmentLoan): Promise<void> {
+    await setDoc(doc(db, 'equipmentLoans', loan.id), sanitizeForFirestore(loan), { merge: true });
+  },
+
+  async deleteLoan(loanId: string): Promise<void> {
+    await deleteDoc(doc(db, 'equipmentLoans', loanId));
+  },
+
+  // --- Học sinh ---
+  //
+  // The roster is fetched whole: a school has hundreds of students, not
+  // millions, and every register screen needs the full list to build a roll.
+  subscribeStudents(onUpdate: (students: Student[]) => void): Unsubscribe {
+    return onSnapshot(collection(db, 'students'), snapshot => {
+      const students: Student[] = [];
+      snapshot.forEach(d => students.push(d.data() as Student));
+      students.sort(
+        (a, b) =>
+          a.className.localeCompare(b.className, 'vi', { numeric: true }) ||
+          a.fullName.localeCompare(b.fullName, 'vi')
+      );
+      onUpdate(students);
+    });
+  },
+
+  async saveStudent(student: Student): Promise<void> {
+    await setDoc(doc(db, 'students', student.id), sanitizeForFirestore(student), { merge: true });
+  },
+
+  async deleteStudent(studentId: string): Promise<void> {
+    await deleteDoc(doc(db, 'students', studentId));
+  },
+
+  // Rolls are the highest-volume collection in the system — one per class per
+  // session per school day — so they are windowed by date rather than fetched
+  // whole. Nobody edits last term's register.
+  subscribeClassAttendance(
+    onUpdate: (records: ClassAttendance[]) => void,
+    fromDate: string
+  ): Unsubscribe {
+    const q = query(collection(db, 'studentAttendance'), where('date', '>=', fromDate));
+    return onSnapshot(q, snapshot => {
+      const records: ClassAttendance[] = [];
+      snapshot.forEach(d => records.push(d.data() as ClassAttendance));
+      records.sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+      onUpdate(records);
+    });
+  },
+
+  async saveClassAttendance(record: ClassAttendance): Promise<void> {
+    await setDoc(doc(db, 'studentAttendance', record.id), sanitizeForFirestore(record), { merge: true });
+  },
+
+  subscribeConduct(onUpdate: (records: ConductRecord[]) => void, fromDate: string): Unsubscribe {
+    const q = query(collection(db, 'studentConduct'), where('date', '>=', fromDate));
+    return onSnapshot(q, snapshot => {
+      const records: ConductRecord[] = [];
+      snapshot.forEach(d => records.push(d.data() as ConductRecord));
+      records.sort((a, b) => (b.date ?? '').localeCompare(a.date ?? ''));
+      onUpdate(records);
+    });
+  },
+
+  async saveConduct(record: ConductRecord): Promise<void> {
+    await setDoc(doc(db, 'studentConduct', record.id), sanitizeForFirestore(record), { merge: true });
+  },
+
+  async deleteConduct(recordId: string): Promise<void> {
+    await deleteDoc(doc(db, 'studentConduct', recordId));
   },
 
   // --- Notifications ---

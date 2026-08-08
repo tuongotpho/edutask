@@ -60,7 +60,77 @@ với luồng phê duyệt nhiều cấp cùng phân công giáo viên dạy tha
 | `npm run build` | Build production (chạy cả type-check và ESLint) |
 | `npm test` | Chạy unit test |
 | `npm run test:watch` | Test ở chế độ watch |
+| `npm run test:rules` | Kiểm thử quy tắc bảo mật Firestore trên trình giả lập |
 | `npm run lint` | Chỉ chạy ESLint |
+
+### Thông báo đẩy (FCM)
+
+Cho phép nhắc việc và đơn cần duyệt **hiện lên màn hình điện thoại kể cả khi không mở
+ứng dụng**. Toàn bộ phần này là tùy chọn: thiếu cấu hình thì app chạy y như cũ, chỉ là
+thông báo dừng lại trong chuông thay vì ra tới điện thoại.
+
+**Bước 1 — Lấy khóa VAPID** (chỉ làm một lần):
+Firebase Console → ⚙ Project settings → **Cloud Messaging** → *Web configuration* →
+**Generate key pair**. Copy chuỗi đó vào `.env.local`:
+
+```
+NEXT_PUBLIC_FIREBASE_VAPID_KEY=BB...
+```
+
+**Bước 2 — Triển khai Cloud Functions** (cần gói **Blaze**):
+
+```bash
+npx firebase deploy --only functions --project app-from-ai
+```
+
+Ba hàm được triển khai, tất cả ở vùng `asia-southeast1` (Singapore — gần Việt Nam nhất):
+
+| Hàm | Khi nào chạy | Việc |
+|---|---|---|
+| `onNotificationCreated` | Mỗi khi có bản ghi mới trong `notifications` | Đẩy thông báo tới mọi thiết bị của người nhận |
+| `runReminderSchedules` | Mỗi giờ | Bắn các lịch nhắc tới giờ đã cài |
+| `dailyDueDigest` | 07:00 hằng ngày | Một tin tổng hợp việc sắp đến hạn cho mỗi người |
+
+> **Thiết kế đáng lưu ý:** `onNotificationCreated` bám vào collection `notifications`
+> chứ không bám vào từng nghiệp vụ. Mọi tính năng hiện có đã ghi notification khi có
+> việc đáng báo, nên **một trigger phủ hết tất cả** — và mọi module thêm về sau tự động
+> có thông báo đẩy mà không phải viết thêm hàm nào.
+
+**Múi giờ:** mọi lịch chạy theo `Asia/Ho_Chi_Minh`. Bỏ qua thiết lập này thì lịch nhắc
+07:30 sẽ bắn lúc 14:30 giờ Việt Nam.
+
+**Giới hạn của iPhone:** web push trên iOS chỉ hoạt động khi đã **Thêm vào Màn hình
+chính** và máy chạy iOS 16.4 trở lên. Đây là quy định của Apple; ứng dụng phát hiện
+trường hợp này và hướng dẫn thay vì hiện một nút bấm vào không có tác dụng.
+
+**Logic dùng chung:** hàm chạy theo lịch dùng **đúng** các hàm tính toán mà trình duyệt
+dùng — chúng được `scripts/sync-shared-logic.mjs` chép sang `functions/src/shared/` ở mỗi
+lần build và **không bao giờ sửa tay**. Viết bản thứ hai cho máy chủ sẽ dẫn tới cảnh app
+báo hạn một đằng, máy chủ nhắc một nẻo, mà không ai biết bên nào đúng.
+
+### Kiểm thử quy tắc bảo mật
+
+`firestore.rules` là **ranh giới phân quyền duy nhất** của ứng dụng, nên nó được kiểm
+chứng bằng test chạy trên Firestore Emulator chứ không chỉ dựa vào đọc review:
+
+```bash
+npm run test:rules
+```
+
+**Yêu cầu: JDK 21 trở lên** (trình giả lập chạy trên JVM; `firebase-tools` từ chối bản
+Java cũ hơn). Cài trên Windows:
+
+```bash
+winget install --id Microsoft.OpenJDK.21
+```
+
+Bộ test dùng project id `demo-edutask-rules` — tiền tố `demo-` khiến trình giả lập chạy
+hoàn toàn ngoại tuyến, nên **không có đường nào chạm tới dự án thật**. Rules được nạp
+thẳng từ file thay vì qua `firebase.json`, vì dự án gắn rules vào database có tên riêng
+(`edutask`) trong khi thư viện test nói chuyện với database mặc định.
+
+Các test này **cố ý tách khỏi `npm test`**: gộp vào sẽ khiến `npm test` hỏng trên mọi
+máy chưa cài Java, tức bắt cả nhóm trả giá cho một phụ thuộc chỉ riêng chúng cần.
 
 ## Cấu trúc thư mục
 

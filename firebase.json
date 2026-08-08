@@ -46,7 +46,8 @@
   "firestore": [
     {
       "database": "edutask",
-      "rules": "firestore.rules"
+      "rules": "firestore.rules",
+      "indexes": "firestore.indexes.json"
     }
   ],
   "storage": [
@@ -54,5 +55,23 @@
       "bucket": "edutask",
       "rules": "storage.rules"
     }
-  ]
+  ],
+  "functions": [
+    {
+      "source": "functions",
+      "codebase": "default",
+      "runtime": "nodejs22",
+      "predeploy": ["npm --prefix functions run build"],
+      "ignore": ["node_modules", ".git", "*.log"]
+    }
+  ],
+  "emulators": {
+    "firestore": {
+      "port": 8080
+    },
+    "singleProjectMode": true,
+    "ui": {
+      "enabled": false
+    }
+  }
 }

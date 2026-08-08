@@ -28,6 +28,12 @@ import {
 import { ConfirmModal } from '@/Edu-task/components/common/ConfirmModal';
 import { CollapsibleCard } from '@/Edu-task/components/common/CollapsibleCard';
 import { WorkflowConfigCard, TelegramConfigCard } from '@/Edu-task/components/config/WorkflowConfigCard';
+import {
+  ClassCatalogCard,
+  PeriodConfigCard,
+  RoomCatalogCard,
+} from '@/Edu-task/components/config/CatalogConfigCard';
+import { EquipmentCatalogCard } from '@/Edu-task/components/config/EquipmentCatalogCard';
 
 /**
  * Leaders first, then Vietnamese alphabetical order.
@@ -329,6 +335,16 @@ export function RbacConfigTab() {
       </CollapsibleCard>
 
       <WorkflowConfigCard />
+
+      {/* Scheduling catalogs. These sit before the notification settings because
+          nothing else in the app works until rooms, classes and periods exist. */}
+      <PeriodConfigCard />
+
+      <RoomCatalogCard />
+
+      <ClassCatalogCard />
+
+      <EquipmentCatalogCard />
 
       <TelegramConfigCard />
 
@@ -941,18 +957,9 @@ function EditUserRolesModal({
 }) {
   const { departments } = useApp();
 
-  const ALL_ROLES: RoleType[] = [
-    'TEACHER',
-    'GROUP_LEADER',
-    'HEAD_OF_DEPT',
-    'VICE_PRINCIPAL',
-    'PRINCIPAL',
-    'SECRETARY',
-    'ACCOUNTANT',
-    'TRADE_UNION',
-    'INSPECTOR',
-    'ADMIN',
-  ];
+  // Deliberately no local copy of the role list here: this modal used to keep
+  // its own hardcoded array, so a role added to `RoleType` was assignable
+  // nowhere. It now renders from the shared `ALL_ROLES`.
 
   const [fullName, setFullName] = useState(user.fullName);
   const [departmentId, setDepartmentId] = useState(user.departmentId);

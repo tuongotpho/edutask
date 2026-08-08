@@ -1,3 +1,17 @@
+// ============================================================================
+//  EduTask — Storage Security Rules
+//
+//  PHIÊN BẢN: 2026-08-08 12:05
+//  Thay đổi:  VÁ LỖ HỔNG — trước đây MỌI tài khoản đã đăng nhập đều xóa được
+//             file đính kèm của người khác (kể cả giấy khám bệnh trong đơn nghỉ).
+//             Nay chỉ người đã tải file lên mới xóa được, dựa trên metadata
+//             `uploadedBy` mà fileStorageService đã ghi sẵn lúc tải.
+//  Trước đó:  2026-08-07 17:43 — thêm dấu phiên bản.
+//
+//  >>> KHI DÁN VÀO FIREBASE CONSOLE: so dòng PHIÊN BẢN ở trên với bản đang
+//  >>> chạy trên Console. Chỉ dán khi bản này MỚI HƠN.
+// ============================================================================
+
 rules_version = '2';
 
 // Uploads live in the dedicated 'edutask' bucket, not the project default one.
@@ -22,6 +36,28 @@ service firebase.storage {
         && request.resource.contentType.matches('image/.*|application/pdf');
     }
 
+    /**
+     * Only the person who uploaded a file may remove it.
+     *
+     * `allow delete: if isAuth()` let ANY signed-in account delete ANY
+     * attachment — including the medical certificate someone attached to their
+     * own leave request. Storage rules cannot read Firestore, so roles are out
+     * of reach; the uploader's id recorded in custom metadata at upload time
+     * (see fileStorageService.upload) is the only scoping available, and it is
+     * enough: in every flow the app has, the person removing an attachment is
+     * the person who added it.
+     *
+     * A file uploaded before this metadata existed has no `uploadedBy` and can
+     * no longer be deleted from the app. That is the safe direction to fail —
+     * an orphaned object costs pennies of storage, while the alternative leaves
+     * everyone able to destroy everyone else's evidence.
+     */
+    function isUploader() {
+      return isAuth() &&
+             resource.metadata != null &&
+             resource.metadata.uploadedBy == request.auth.uid;
+    }
+
     // Proof attached to a leave request (medical certificate, official letter).
     match /leaves/{leaveId}/{fileName} {
       allow read: if isAuth();
@@ -29,7 +65,7 @@ service firebase.storage {
       // Files are immutable once uploaded; replacing one means deleting and
       // re-uploading, which keeps the audit trail on the Firestore document honest.
       allow update: if false;
-      allow delete: if isAuth();
+      allow delete: if isUploader();
     }
 
     // Deliverables and briefing material attached to a task.
@@ -37,7 +73,7 @@ service firebase.storage {
       allow read: if isAuth();
       allow create: if isAllowedUpload();
       allow update: if false;
-      allow delete: if isAuth();
+      allow delete: if isUploader();
     }
 
     // Nothing else in this bucket is writable from the client.

@@ -26,6 +26,7 @@ export const ALL_ROLES: RoleType[] = [
   'ACCOUNTANT',
   'TRADE_UNION',
   'INSPECTOR',
+  'SUPERVISOR',
   'ADMIN',
 ];
 
@@ -49,6 +50,19 @@ export type PermissionKey =
   | 'task:create'
   | 'task:view_all'
   | 'stats:view'
+  | 'makeup:create'
+  | 'makeup:approve'
+  | 'room:book'
+  | 'room:manage'
+  | 'attendance:record'
+  | 'attendance:view_all'
+  | 'meeting:manage'
+  | 'reminder:manage'
+  | 'student:manage'
+  | 'student:attendance'
+  | 'student:conduct'
+  | 'student:view_all'
+  | 'catalog:manage'
   | 'config:rbac';
 
 export const PERMISSION_LABELS: Record<PermissionKey, string> = {
@@ -59,6 +73,19 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   'task:create': 'Phát hành & Giao việc',
   'task:view_all': 'Xem tiến độ công việc toàn trường',
   'stats:view': 'Xem báo cáo & thống kê',
+  'makeup:create': 'Đăng ký dạy bù do mất tiết',
+  'makeup:approve': 'Duyệt đăng ký dạy bù',
+  'room:book': 'Đăng ký phòng đa năng / phòng thí nghiệm',
+  'room:manage': 'Duyệt & điều phối lịch phòng toàn trường',
+  'attendance:record': 'Ghi nhận giáo viên chậm giờ / trống giờ',
+  'attendance:view_all': 'Xem sổ nề nếp toàn trường',
+  'meeting:manage': 'Quản lý cuộc họp & điểm danh',
+  'reminder:manage': 'Cài đặt lịch nhắc tiến độ kế hoạch',
+  'student:manage': 'Quản lý hồ sơ học sinh (gồm liên hệ phụ huynh)',
+  'student:attendance': 'Điểm danh học sinh',
+  'student:conduct': 'Ghi nhận vi phạm & khen thưởng học sinh',
+  'student:view_all': 'Xem dữ liệu học sinh toàn trường',
+  'catalog:manage': 'Quản lý danh mục phòng, lớp & tiết học',
   'config:rbac': 'Quản trị phân quyền hệ thống',
 };
 
@@ -70,6 +97,41 @@ export const ROLE_CAPABILITIES: Record<PermissionKey, RoleType[]> = {
   'task:create': ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_OF_DEPT', 'GROUP_LEADER'],
   'task:view_all': ['VICE_PRINCIPAL', 'PRINCIPAL', 'SECRETARY', 'INSPECTOR', 'ADMIN'],
   'stats:view': [...SCHOOL_LEADERSHIP_ROLES, ...DEPT_LEADERSHIP_ROLES],
+
+  // Anyone who stands in front of a class can lose a period and owe a make-up
+  // lesson, so registering one is open; signing it off follows the same
+  // department-then-executive shape as leave.
+  'makeup:create': ALL_ROLES,
+  'makeup:approve': ['GROUP_LEADER', 'HEAD_OF_DEPT', 'VICE_PRINCIPAL', 'PRINCIPAL', 'ADMIN'],
+
+  // Booking a room is routine; only the office arbitrates when two people want
+  // the same room, or cancels someone else's booking.
+  'room:book': ALL_ROLES,
+  'room:manage': ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'SECRETARY'],
+
+  // Recording lateness is the supervisor's job. It is deliberately NOT open to
+  // department leaders: a record that anyone can file about anyone turns into a
+  // grievance machine.
+  'attendance:record': ['SUPERVISOR', 'ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL'],
+  'attendance:view_all': [...SCHOOL_LEADERSHIP_ROLES, 'SUPERVISOR'],
+
+  'meeting:manage': ['SECRETARY', 'ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL'],
+
+  // School-wide plan milestones come from the executive; a department leader
+  // may only schedule reminders for their own department.
+  'reminder:manage': ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', ...DEPT_LEADERSHIP_ROLES],
+
+  // Học sinh. The roster carries personal data about minors, including parent
+  // phone numbers, so maintaining it is restricted to the office — a subject
+  // teacher has no business editing a child's home contact. Recording
+  // attendance and conduct IS open to teachers, because that is the sổ đầu bài
+  // every teacher fills in during their own lesson.
+  'student:manage': ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'SECRETARY'],
+  'student:attendance': ['TEACHER', 'SUPERVISOR', 'HEAD_OF_DEPT', 'GROUP_LEADER', 'ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL'],
+  'student:conduct': ['TEACHER', 'SUPERVISOR', 'HEAD_OF_DEPT', 'GROUP_LEADER', 'ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL'],
+  'student:view_all': [...SCHOOL_LEADERSHIP_ROLES, 'SUPERVISOR'],
+
+  'catalog:manage': ['ADMIN'],
   'config:rbac': ['ADMIN'],
 };
 
@@ -128,6 +190,66 @@ export function canViewStats(user: User | null, activeRole?: RoleType | null): b
 
 export function canManageRbac(user: User | null, activeRole?: RoleType | null): boolean {
   return isAdmin(user, activeRole);
+}
+
+export function canManageCatalog(user: User | null, activeRole?: RoleType | null): boolean {
+  return can(user, activeRole, 'catalog:manage');
+}
+
+export function canManageStudents(user: User | null, activeRole?: RoleType | null): boolean {
+  return can(user, activeRole, 'student:manage');
+}
+
+export function canRecordStudentAttendance(user: User | null, activeRole?: RoleType | null): boolean {
+  return can(user, activeRole, 'student:attendance');
+}
+
+export function canRecordConduct(user: User | null, activeRole?: RoleType | null): boolean {
+  return can(user, activeRole, 'student:conduct');
+}
+
+export function canViewAllStudents(user: User | null, activeRole?: RoleType | null): boolean {
+  return can(user, activeRole, 'student:view_all');
+}
+
+export function canApproveMakeup(user: User | null, activeRole?: RoleType | null): boolean {
+  return can(user, activeRole, 'makeup:approve');
+}
+
+export function canManageRooms(user: User | null, activeRole?: RoleType | null): boolean {
+  return can(user, activeRole, 'room:manage');
+}
+
+export function canRecordAttendance(user: User | null, activeRole?: RoleType | null): boolean {
+  return can(user, activeRole, 'attendance:record');
+}
+
+export function canViewAllAttendance(user: User | null, activeRole?: RoleType | null): boolean {
+  return can(user, activeRole, 'attendance:view_all');
+}
+
+export function canManageMeetings(user: User | null, activeRole?: RoleType | null): boolean {
+  return can(user, activeRole, 'meeting:manage');
+}
+
+export function canManageReminders(user: User | null, activeRole?: RoleType | null): boolean {
+  return can(user, activeRole, 'reminder:manage');
+}
+
+/**
+ * How far a reminder schedule this user creates may reach.
+ *
+ * A tổ trưởng owns their department's plan and nothing beyond it, so letting
+ * them address the whole school would turn one person's checklist into everyone
+ * else's notifications.
+ */
+export function reminderScopeFor(
+  user: User | null,
+  activeRole?: RoleType | null
+): 'SCHOOL' | 'DEPARTMENT' | null {
+  if (!canManageReminders(user, activeRole)) return null;
+  if (hasAnyRole(user, activeRole, ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL'])) return 'SCHOOL';
+  return 'DEPARTMENT';
 }
 
 /**

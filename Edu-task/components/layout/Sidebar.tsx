@@ -6,10 +6,15 @@ import {
   FileText, 
   CheckSquare, 
   CalendarDays, 
-  BarChart3, 
+  BarChart3,
   ShieldCheck,
   History,
-  PlusCircle
+  PlusCircle,
+  Repeat,
+  ClipboardList,
+  CalendarCheck,
+  Target,
+  GraduationCap
 } from 'lucide-react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import {
@@ -18,8 +23,11 @@ import {
   isSchoolLeadership,
 } from '@/Edu-task/lib/permissions';
 import { canAccessTab } from '@/Edu-task/lib/tabRouting';
+import { APP_VERSION, describeVersion } from '@/Edu-task/lib/version';
+import { classesMissingRoll } from '@/Edu-task/lib/studentStats';
+import { toDateString } from '@/Edu-task/lib/schedule';
 
-export type TabType = 'dashboard' | 'leave' | 'task' | 'schedule' | 'stats' | 'audit' | 'config';
+export type TabType = 'dashboard' | 'leave' | 'task' | 'schedule' | 'lessons' | 'attendance' | 'meetings' | 'plans' | 'students' | 'stats' | 'audit' | 'config';
 
 interface SidebarProps {
   activeTab: TabType;
@@ -34,7 +42,10 @@ export function Sidebar({
   onRequestNewLeave, 
   onRequestNewTask 
 }: SidebarProps) {
-  const { currentUser, activeRole, leaves, tasks, users } = useApp();
+  const {
+    currentUser, activeRole, leaves, tasks, users, makeups, bookings, attendance, meetings,
+    classes, studentAttendance,
+  } = useApp();
 
   const isLeadershipOrAdmin = isSchoolLeadership(currentUser, activeRole);
   const visibleLeaves = leaves.filter(l => canViewLeave(currentUser, activeRole, l));
@@ -43,6 +54,22 @@ export function Sidebar({
   const pendingLeavesCount = visibleLeaves.filter(l => l.overallStatus === 'IN_REVIEW').length;
   const activeTasksCount = tasks.filter(t => t.status === 'ASSIGNED' || t.status === 'IN_PROGRESS' || t.status === 'PENDING_APPROVAL').length;
   const pendingUsersCount = users.filter(u => u.status === 'PENDING_APPROVAL').length;
+  // Badge counts only what this user could act on, so a teacher is not nagged by
+  // the whole school's pending paperwork.
+  const pendingScheduleCount =
+    makeups.filter(m => m.status === 'IN_REVIEW').length +
+    bookings.filter(b => b.status === 'IN_REVIEW').length;
+  // The attendance subscription is already scoped by role, so whatever arrived
+  // is what this user is entitled to act on — no second filter needed here.
+  const openAttendanceCount = attendance.filter(
+    r => r.status === 'RECORDED' || r.status === 'EXPLAINED'
+  ).length;
+  const upcomingMeetingsCount = meetings.filter(m => m.status === 'SCHEDULED').length;
+  const classesMissingRollToday = classesMissingRoll(
+    studentAttendance,
+    toDateString(new Date()),
+    classes.filter(c => c.isActive).map(c => c.id)
+  ).length;
 
   const canAssignTasks = canAssignTask(currentUser, activeRole);
   // Shared with the URL handler in page.tsx: a tab hidden here must also be
@@ -78,6 +105,43 @@ export function Sidebar({
       icon: CalendarDays,
       badge: null,
     },
+    {
+      id: 'lessons' as TabType,
+      label: 'Dạy Bù, Phòng & Thiết Bị',
+      icon: Repeat,
+      badge: pendingScheduleCount > 0 ? pendingScheduleCount : null,
+      badgeColor: 'bg-emerald-100 text-emerald-800',
+    },
+    {
+      id: 'attendance' as TabType,
+      label: 'Nề Nếp Chuyên Môn',
+      icon: ClipboardList,
+      // For a teacher this counts records about them awaiting a reply; for a
+      // supervisor or BGH it counts records awaiting a conclusion.
+      badge: openAttendanceCount > 0 ? openAttendanceCount : null,
+      badgeColor: 'bg-amber-100 text-amber-800',
+    },
+    {
+      id: 'meetings' as TabType,
+      label: 'Cuộc Họp & Điểm Danh',
+      icon: CalendarCheck,
+      badge: upcomingMeetingsCount > 0 ? upcomingMeetingsCount : null,
+      badgeColor: 'bg-violet-100 text-violet-800',
+    },
+    {
+      id: 'plans' as TabType,
+      label: 'Kế Hoạch & Nhắc Việc',
+      icon: Target,
+      badge: null,
+    },
+    {
+      id: 'students' as TabType,
+      label: 'Học Sinh',
+      icon: GraduationCap,
+      // Counts classes with no roll taken today — the register's to-do list.
+      badge: classesMissingRollToday > 0 ? classesMissingRollToday : null,
+      badgeColor: 'bg-sky-100 text-sky-800',
+    },
     ...(showStats ? [{
       id: 'stats' as TabType,
       label: 'Báo Cáo & Thống Kê',
@@ -92,7 +156,7 @@ export function Sidebar({
     }] : []),
     ...(isAdmin ? [{
       id: 'config' as TabType,
-      label: 'Quản Trị RBAC & Duyệt TK',
+      label: 'Quản Trị & Duyệt TK',
       icon: ShieldCheck,
       badge: pendingUsersCount > 0 ? `${pendingUsersCount} duyệt` : null,
       badgeColor: 'bg-amber-500 text-white font-bold',
@@ -157,10 +221,11 @@ export function Sidebar({
         </nav>
       </div>
 
-      {/* Footer Version Info */}
+      {/* Footer Version Info. The version encodes the build date (2687 =
+          07/08/2026), so a screenshot alone identifies the build. */}
       <div className="pt-4 border-t border-slate-100">
-        <div className="text-[10px] text-center text-slate-400">
-          EduTask v1.0.4 • Trường học Chuyển đổi số
+        <div className="text-[10px] text-center text-slate-400" title={describeVersion()}>
+          EduTask ver {APP_VERSION} • Trường học Chuyển đổi số
         </div>
       </div>
     </aside>

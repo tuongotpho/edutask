@@ -10,5 +10,9 @@ export default defineConfig({
   test: {
     environment: 'node',
     include: ['tests/**/*.test.ts'],
+    // Security-rules tests need the Firestore emulator (and a JVM), so they run
+    // under `npm run test:rules` with their own config. Excluding them keeps
+    // `npm test` runnable on a machine without Java.
+    exclude: ['tests/rules/**'],
   },
 });

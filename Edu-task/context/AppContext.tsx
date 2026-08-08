@@ -13,6 +13,9 @@ import {
   WorkflowConfig, TelegramConfig,
   DEFAULT_WORKFLOW_CONFIG, DEFAULT_TELEGRAM_CONFIG,
 } from '@/Edu-task/types/settings';
+import {
+  ClassGroup, PeriodConfig, Room, DEFAULT_PERIOD_CONFIG,
+} from '@/Edu-task/types/schedule';
 import { firebaseService } from '@/Edu-task/services/firebaseService';
 import { firebaseAuthService } from '@/Edu-task/services/firebaseAuthService';
 import { useAuthLogic } from './hooks/useAuthLogic';
@@ -20,6 +23,30 @@ import { useUserLogic } from './hooks/useUserLogic';
 import { useDepartmentLogic } from './hooks/useDepartmentLogic';
 import { useTaskLogic } from './hooks/useTaskLogic';
 import { useLeaveLogic } from './hooks/useLeaveLogic';
+import { useCatalogLogic, RoomInput, ClassInput } from './hooks/useCatalogLogic';
+import { useMakeupLogic, MakeupInput } from './hooks/useMakeupLogic';
+import { useBookingLogic, BookingInput } from './hooks/useBookingLogic';
+import { useAttendanceLogic, AttendanceInput } from './hooks/useAttendanceLogic';
+import { useMeetingLogic, MeetingInput } from './hooks/useMeetingLogic';
+import {
+  usePlanLogic, PlanInput, MilestoneInput, ReminderInput,
+} from './hooks/usePlanLogic';
+import { MilestoneStatus, Plan } from '@/Edu-task/types/plan';
+import { ReminderSchedule } from '@/Edu-task/types/reminder';
+import { useEquipmentLogic, EquipmentInput, LoanInput } from './hooks/useEquipmentLogic';
+import { Equipment, EquipmentCondition, EquipmentLoan } from '@/Edu-task/types/equipment';
+import { useStudentLogic, StudentInput, ConductInput } from './hooks/useStudentLogic';
+import {
+  ClassAttendance, ConductRecord, Student, StudentAttendanceEntry,
+} from '@/Edu-task/types/student';
+import { SchoolSession } from '@/Edu-task/types/schedule';
+import { AttendanceMark, Meeting } from '@/Edu-task/types/meeting';
+import { canManageMeetings } from '@/Edu-task/lib/permissions';
+import { MakeupClass } from '@/Edu-task/types/makeup';
+import { RoomBooking } from '@/Edu-task/types/booking';
+import { AttendanceRecord } from '@/Edu-task/types/attendance';
+import { PeriodSlot } from '@/Edu-task/types/schedule';
+import { canViewAllAttendance, isDeptLeader } from '@/Edu-task/lib/permissions';
 
 interface AppContextType {
   currentUser: User | null;
@@ -48,6 +75,114 @@ interface AppContextType {
   addDepartment: (data: { name: string; code: string; description?: string }) => Promise<boolean>;
   updateDepartment: (id: string, data: { name: string; code: string; description?: string }) => Promise<boolean>;
   deleteDepartment: (id: string) => Promise<boolean>;
+
+  // Scheduling catalogs: rooms, classes and the period timetable
+  rooms: Room[];
+  classes: ClassGroup[];
+  periodConfig: PeriodConfig;
+  addRoom: (data: RoomInput) => Promise<boolean>;
+  updateRoom: (id: string, data: RoomInput) => Promise<boolean>;
+  deleteRoom: (id: string, referencingBookings?: number) => Promise<boolean>;
+  addClass: (data: ClassInput) => Promise<boolean>;
+  updateClass: (id: string, data: ClassInput) => Promise<boolean>;
+  deleteClass: (id: string, referencingRecords?: number) => Promise<boolean>;
+  updatePeriodConfig: (config: PeriodConfig) => Promise<boolean>;
+
+  // Đăng ký dạy bù
+  makeups: MakeupClass[];
+  getMakeupSlotProblems: (
+    slot: PeriodSlot,
+    params: { teacherId: string; classId?: string; roomId?: string; excludeId?: string }
+  ) => string[];
+  createMakeup: (data: MakeupInput) => Promise<MakeupClass | null>;
+  updateMakeup: (id: string, data: MakeupInput) => Promise<boolean>;
+  decideMakeup: (id: string, decision: 'APPROVED' | 'REJECTED', comment?: string) => Promise<boolean>;
+  cancelMakeup: (id: string, reason?: string) => Promise<boolean>;
+  completeMakeup: (id: string) => Promise<boolean>;
+  deleteMakeup: (id: string) => Promise<boolean>;
+
+  // Đăng ký phòng
+  bookings: RoomBooking[];
+  getBookingSlotProblems: (
+    slot: PeriodSlot,
+    params: { roomId: string; classId?: string; excludeId?: string }
+  ) => string[];
+  getRoomBusySlots: (roomId: string, date: string) => PeriodSlot[];
+  createBooking: (data: BookingInput) => Promise<RoomBooking | null>;
+  decideBooking: (id: string, decision: 'CONFIRMED' | 'REJECTED', comment?: string) => Promise<boolean>;
+  cancelBooking: (id: string, reason?: string) => Promise<boolean>;
+  deleteBooking: (id: string) => Promise<boolean>;
+
+  // Sổ nề nếp (giám thị)
+  attendance: AttendanceRecord[];
+  recordIssue: (data: AttendanceInput) => Promise<AttendanceRecord | null>;
+  updateAttendanceRecord: (id: string, data: AttendanceInput) => Promise<boolean>;
+  submitExplanation: (id: string, text: string) => Promise<boolean>;
+  reviewAttendanceRecord: (
+    id: string,
+    decision: 'EXCUSED' | 'CONFIRMED',
+    reviewNote?: string
+  ) => Promise<boolean>;
+  deleteAttendanceRecord: (id: string) => Promise<boolean>;
+
+  // Cuộc họp & điểm danh (thư ký)
+  meetings: Meeting[];
+  createMeeting: (data: MeetingInput) => Promise<Meeting | null>;
+  updateMeeting: (id: string, data: MeetingInput) => Promise<boolean>;
+  markAttendance: (
+    meetingId: string,
+    userId: string,
+    mark: AttendanceMark,
+    extra?: { minutesLate?: number; note?: string }
+  ) => Promise<boolean>;
+  markRemainingPresent: (meetingId: string) => Promise<boolean>;
+  setMeetingStatus: (id: string, status: 'SCHEDULED' | 'COMPLETED' | 'CANCELLED') => Promise<boolean>;
+  saveMinutes: (id: string, content: string) => Promise<boolean>;
+  deleteMeeting: (id: string) => Promise<boolean>;
+
+  // Kế hoạch & lịch nhắc
+  plans: Plan[];
+  reminders: ReminderSchedule[];
+  createPlan: (data: PlanInput) => Promise<Plan | null>;
+  updatePlan: (id: string, data: Partial<PlanInput>) => Promise<boolean>;
+  archivePlan: (id: string, isArchived: boolean) => Promise<boolean>;
+  deletePlan: (id: string) => Promise<boolean>;
+  addMilestone: (planId: string, data: MilestoneInput, users: User[]) => Promise<boolean>;
+  setMilestoneStatus: (planId: string, milestoneId: string, status: MilestoneStatus) => Promise<boolean>;
+  removeMilestone: (planId: string, milestoneId: string) => Promise<boolean>;
+  createReminder: (data: ReminderInput) => Promise<ReminderSchedule | null>;
+  toggleReminder: (id: string, isActive: boolean) => Promise<boolean>;
+  deleteReminder: (id: string) => Promise<boolean>;
+
+  // Thiết bị & phiếu mượn
+  equipment: Equipment[];
+  loans: EquipmentLoan[];
+  addEquipment: (data: EquipmentInput) => Promise<boolean>;
+  updateEquipment: (id: string, data: EquipmentInput) => Promise<boolean>;
+  deleteEquipment: (id: string) => Promise<boolean>;
+  restoreEquipment: (id: string, quantity: number) => Promise<boolean>;
+  requestLoan: (data: LoanInput) => Promise<EquipmentLoan | null>;
+  decideLoan: (id: string, decision: 'BORROWED' | 'REJECTED', comment?: string) => Promise<boolean>;
+  returnLoan: (id: string, condition: EquipmentCondition, note?: string) => Promise<boolean>;
+  cancelLoan: (id: string, reason?: string) => Promise<boolean>;
+
+  // Học sinh
+  students: Student[];
+  studentAttendance: ClassAttendance[];
+  conduct: ConductRecord[];
+  createStudent: (data: StudentInput) => Promise<Student | null>;
+  updateStudent: (id: string, data: StudentInput) => Promise<boolean>;
+  deleteStudent: (id: string) => Promise<boolean>;
+  findRoll: (classId: string, date: string, session: SchoolSession) => ClassAttendance | null;
+  buildRoll: (classId: string, date: string, session: SchoolSession) => StudentAttendanceEntry[];
+  saveRoll: (
+    classId: string,
+    date: string,
+    session: SchoolSession,
+    entries: StudentAttendanceEntry[]
+  ) => Promise<boolean>;
+  recordConduct: (data: ConductInput) => Promise<ConductRecord | null>;
+  deleteConduct: (id: string) => Promise<boolean>;
 
   // Auth & Account Management
   loginWithFirebase: (email: string, pass: string) => Promise<void>;
@@ -184,6 +319,20 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [toasts, setToasts] = useState<ToastMessage[]>([]);
   const [workflowConfig, setWorkflowConfig] = useState<WorkflowConfig>(DEFAULT_WORKFLOW_CONFIG);
   const [telegramConfig, setTelegramConfig] = useState<TelegramConfig>(DEFAULT_TELEGRAM_CONFIG);
+  const [rooms, setRooms] = useState<Room[]>([]);
+  const [classes, setClasses] = useState<ClassGroup[]>([]);
+  const [periodConfig, setPeriodConfig] = useState<PeriodConfig>(DEFAULT_PERIOD_CONFIG);
+  const [makeups, setMakeups] = useState<MakeupClass[]>([]);
+  const [bookings, setBookings] = useState<RoomBooking[]>([]);
+  const [attendance, setAttendance] = useState<AttendanceRecord[]>([]);
+  const [meetings, setMeetings] = useState<Meeting[]>([]);
+  const [plans, setPlans] = useState<Plan[]>([]);
+  const [reminders, setReminders] = useState<ReminderSchedule[]>([]);
+  const [equipment, setEquipment] = useState<Equipment[]>([]);
+  const [loans, setLoans] = useState<EquipmentLoan[]>([]);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [studentAttendance, setStudentAttendance] = useState<ClassAttendance[]>([]);
+  const [conduct, setConduct] = useState<ConductRecord[]>([]);
 
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -284,6 +433,11 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const canSeedConfig = !!currentUser?.roles?.some(r =>
     r === 'ADMIN' || r === 'PRINCIPAL' || r === 'VICE_PRINCIPAL'
   );
+  // Reduced to booleans for the same reason: the subscription effect must not
+  // depend on the `currentUser` object, whose identity changes every snapshot.
+  const seesAllAttendance = canViewAllAttendance(currentUser, activeRole);
+  const leadsDepartment = isDeptLeader(currentUser, activeRole);
+  const seesAllMeetings = canManageMeetings(currentUser, activeRole);
 
   // Subscribe to Firebase Firestore Realtime Database
   useEffect(() => {
@@ -347,9 +501,78 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       setWorkflowConfig(config ?? DEFAULT_WORKFLOW_CONFIG);
     });
 
-    const unsubTelegram = firebaseService.subscribeTelegramConfig(config => {
-      setTelegramConfig(config ?? DEFAULT_TELEGRAM_CONFIG);
+    // `settings/telegram` holds the bot token and is now admin-read-only, so
+    // only admins subscribe. Nobody else needs it: sending moved to a Cloud
+    // Function, and subscribing anyway would hand every teacher a
+    // permission-denied error in the console on every page load.
+    const unsubTelegram = canSeedConfig
+      ? firebaseService.subscribeTelegramConfig(config => {
+          setTelegramConfig(config ?? DEFAULT_TELEGRAM_CONFIG);
+        })
+      : () => {};
+
+    // Scheduling catalogs. Unlike departments these are not seeded: an empty
+    // room list is a legitimate state for a school that has not set one up, and
+    // guessing room names would be worse than showing none.
+    const unsubRooms = firebaseService.subscribeRooms(setRooms);
+    const unsubClasses = firebaseService.subscribeClasses(setClasses);
+    const unsubPeriods = firebaseService.subscribePeriodConfig(config => {
+      setPeriodConfig(config ?? DEFAULT_PERIOD_CONFIG);
     });
+
+    // Make-up classes and room bookings are scoped to a rolling window instead
+    // of being fetched whole: these collections grow every term and never
+    // shrink, while anything older than a couple of months is history nobody
+    // acts on. 60 days back is enough to review last month's register.
+    const windowStart = new Date();
+    windowStart.setDate(windowStart.getDate() - 60);
+    const scheduleWindowStart = windowStart.toISOString().slice(0, 10);
+
+    const unsubMakeups = firebaseService.subscribeMakeups(setMakeups, scheduleWindowStart);
+    const unsubBookings = firebaseService.subscribeBookings(setBookings, scheduleWindowStart);
+
+    // The nề nếp log is narrowed by audience in the QUERY, not just in the UI:
+    // a teacher's browser should never receive records about their colleagues
+    // in the first place. Mirrors the read rule in firestore.rules.
+    const unsubAttendance = firebaseService.subscribeAttendance(
+      setAttendance,
+      scheduleWindowStart,
+      seesAllAttendance
+        ? { seeAll: true }
+        : leadsDepartment
+          ? { seeAll: false, deptId: currentUserDeptId }
+          : { seeAll: false, userId: currentUserId }
+    );
+
+    const unsubMeetings = firebaseService.subscribeMeetings(
+      setMeetings,
+      scheduleWindowStart,
+      seesAllMeetings ? { seeAll: true } : { seeAll: false, userId: currentUserId }
+    );
+
+    // Plans and reminder schedules are readable by everyone by design: a plan
+    // exists so staff know what the school is working towards, and a schedule
+    // people cannot inspect makes its own notifications inexplicable.
+    const unsubPlans = firebaseService.subscribePlans(setPlans);
+    const unsubReminders = firebaseService.subscribeReminders(setReminders);
+
+    // Equipment availability is computed from OPEN loans, so the window has to
+    // be generous: dropping an old loan that was never returned would silently
+    // free up kit that is still missing. A year back, not 60 days.
+    const loanWindow = new Date();
+    loanWindow.setFullYear(loanWindow.getFullYear() - 1);
+    const unsubEquipment = firebaseService.subscribeEquipment(setEquipment);
+    const unsubLoans = firebaseService.subscribeLoans(setLoans, loanWindow.toISOString().slice(0, 10));
+
+    // The roster is small and needed whole to build any register. Rolls and
+    // conduct records are the highest-volume data in the app — one roll per
+    // class per session per school day — so they use the same 60-day window as
+    // the other scheduling collections.
+    const unsubStudents = firebaseService.subscribeStudents(setStudents);
+    const unsubStudentAttendance = firebaseService.subscribeClassAttendance(
+      setStudentAttendance, scheduleWindowStart
+    );
+    const unsubConduct = firebaseService.subscribeConduct(setConduct, scheduleWindowStart);
 
     return () => {
       unsubUsers();
@@ -360,8 +583,25 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       unsubSchoolName();
       unsubWorkflow();
       unsubTelegram();
+      unsubRooms();
+      unsubClasses();
+      unsubPeriods();
+      unsubMakeups();
+      unsubBookings();
+      unsubAttendance();
+      unsubMeetings();
+      unsubPlans();
+      unsubReminders();
+      unsubEquipment();
+      unsubLoans();
+      unsubStudents();
+      unsubStudentAttendance();
+      unsubConduct();
     };
-  }, [isAuthenticated, currentUserId, currentUserDeptId, canSeedConfig, activeRole]);
+  }, [
+    isAuthenticated, currentUserId, currentUserDeptId, canSeedConfig, activeRole,
+    seesAllAttendance, leadsDepartment, seesAllMeetings,
+  ]);
 
   const { loginWithGoogle, loginWithFirebase, registerWithFirebase, logout } = useAuthLogic({
     setCurrentUser,
@@ -390,6 +630,89 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     notify: showToast,
   });
 
+  const {
+    addRoom, updateRoom, deleteRoom,
+    addClass, updateClass, deleteClass,
+    updatePeriodConfig,
+  } = useCatalogLogic({
+    rooms, setRooms,
+    classes, setClasses,
+    periodConfig, setPeriodConfig,
+    notify: showToast,
+  });
+
+  const {
+    getMakeupSlotProblems, createMakeup, updateMakeup,
+    decideMakeup, cancelMakeup, completeMakeup, deleteMakeup,
+  } = useMakeupLogic({
+    currentUser, activeRole, users,
+    makeups, setMakeups,
+    bookings, leaves, rooms, classes,
+    notify: showToast,
+  });
+
+  const {
+    getBookingSlotProblems, getRoomBusySlots, createBooking,
+    decideBooking, cancelBooking, deleteBooking,
+  } = useBookingLogic({
+    currentUser, activeRole, users,
+    bookings, setBookings,
+    makeups, rooms, classes,
+    notify: showToast,
+  });
+
+  const {
+    recordIssue, updateRecord: updateAttendanceRecord, submitExplanation,
+    reviewRecord: reviewAttendanceRecord, deleteRecord: deleteAttendanceRecord,
+  } = useAttendanceLogic({
+    currentUser, activeRole, users, classes,
+    attendance, setAttendance,
+    notify: showToast,
+  });
+
+  const {
+    createMeeting, updateMeeting, markAttendance, markRemainingPresent,
+    setMeetingStatus, saveMinutes, deleteMeeting,
+  } = useMeetingLogic({
+    currentUser, activeRole, users,
+    meetings, setMeetings,
+    notify: showToast,
+  });
+
+  const {
+    createPlan, updatePlan, archivePlan, deletePlan,
+    addMilestone, setMilestoneStatus, removeMilestone,
+    createReminder, toggleReminder, deleteReminder,
+  } = usePlanLogic({
+    currentUser, activeRole,
+    plans, setPlans,
+    reminders, setReminders,
+    notify: showToast,
+  });
+
+  const {
+    addEquipment, updateEquipment, deleteEquipment, restoreEquipment,
+    requestLoan, decideLoan, returnLoan, cancelLoan,
+  } = useEquipmentLogic({
+    currentUser, activeRole,
+    equipment, setEquipment,
+    loans, setLoans,
+    users,
+    notify: showToast,
+  });
+
+  const {
+    createStudent, updateStudent, deleteStudent,
+    findRoll, buildRoll, saveRoll,
+    recordConduct, deleteConduct,
+  } = useStudentLogic({
+    currentUser, activeRole, classes,
+    students, setStudents,
+    studentAttendance, setStudentAttendance,
+    conduct, setConduct,
+    notify: showToast,
+  });
+
   const { createTask, updateTaskProgress, requestExtension, reviewExtension, approveTaskCompletion, deleteTask } = useTaskLogic({
     currentUser,
     activeRole,
@@ -397,7 +720,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     tasks,
     setTasks,
     notify: showToast,
-    telegramConfig,
   });
 
   const { getTeacherLeaveConflict, createLeaveRequest, cancelLeaveRequest, deleteLeaveRequest, updateLeaveRequest, changeSubstituteTeacher, processLeaveStep } = useLeaveLogic({
@@ -409,7 +731,6 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     setNotifications,
     notify: showToast,
     workflowConfig,
-    telegramConfig,
   });
 
   // Admin-only settings writes. Same optimistic-then-rollback shape as the rest
@@ -494,6 +815,78 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         addDepartment,
         updateDepartment,
         deleteDepartment,
+        rooms,
+        classes,
+        periodConfig,
+        addRoom,
+        updateRoom,
+        deleteRoom,
+        addClass,
+        updateClass,
+        deleteClass,
+        updatePeriodConfig,
+        makeups,
+        getMakeupSlotProblems,
+        createMakeup,
+        updateMakeup,
+        decideMakeup,
+        cancelMakeup,
+        completeMakeup,
+        deleteMakeup,
+        bookings,
+        getBookingSlotProblems,
+        getRoomBusySlots,
+        createBooking,
+        decideBooking,
+        cancelBooking,
+        deleteBooking,
+        attendance,
+        recordIssue,
+        updateAttendanceRecord,
+        submitExplanation,
+        reviewAttendanceRecord,
+        deleteAttendanceRecord,
+        meetings,
+        createMeeting,
+        updateMeeting,
+        markAttendance,
+        markRemainingPresent,
+        setMeetingStatus,
+        saveMinutes,
+        deleteMeeting,
+        plans,
+        reminders,
+        createPlan,
+        updatePlan,
+        archivePlan,
+        deletePlan,
+        addMilestone,
+        setMilestoneStatus,
+        removeMilestone,
+        createReminder,
+        toggleReminder,
+        deleteReminder,
+        equipment,
+        loans,
+        addEquipment,
+        updateEquipment,
+        deleteEquipment,
+        restoreEquipment,
+        requestLoan,
+        decideLoan,
+        returnLoan,
+        cancelLoan,
+        students,
+        studentAttendance,
+        conduct,
+        createStudent,
+        updateStudent,
+        deleteStudent,
+        findRoll,
+        buildRoll,
+        saveRoll,
+        recordConduct,
+        deleteConduct,
         loginWithFirebase,
         loginWithGoogle,
         registerWithFirebase,

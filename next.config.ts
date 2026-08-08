@@ -1,7 +1,22 @@
 import type {NextConfig} from 'next';
 
+/**
+ * Version = build date, encoded as YY M D with no leading zeros: a build made
+ * on 2026-08-07 is `2687`. Computed here rather than stored as a constant so it
+ * can never be stale, and exposed as an env var because a static export has no
+ * server to ask at runtime. Kept in sync with `Edu-task/lib/version.ts`, which
+ * is what the app reads.
+ */
+function buildVersion(): string {
+  const now = new Date();
+  return `${now.getFullYear() % 100}${now.getMonth() + 1}${now.getDate()}`;
+}
+
 const nextConfig: NextConfig = {
   reactStrictMode: true,
+  env: {
+    NEXT_PUBLIC_APP_VERSION: buildVersion(),
+  },
   eslint: {
     // Linting gates the build again. It was disabled, which is how dozens of
     // unused imports accumulated unnoticed.

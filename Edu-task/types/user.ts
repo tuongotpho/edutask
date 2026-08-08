@@ -8,6 +8,7 @@ export type RoleType =
   | 'ACCOUNTANT'        // Kế toán
   | 'TRADE_UNION'       // Công đoàn
   | 'INSPECTOR'         // Thanh tra
+  | 'SUPERVISOR'        // Giám thị
   | 'ADMIN';            // Quản trị hệ thống
 
 export interface UserRole {
@@ -48,6 +49,7 @@ export const ROLE_LABELS: Record<RoleType, string> = {
   ACCOUNTANT: 'Kế toán',
   TRADE_UNION: 'Công đoàn',
   INSPECTOR: 'Thanh tra trường học',
+  SUPERVISOR: 'Giám thị',
   ADMIN: 'Quản trị hệ thống',
 };
 

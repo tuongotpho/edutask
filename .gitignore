@@ -29,7 +29,16 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 
+# codegraph — chỉ mục code cục bộ, dựng lại được trong ~25 giây bằng `codegraph init`
+/.codegraph/
+
 # firebase
+# Generated from .env.local by scripts/build-messaging-sw.mjs on every dev/build.
+/public/firebase-messaging-sw.js
+# Copied from the app by scripts/sync-shared-logic.mjs on every functions build.
+/functions/src/shared/
+/functions/lib/
+/functions/node_modules/
 .firebase/
 firebase-debug.log*
 firestore-debug.log*

@@ -3,12 +3,20 @@
   "version": "0.1.0",
   "private": true,
   "scripts": {
+    "predev": "node scripts/build-messaging-sw.mjs",
     "dev": "next dev",
+    "prebuild": "node scripts/build-messaging-sw.mjs",
     "build": "next build && node scripts/build-sw-precache.mjs",
     "start": "next start",
     "lint": "eslint .",
     "test": "vitest run",
     "test:watch": "vitest",
+    "test:rules": "firebase emulators:exec --only firestore --project demo-edutask-rules \"vitest run --config vitest.rules.config.mts\"",
+    "deploy:rules": "firebase deploy --only firestore:rules --project app-from-ai",
+    "deploy:indexes": "firebase deploy --only firestore:indexes --project app-from-ai",
+    "deploy:push": "cross-env-shell FUNCTIONS_DISCOVERY_TIMEOUT=120 firebase deploy --only functions:onNotificationCreated --project app-from-ai",
+    "deploy:telegram": "cross-env-shell FUNCTIONS_DISCOVERY_TIMEOUT=120 firebase deploy --only functions:onLeaveCreatedTelegram,functions:onLeaveDecidedTelegram,functions:onTaskCreatedTelegram --project app-from-ai",
+    "deploy:schedulers": "firebase deploy --only functions:runReminderSchedules,functions:dailyDueDigest --project app-from-ai",
     "clean": "next clean"
   },
   "dependencies": {
@@ -29,11 +37,14 @@
     "zustand": "^5.0.14"
   },
   "devDependencies": {
+    "@firebase/rules-unit-testing": "^5.0.1",
     "@tailwindcss/postcss": "4.1.11",
     "@tailwindcss/typography": "^0.5.19",
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@typescript-eslint/eslint-plugin": "^8.65.0",
+    "cross-env": "^10.1.0",
     "dotenv": "^17.4.2",
     "eslint": "9.39.1",
     "eslint-config-next": "16.0.8",

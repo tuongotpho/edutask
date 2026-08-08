@@ -104,7 +104,7 @@ async function runTests() {
         sessionStorage.clear();
       });
       await delay(1000);
-    } catch(e) {}
+    } catch {}
     log('Logged out.');
   }
 

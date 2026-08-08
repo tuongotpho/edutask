@@ -1,3 +1,42 @@
+// ============================================================================
+//  EduTask — Firestore Security Rules
+//
+//  PHIÊN BẢN: 2026-08-08 13:28
+//  Thay đổi:  Khoá Bot Token Telegram — `settings/telegram` nay chỉ quản trị
+//             đọc được. Trước đây MỌI tài khoản đọc được token, tức là ai cũng
+//             đăng bài vào nhóm Telegram của trường DANH NGHĨA nhà trường được.
+//             Việc gửi đã chuyển sang Cloud Function nên không client nào cần
+//             token nữa. Lưu ý: loại trừ phải nằm TRONG khối `settings` vì
+//             Firestore đánh giá mọi rule khớp theo phép HOẶC.
+//  Trước đó:  11:49 — vá lỗ hổng `leaves` + `createdById` cho `notifications`
+//  Thay đổi:  VÁ LỖ HỔNG `leaves` — người nộp đơn trước đây có thể tự đánh dấu
+//             bước duyệt là APPROVED, nhảy currentStepIndex, đổi tổ SAU khi tạo
+//             để né người duyệt, tự chỉ định người dạy thay, và sửa nội dung
+//             đơn mà VẪN GIỮ chữ ký cũ. Thêm applicantMayUpdateLeave() và
+//             stepsCarryNoApproval(). Thêm `createdById` bắt buộc cho
+//             `notifications` để truy được nguồn thông báo.
+//  Trước đó:  07:20 — thêm module học sinh
+//  Thay đổi:  Thêm module học sinh — `students` (hồ sơ), `studentAttendance`
+//             (điểm danh), `studentConduct` (vi phạm & khen thưởng).
+//             Chỉ văn thư/BGH được SỬA hồ sơ (có liên hệ phụ huynh); giáo viên
+//             được điểm danh và ghi nề nếp nhưng không sửa được bản ghi của
+//             đồng nghiệp. Thêm canManageStudents(), canRecordStudentLog().
+//  Trước đó:  06:34 — thêm `pushTokens` (thiết bị nhận thông báo đẩy)
+//             23:27 — thêm `equipment`, `equipmentLoans`
+//             22:18 — thêm `plans`, `reminders` + canManagePlans(), isExecutive()
+//             18:14 — thêm `meetings` (cuộc họp & điểm danh)
+//             18:01 — thêm `attendance` (sổ nề nếp) + canRecordAttendance()
+//             17:43 — thêm `rooms`, `classes`, `makeups`, `bookings`
+//                     + isOfficeStaff()
+//
+//  >>> Rules được deploy tự động bằng `npm run deploy:rules`; bản này đã bao gồm
+//  >>> mọi đợt ở trên nên không cần dán tay từng phần.
+//
+//  >>> KHI DÁN VÀO FIREBASE CONSOLE: so dòng PHIÊN BẢN ở trên với bản đang
+//  >>> chạy trên Console. Chỉ dán khi bản này MỚI HƠN. Sau khi dán xong,
+//  >>> Console sẽ hiển thị đúng dòng này nên lần sau đối chiếu được ngay.
+// ============================================================================
+
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
@@ -25,11 +64,126 @@ service cloud.firestore {
       return hasRole || isBootstrapAdminEmail();
     }
 
+    /**
+     * True when no approval step carries a signature.
+     *
+     * The applicant legitimately rewrites `steps` when they edit and resubmit —
+     * the app resets every step to PENDING and clears the approvers. What they
+     * must NOT be able to do is write a step that is already APPROVED. So the
+     * test is not "did steps change" but "do the new steps claim any approval".
+     *
+     * Rules have no way to iterate a list, so the indices are checked by hand
+     * and the size is capped. If the workflow ever grows a fourth level this
+     * fails CLOSED and someone updates it here — far better than silently
+     * waving through the level nobody remembered to check.
+     */
+    function stepsCarryNoApproval(steps) {
+      return steps.size() == 0 || (
+        steps.size() <= 3 &&
+        steps[0].status == 'PENDING' &&
+        (steps.size() < 2 || steps[1].status == 'PENDING') &&
+        (steps.size() < 3 || steps[2].status == 'PENDING')
+      );
+    }
+
+    /**
+     * What the APPLICANT may do to their own leave request.
+     *
+     * Blocking `overallStatus` alone was not enough: every outcome the approval
+     * flow exists to control could be reached without touching it. The four
+     * conditions below close that off while keeping "chỉnh sửa & gửi lại đơn"
+     * working, which a blanket field freeze would have broken.
+     */
+    function applicantMayUpdateLeave(existing, incoming) {
+      let changed = incoming.diff(existing).affectedKeys();
+      return
+        incoming.overallStatus in ['IN_REVIEW', 'REQUEST_EDIT', 'CANCELLED'] &&
+
+        // 1. Identity and routing are fixed for the life of the request. The
+        //    create rule pins the department; without this the pin was
+        //    worthless — file it correctly, then re-route it a second later.
+        //    Assigning cover is the approver's act: it is the only path that
+        //    runs the clash check.
+        !changed.hasAny([
+          'id', 'code', 'createdAt',
+          'applicantId', 'applicantName', 'applicantRole',
+          'departmentId', 'departmentName',
+          'substituteTeacherId', 'substituteTeacherName'
+        ]) &&
+
+        // 2. The request may be sent BACK, never forward. Editing resets the
+        //    index to 0; cancelling leaves it alone.
+        incoming.currentStepIndex <= existing.currentStepIndex &&
+
+        // 3. The applicant may never write a step that claims approval.
+        (incoming.steps == existing.steps || stepsCarryNoApproval(incoming.steps)) &&
+
+        // 4. Changing the SUBSTANCE of the request invalidates signatures
+        //    already on it. Otherwise a leave approved at one day could be
+        //    rewritten to thirty while keeping the tổ trưởng's signature, and
+        //    Ban Giám Hiệu would see a month-long request already endorsed.
+        (!changed.hasAny(['startDate', 'endDate', 'session', 'leaveType', 'totalDays']) ||
+         (stepsCarryNoApproval(incoming.steps) && incoming.currentStepIndex == 0));
+    }
+
     function isDeptLeader(deptId) {
       let data = getUserData();
       return data != null &&
              data.departmentId == deptId &&
              data.roles.hasAny(['HEAD_OF_DEPT', 'GROUP_LEADER']);
+    }
+
+    // Mirrors `room:manage` in lib/permissions.ts — who arbitrates the room
+    // timetable and may cancel a booking that is not theirs.
+    function isOfficeStaff() {
+      let data = getUserData();
+      return data != null &&
+             data.roles.hasAny(['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'SECRETARY']);
+    }
+
+    // Mirrors `reminder:manage` — who may set up plans and reminder schedules.
+    // Department leaders are included, but the per-document rules below confine
+    // them to their OWN department: a tổ trưởng owns their tổ's rhythm, not the
+    // whole school's notification volume.
+    function canManagePlans() {
+      let data = getUserData();
+      return data != null &&
+             data.roles.hasAny(['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_OF_DEPT', 'GROUP_LEADER']);
+    }
+
+    function isExecutive() {
+      let data = getUserData();
+      return data != null && data.roles.hasAny(['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL']);
+    }
+
+    // Mirrors `student:manage` — who may edit the student roster. Deliberately
+    // narrow: these records hold personal data about minors, including parent
+    // phone numbers, and a subject teacher has no business editing a child's
+    // home contact details.
+    function canManageStudents() {
+      let data = getUserData();
+      return data != null &&
+             data.roles.hasAny(['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'SECRETARY']);
+    }
+
+    // Mirrors `student:attendance` / `student:conduct` — the sổ đầu bài every
+    // teacher fills in during their own lesson, so this one IS open to teachers.
+    function canRecordStudentLog() {
+      let data = getUserData();
+      return data != null &&
+             data.roles.hasAny([
+               'TEACHER', 'SUPERVISOR', 'HEAD_OF_DEPT', 'GROUP_LEADER',
+               'ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL'
+             ]);
+    }
+
+    // Mirrors `attendance:record` — only these may write the nề nếp log.
+    // Deliberately excludes department leaders: a record anyone can file about
+    // anyone turns a discipline log into a grievance machine.
+    function canRecordAttendance() {
+      let data = getUserData();
+      return data != null &&
+             data.roles.hasAny(['SUPERVISOR', 'ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL']);
     }
 
     // Shared school configuration. Every authenticated user needs to read these
@@ -40,6 +194,29 @@ service cloud.firestore {
     }
 
     match /settings/{settingId} {
+      // Most settings are shared reference data every screen needs. The one
+      // exception is `settings/telegram`, which holds the bot TOKEN — a
+      // credential: whoever reads it can post to the school's group as the
+      // school. Sending now happens in a Cloud Function using the Admin SDK,
+      // so no ordinary client needs it; only the admin screen does, for its
+      // "gửi thử" button.
+      //
+      // The exclusion has to live INSIDE this match. Firestore evaluates every
+      // matching rule and grants access if ANY of them allows, so adding a
+      // separate stricter `match /settings/telegram` block would be silently
+      // overridden by this one.
+      allow read: if isAuth() && (settingId != 'telegram' || isAdmin());
+      allow write: if isAdmin();
+    }
+
+    // Room and class catalogs. Same shape as departments: everyone reads them
+    // (they fill the pickers in every booking form), only admins maintain them.
+    match /rooms/{roomId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    match /classes/{classId} {
       allow read: if isAuth();
       allow write: if isAdmin();
     }
@@ -90,11 +267,17 @@ service cloud.firestore {
       // Only admins or the department's leader may advance the approval flow.
       // The applicant may still edit / cancel their own request, but may never
       // set it to APPROVED themselves (enforces approval integrity server-side).
+      // Blocking `overallStatus` alone was not enough. An applicant could reach
+      // every outcome the approval flow exists to control WITHOUT touching it:
+      // re-route the request to a friendlier department, mark the steps signed,
+      // jump `currentStepIndex` past the approvers, or name their own
+      // substitute with no clash check. Each of those is now closed, and each
+      // has a test in tests/rules/leaves.test.ts.
       allow update: if isAuth() && (
         isAdmin() ||
         isDeptLeader(resource.data.departmentId) ||
         (resource.data.applicantId == request.auth.uid &&
-         request.resource.data.overallStatus in ['IN_REVIEW', 'REQUEST_EDIT', 'CANCELLED'])
+         applicantMayUpdateLeave(resource.data, request.resource.data))
       );
 
       allow delete: if isAuth() && (
@@ -131,17 +314,318 @@ service cloud.firestore {
       );
     }
 
+    // Make-up classes and room bookings are readable by EVERY signed-in member
+    // of staff, deliberately. Clash detection is the whole point of these
+    // features, and it can only work if the browser can see what is already
+    // scheduled — a booking system that hides other people's bookings would
+    // cheerfully double-book every room. Nothing sensitive is stored here
+    // beyond who is teaching what, where and when, which is a timetable.
+    match /makeups/{makeupId} {
+      allow read: if isAuth();
+
+      // Filed by the teacher themselves, under their own department, and always
+      // starting under review — nobody self-approves a make-up class.
+      allow create: if isAuth() &&
+        request.resource.data.teacherId == request.auth.uid &&
+        request.resource.data.status == 'IN_REVIEW' &&
+        request.resource.data.departmentId == getUserData().departmentId;
+
+      // The department leader signs off; the teacher may still edit or cancel
+      // their own request but may never move it to APPROVED.
+      allow update: if isAuth() && (
+        isAdmin() ||
+        isDeptLeader(resource.data.departmentId) ||
+        (resource.data.teacherId == request.auth.uid &&
+         request.resource.data.status in ['IN_REVIEW', 'CANCELLED'])
+      );
+
+      allow delete: if isAuth() && (
+        isAdmin() ||
+        resource.data.teacherId == request.auth.uid
+      );
+    }
+
+    match /bookings/{bookingId} {
+      allow read: if isAuth();
+
+      // Booked in the requester's own name. A room that needs approval must
+      // start IN_REVIEW; one that does not may be CONFIRMED outright. Which of
+      // the two applies is a property of the room, and rules cannot cheaply
+      // read the room document here — so both are permitted at creation and the
+      // client picks. The integrity that matters (you cannot book as someone
+      // else, and cannot create an already-rejected record) is enforced.
+      allow create: if isAuth() &&
+        request.resource.data.requesterId == request.auth.uid &&
+        request.resource.data.status in ['CONFIRMED', 'IN_REVIEW'];
+
+      // The office arbitrates the room timetable; the requester may only cancel
+      // their own booking, never approve it.
+      allow update: if isAuth() && (
+        isAdmin() ||
+        isOfficeStaff() ||
+        (resource.data.requesterId == request.auth.uid &&
+         request.resource.data.status in ['IN_REVIEW', 'CANCELLED'])
+      );
+
+      allow delete: if isAuth() && (
+        isAdmin() ||
+        isOfficeStaff() ||
+        resource.data.requesterId == request.auth.uid
+      );
+    }
+
+    // Sổ nề nếp. Unlike bookings, this is NOT world-readable inside the school:
+    // it names individual colleagues and feeds thi đua, so a teacher sees only
+    // records about themselves, a department leader sees their department, and
+    // school leadership plus the supervisor see everything.
+    match /attendance/{recordId} {
+      allow read: if isAuth() && (
+        isAdmin() ||
+        canRecordAttendance() ||
+        resource.data.teacherId == request.auth.uid ||
+        isDeptLeader(resource.data.departmentId)
+      );
+
+      // Only the supervisor writes the log, and always under their own name —
+      // an entry attributed to someone else would make the record worthless as
+      // evidence.
+      allow create: if isAuth() &&
+        canRecordAttendance() &&
+        request.resource.data.recordedById == request.auth.uid &&
+        request.resource.data.status == 'RECORDED';
+
+      allow update: if isAuth() && (
+        // Leadership settles a record: excuse it or let it stand.
+        isAdmin() ||
+        // The supervisor may correct their own entry.
+        (canRecordAttendance() && resource.data.recordedById == request.auth.uid) ||
+        // The teacher named may reply, and may ONLY reply — they cannot alter
+        // what was recorded, nor settle it in their own favour.
+        (resource.data.teacherId == request.auth.uid &&
+         request.resource.data.status == 'EXPLAINED' &&
+         request.resource.data.diff(resource.data).affectedKeys()
+           .hasOnly(['explanation', 'status', 'updatedAt']))
+      );
+
+      // Not deletable by the teacher it names — that would let anyone erase
+      // their own record. The supervisor who wrote it may remove a mistake.
+      allow delete: if isAuth() && (
+        isAdmin() ||
+        (canRecordAttendance() && resource.data.recordedById == request.auth.uid)
+      );
+    }
+
+    // Cuộc họp. Unlike the corridor log, a meeting roll is public to the room —
+    // it is called out loud — so every participant sees the whole roll for
+    // meetings they were called to, and nothing at all for meetings they were
+    // not. `participantIds` is the access list, the same device `tasks` uses.
+    match /meetings/{meetingId} {
+      allow read: if isAuth() && (
+        isAdmin() ||
+        isOfficeStaff() ||
+        (request.auth.uid in resource.data.participantIds)
+      );
+
+      // Only the office convenes a meeting, and the record must name its own
+      // author as secretary so a roll cannot be filed under someone else.
+      allow create: if isAuth() &&
+        isOfficeStaff() &&
+        request.resource.data.secretaryId == request.auth.uid;
+
+      // Calling the roll and writing the minutes are both office work. A
+      // participant may read their own attendance but never amend it —
+      // otherwise anyone marked late could quietly mark themselves present.
+      allow update: if isAuth() && isOfficeStaff();
+
+      allow delete: if isAuth() && (
+        isAdmin() ||
+        resource.data.secretaryId == request.auth.uid
+      );
+    }
+
+    // Kế hoạch & mốc tiến độ. Readable by everyone: a plan exists precisely so
+    // staff know what the school is working towards, and progress figures that
+    // only leadership can see defeat the point.
+    match /plans/{planId} {
+      allow read: if isAuth();
+
+      // A school-wide plan is the executive's to set. A department plan belongs
+      // to that department's leader — but only their own department, so one tổ
+      // trưởng cannot write plans into another tổ's name.
+      allow create: if isAuth() && canManagePlans() && (
+        isExecutive() ||
+        (request.resource.data.scope == 'DEPARTMENT' &&
+         request.resource.data.departmentId == getUserData().departmentId)
+      );
+
+      allow update: if isAuth() && canManagePlans() && (
+        isExecutive() ||
+        (resource.data.scope == 'DEPARTMENT' &&
+         resource.data.departmentId == getUserData().departmentId)
+      );
+
+      allow delete: if isAuth() && (
+        isAdmin() ||
+        (canManagePlans() &&
+         resource.data.scope == 'DEPARTMENT' &&
+         resource.data.departmentId == getUserData().departmentId)
+      );
+    }
+
+    // Lịch nhắc. Readable by all so people can see why they are being pinged;
+    // the same scope rule as plans decides who may create one.
+    match /reminders/{reminderId} {
+      allow read: if isAuth();
+
+      allow create: if isAuth() && canManagePlans() &&
+        request.resource.data.createdById == request.auth.uid && (
+          isExecutive() ||
+          (request.resource.data.scope == 'DEPARTMENT' &&
+           request.resource.data.departmentId == getUserData().departmentId)
+        );
+
+      allow update: if isAuth() && canManagePlans() && (
+        isExecutive() ||
+        (resource.data.scope == 'DEPARTMENT' &&
+         resource.data.departmentId == getUserData().departmentId)
+      );
+
+      allow delete: if isAuth() && (
+        isAdmin() ||
+        resource.data.createdById == request.auth.uid
+      );
+    }
+
+    // Thiết bị. The catalog is admin-maintained like rooms and classes; the
+    // loan register is readable school-wide because availability ("còn cái nào
+    // rảnh không?") is computed in the browser from open loans, and cannot be
+    // computed from loans the browser is not allowed to see.
+    match /equipment/{equipmentId} {
+      allow read: if isAuth();
+      allow write: if isAdmin();
+    }
+
+    match /equipmentLoans/{loanId} {
+      allow read: if isAuth();
+
+      // Borrowed in the requester's own name. Both opening states are allowed
+      // at creation because whether approval is needed is a property of the
+      // equipment, which rules cannot cheaply read here — the same trade-off as
+      // room bookings. What matters is enforced: you cannot borrow as someone
+      // else, and cannot create a loan that is already returned.
+      allow create: if isAuth() &&
+        request.resource.data.borrowerId == request.auth.uid &&
+        request.resource.data.status in ['REQUESTED', 'BORROWED'];
+
+      // The office runs the store: it approves, hands out and books kit back
+      // in. A borrower may only cancel their own request — never mark it
+      // returned, which would let anyone clear a loan without handing anything
+      // back.
+      allow update: if isAuth() && (
+        isAdmin() ||
+        isOfficeStaff() ||
+        (resource.data.borrowerId == request.auth.uid &&
+         request.resource.data.status in ['REQUESTED', 'CANCELLED'])
+      );
+
+      allow delete: if isAuth() && (
+        isAdmin() ||
+        isOfficeStaff()
+      );
+    }
+
+    // Thiết bị nhận thông báo đẩy. A registration token is a capability: anyone
+    // holding it can be sent notifications, so a person may only ever touch
+    // their own. Nobody reads the collection from the client — the Cloud
+    // Function uses the Admin SDK and bypasses these rules entirely — so read
+    // is confined to your own rows purely so a device list can be shown back.
+    match /pushTokens/{token} {
+      allow read: if isAuth() && resource.data.userId == request.auth.uid;
+
+      allow create: if isAuth() &&
+        request.resource.data.userId == request.auth.uid;
+
+      // Update requires owning the row BEFORE the write as well as after.
+      // Checking only the incoming userId would let anyone who learns a token
+      // overwrite its row and point it at themselves — hijacking delivery to a
+      // colleague's phone, and silently cutting that colleague off from their
+      // own notifications. A shared staffroom browser hits this legitimately;
+      // the client handles it by minting a fresh token (see pushService).
+      allow update: if isAuth() &&
+        resource.data.userId == request.auth.uid &&
+        request.resource.data.userId == request.auth.uid;
+
+      allow delete: if isAuth() && resource.data.userId == request.auth.uid;
+    }
+
+    // Hồ sơ học sinh.
+    //
+    // Readable by every member of teaching staff, and that IS a deliberate
+    // trade-off worth naming: any teacher can see any child's parent phone
+    // number. Firestore rules cannot hide individual fields, so the honest
+    // choices were "all staff see the contact" or "nobody but the office does"
+    // — and the second breaks the case the field exists for, a teacher needing
+    // to ring a parent about a child who has not turned up. The narrower half
+    // of the boundary is enforced instead: only the office may WRITE, so the
+    // data cannot be altered or exported wholesale by an ordinary account.
+    match /students/{studentId} {
+      allow read: if isAuth();
+      allow create, update: if isAuth() && canManageStudents();
+      allow delete: if isAuth() && isAdmin();
+    }
+
+    // Điểm danh học sinh. The document id is derived from class + date +
+    // session, so two teachers opening the same register land on the same
+    // document instead of creating two contradictory rolls.
+    match /studentAttendance/{recordId} {
+      allow read: if isAuth();
+      allow create, update: if isAuth() && canRecordStudentLog();
+      // Deleting a roll erases the record that a child was marked absent.
+      // Corrections are made by editing marks, which keeps the history.
+      allow delete: if isAuth() && isAdmin();
+    }
+
+    // Vi phạm & khen thưởng học sinh.
+    match /studentConduct/{recordId} {
+      allow read: if isAuth();
+
+      allow create: if isAuth() && canRecordStudentLog() &&
+        request.resource.data.recordedById == request.auth.uid;
+
+      // Only the teacher who wrote it may amend it — otherwise anyone could
+      // quietly soften or delete a colleague's record of an incident.
+      allow update: if isAuth() && (
+        isAdmin() ||
+        (canRecordStudentLog() && resource.data.recordedById == request.auth.uid)
+      );
+
+      allow delete: if isAuth() && (
+        isAdmin() ||
+        resource.data.recordedById == request.auth.uid
+      );
+    }
+
     match /notifications/{notifId} {
       allow read: if isAuth() && resource.data.recipientUserId == request.auth.uid;
 
       // Any authenticated user can raise a notification for another user
       // (e.g. "leave request needs approval"), but it must carry the required
       // shape and start unread.
+      // Any signed-in account may notify anyone — that is not laxness, it is
+      // the app's normal flow: a teacher filing leave notifies their tổ
+      // trưởng, a supervisor filing a lateness record notifies the teacher.
+      // Restricting creation to admins would silence the whole system.
+      //
+      // What IS enforced is attribution: the sender must be the caller. That
+      // does not prevent someone sending an alarming message to a colleague,
+      // but it removes anonymity — a forged notice can always be traced back
+      // to the account that sent it.
       allow create: if isAuth() &&
-        request.resource.data.keys().hasAll(['recipientUserId', 'title', 'message']) &&
+        request.resource.data.keys().hasAll(['recipientUserId', 'title', 'message', 'createdById']) &&
         request.resource.data.recipientUserId is string &&
         request.resource.data.title is string &&
         request.resource.data.message is string &&
+        request.resource.data.createdById == request.auth.uid &&
         request.resource.data.isRead == false;
 
       allow update: if isAuth() && resource.data.recipientUserId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);

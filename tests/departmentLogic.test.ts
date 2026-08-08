@@ -96,6 +96,12 @@ function setup(tasks: Task[], users: User[] = [makeUser('USR_1', 'DEPT_TOAN'), m
   const state = { departments, users, leaves, tasks };
   const notify = vi.fn();
 
+  // Despite the name, `useDepartmentLogic` calls no React hooks — it is a plain
+  // factory that closes over the state setters it is handed, and the `use`
+  // prefix only follows the project's naming convention for domain logic. So it
+  // is safe to call outside a component, which is what makes these tests
+  // possible without a renderer.
+  // eslint-disable-next-line react-hooks/rules-of-hooks -- see above
   const logic = useDepartmentLogic({
     schoolName: 'THPT A',
     setSchoolName: vi.fn(),
