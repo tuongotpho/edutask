@@ -63,7 +63,8 @@ export type PermissionKey =
   | 'student:conduct'
   | 'student:view_all'
   | 'catalog:manage'
-  | 'config:rbac';
+  | 'config:rbac'
+  | 'gifted:manage';
 
 export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   'leave:create': 'Tạo đơn xin nghỉ phép',
@@ -87,6 +88,7 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   'student:view_all': 'Xem dữ liệu học sinh toàn trường',
   'catalog:manage': 'Quản lý danh mục phòng, lớp & tiết học',
   'config:rbac': 'Quản trị phân quyền hệ thống',
+  'gifted:manage': 'Quản lý chương trình Bồi dưỡng HSG',
 };
 
 export const ROLE_CAPABILITIES: Record<PermissionKey, RoleType[]> = {
@@ -133,6 +135,7 @@ export const ROLE_CAPABILITIES: Record<PermissionKey, RoleType[]> = {
 
   'catalog:manage': ['ADMIN'],
   'config:rbac': ['ADMIN'],
+  'gifted:manage': ['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_OF_DEPT', 'GROUP_LEADER'],
 };
 
 /**
@@ -234,6 +237,10 @@ export function canManageMeetings(user: User | null, activeRole?: RoleType | nul
 
 export function canManageReminders(user: User | null, activeRole?: RoleType | null): boolean {
   return can(user, activeRole, 'reminder:manage');
+}
+
+export function canManageGifted(user: User | null, activeRole?: RoleType | null): boolean {
+  return can(user, activeRole, 'gifted:manage');
 }
 
 /**

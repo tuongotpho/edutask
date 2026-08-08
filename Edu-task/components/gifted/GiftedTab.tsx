@@ -30,7 +30,7 @@ import {
   GIFTED_LESSON_STATUS_LABELS
 } from '@/Edu-task/types/gifted';
 import { formatDateVi, toDateString } from '@/Edu-task/lib/schedule';
-import { isSchoolLeadership } from '@/Edu-task/lib/permissions';
+import { canManageGifted } from '@/Edu-task/lib/permissions';
 
 const inputClass =
   'w-full p-2.5 rounded-xl border border-slate-200 text-xs focus:outline-none focus:ring-2 focus:ring-indigo-500/20 bg-slate-50/50 focus:bg-white transition-all';
@@ -53,7 +53,7 @@ export function GiftedTab() {
     showToast,
   } = useApp();
 
-  const isLeadership = isSchoolLeadership(currentUser, activeRole);
+  const canManage = canManageGifted(currentUser, activeRole);
 
   // Selected Program ID for detail view
   const [selectedProgramId, setSelectedProgramId] = useState<string | null>(null);
@@ -303,7 +303,7 @@ export function GiftedTab() {
 
             {(() => {
               const isCoordinator = selectedProgram.coordinatorId === currentUser?.id;
-              const canManageProgram = isLeadership || isCoordinator;
+              const canManageProgram = canManage || isCoordinator;
               if (!canManageProgram) return null;
               
               return (
@@ -407,7 +407,7 @@ export function GiftedTab() {
                 <p className="text-xs text-slate-500">Phân công người dạy và theo dõi tiến độ hoàn thành từng chuyên đề</p>
               </div>
 
-              {(isLeadership || selectedProgram.coordinatorId === currentUser?.id) && (
+              {(canManage || selectedProgram.coordinatorId === currentUser?.id) && (
                 <button
                   onClick={handleOpenNewLesson}
                   className="bg-indigo-600 hover:bg-indigo-700 text-white text-xs font-semibold px-3.5 py-2 rounded-xl inline-flex items-center space-x-1.5 shadow-xs transition-all active:scale-95"
@@ -443,7 +443,7 @@ export function GiftedTab() {
                       const isCompleted = lesson.status === 'COMPLETED';
                       const isMyLesson = lesson.teacherId === currentUser?.id;
                       const isCoordinator = selectedProgram.coordinatorId === currentUser?.id;
-                      const canManageProgram = isLeadership || isCoordinator;
+                      const canManageProgram = canManage || isCoordinator;
                       const canCompleteLesson = isMyLesson || canManageProgram;
 
                       return (

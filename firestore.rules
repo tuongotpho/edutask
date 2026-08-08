@@ -1,8 +1,11 @@
 // ============================================================================
 //  EduTask — Firestore Security Rules
 //
-//  PHIÊN BẢN: 2026-08-08 18:15
-//  Thay đổi:  Bổ sung module Bồi dưỡng Học sinh giỏi — `giftedPrograms`.
+//  PHIÊN BẢN: 2026-08-08 20:47
+//  Thay đổi:  VÁ LỖ HỔNG BẢO MẬT — Phân quyền `giftedPrograms` bằng `canManageGifted()`.
+//             Khóa lỗ hổng qua mặt đổi trường cố định (immutable fields) như
+//             `requesterId`, `teacherId`, `roomId` trong `bookings`, `makeups`, `plans`, `reminders`.
+//  Trước đó:  18:15 — Bổ sung module Bồi dưỡng Học sinh giỏi — `giftedPrograms`.
 //             Cho phép nhân sự đã xác thực truy cập và quản lý các chương trình,
 //             chuyên đề và tiết dạy bồi dưỡng HSG.
 //  Trước đó:  13:28 — Khoá Bot Token Telegram — `settings/telegram` nay chỉ quản trị
@@ -149,6 +152,12 @@ service cloud.firestore {
     // them to their OWN department: a tổ trưởng owns their tổ's rhythm, not the
     // whole school's notification volume.
     function canManagePlans() {
+      let data = getUserData();
+      return data != null &&
+             data.roles.hasAny(['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_OF_DEPT', 'GROUP_LEADER']);
+    }
+
+    function canManageGifted() {
       let data = getUserData();
       return data != null &&
              data.roles.hasAny(['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_OF_DEPT', 'GROUP_LEADER']);
@@ -339,7 +348,8 @@ service cloud.firestore {
         isAdmin() ||
         isDeptLeader(resource.data.departmentId) ||
         (resource.data.teacherId == request.auth.uid &&
-         request.resource.data.status in ['IN_REVIEW', 'CANCELLED'])
+         request.resource.data.status in ['IN_REVIEW', 'CANCELLED'] &&
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['teacherId', 'departmentId', 'createdAt']))
       );
 
       allow delete: if isAuth() && (
@@ -367,7 +377,8 @@ service cloud.firestore {
         isAdmin() ||
         isOfficeStaff() ||
         (resource.data.requesterId == request.auth.uid &&
-         request.resource.data.status in ['IN_REVIEW', 'CANCELLED'])
+         request.resource.data.status in ['IN_REVIEW', 'CANCELLED'] &&
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['requesterId', 'roomId', 'createdAt']))
       );
 
       allow delete: if isAuth() && (
@@ -464,7 +475,10 @@ service cloud.firestore {
       allow update: if isAuth() && canManagePlans() && (
         isExecutive() ||
         (resource.data.scope == 'DEPARTMENT' &&
-         resource.data.departmentId == getUserData().departmentId)
+         resource.data.departmentId == getUserData().departmentId &&
+         request.resource.data.scope == 'DEPARTMENT' &&
+         request.resource.data.departmentId == getUserData().departmentId &&
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['id', 'createdAt', 'createdById']))
       );
 
       allow delete: if isAuth() && (
@@ -490,7 +504,10 @@ service cloud.firestore {
       allow update: if isAuth() && canManagePlans() && (
         isExecutive() ||
         (resource.data.scope == 'DEPARTMENT' &&
-         resource.data.departmentId == getUserData().departmentId)
+         resource.data.departmentId == getUserData().departmentId &&
+         request.resource.data.scope == 'DEPARTMENT' &&
+         request.resource.data.departmentId == getUserData().departmentId &&
+         !request.resource.data.diff(resource.data).affectedKeys().hasAny(['id', 'createdAt', 'createdById']))
       );
 
       allow delete: if isAuth() && (
@@ -638,7 +655,11 @@ service cloud.firestore {
     // --- Bồi dưỡng Học sinh giỏi ---
     match /giftedPrograms/{programId} {
       allow read: if isAuth();
-      allow create, update, delete: if isAuth();
+      allow create: if isAuth() && canManageGifted();
+      allow update, delete: if isAuth() && (
+        canManageGifted() || 
+        resource.data.coordinatorId == request.auth.uid
+      );
     }
   }
 }
