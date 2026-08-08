@@ -401,9 +401,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (userEmail && adminEmails.includes(userEmail)) {
         if (!match) {
-          match = await firebaseAuthService.seedAdminUserProfile();
-        } else {
-          match = {
+          match = await firebaseAuthService.getUserProfile(fbUser.uid);
+          if (!match) {
+             match = await firebaseAuthService.seedAdminUserProfile();
+          }
+        }
+        
+        if (match) {
             ...match,
             roles: ['ADMIN', 'PRINCIPAL', 'TEACHER'],
             activeRole: match.activeRole || 'ADMIN',

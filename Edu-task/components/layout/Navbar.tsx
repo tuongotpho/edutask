@@ -115,7 +115,7 @@ export function Navbar({
           <div>
             <div className="flex items-center gap-1.5 sm:gap-2">
               <span className="font-extrabold text-slate-900 tracking-tight text-sm sm:text-base">EduTask</span>
-              <span className="hidden sm:inline-block max-w-[140px] truncate text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
+              <span className="hidden sm:inline-block max-w-[140px] md:max-w-none text-[10px] uppercase tracking-wider font-semibold px-2 py-0.5 rounded-md bg-indigo-50 text-indigo-700 border border-indigo-100">
                 {schoolName}
               </span>
             </div>

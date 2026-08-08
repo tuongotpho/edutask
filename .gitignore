@@ -46,3 +46,5 @@ firestore-debug.log*
 *firebase-adminsdk*.json
 *-service-account*.json
 serviceAccountKey.json
+# Added by code-review-graph
+.code-review-graph/
