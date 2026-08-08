@@ -408,6 +408,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         }
         
         if (match) {
+          match = {
             ...match,
             roles: ['ADMIN', 'PRINCIPAL', 'TEACHER'],
             activeRole: match.activeRole || 'ADMIN',
