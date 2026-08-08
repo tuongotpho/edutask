@@ -401,7 +401,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
 
       if (userEmail && adminEmails.includes(userEmail)) {
         if (!match) {
-          match = await firebaseAuthService.getUserProfile(fbUser.uid);
+          match = (await firebaseAuthService.getUserProfile(fbUser.uid)) || undefined;
           if (!match) {
              match = await firebaseAuthService.seedAdminUserProfile();
           }
