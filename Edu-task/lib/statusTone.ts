@@ -25,10 +25,12 @@ export type StatusTone =
   | 'NEUTRAL';
 
 export interface ToneStyle {
-  /** 4px bar down the left edge of a row — the first thing the eye lands on. */
+  /** Bar or accent style */
   stripe: string;
   badge: string;
   avatar: string;
+  /** Status indicator dot color */
+  dot: string;
   /** Faded so settled records recede and open ones stand out. */
   dim: boolean;
 }
@@ -36,34 +38,37 @@ export interface ToneStyle {
 export const TONE_STYLES: Record<StatusTone, ToneStyle> = {
   PENDING: {
     stripe: 'bg-amber-400',
-    badge: 'bg-amber-50 text-amber-800 border-amber-200',
-    avatar: 'bg-amber-100 text-amber-800',
+    badge: 'bg-amber-50/90 text-amber-900 border-amber-200/80',
+    avatar: 'bg-amber-100 text-amber-900 border-amber-200/80',
+    dot: 'bg-amber-500',
     dim: false,
   },
   ACTIVE: {
     stripe: 'bg-sky-400',
-    badge: 'bg-sky-50 text-sky-800 border-sky-200',
-    avatar: 'bg-sky-100 text-sky-800',
+    badge: 'bg-sky-50/90 text-sky-900 border-sky-200/80',
+    avatar: 'bg-sky-100 text-sky-900 border-sky-200/80',
+    dot: 'bg-sky-500',
     dim: false,
   },
   DONE: {
     stripe: 'bg-emerald-400',
-    badge: 'bg-emerald-50 text-emerald-800 border-emerald-200',
-    avatar: 'bg-emerald-100 text-emerald-800',
-    // Dimmed on purpose: a finished record is history. Keeping it at full
-    // strength is what makes a list of forty items read as forty problems.
+    badge: 'bg-emerald-50/90 text-emerald-900 border-emerald-200/80',
+    avatar: 'bg-emerald-100 text-emerald-900 border-emerald-200/80',
+    dot: 'bg-emerald-500',
     dim: true,
   },
   REJECTED: {
     stripe: 'bg-rose-400',
-    badge: 'bg-rose-50 text-rose-800 border-rose-200',
-    avatar: 'bg-rose-100 text-rose-800',
+    badge: 'bg-rose-50/90 text-rose-900 border-rose-200/80',
+    avatar: 'bg-rose-100 text-rose-900 border-rose-200/80',
+    dot: 'bg-rose-500',
     dim: true,
   },
   NEUTRAL: {
     stripe: 'bg-slate-300',
-    badge: 'bg-slate-100 text-slate-600 border-slate-200',
-    avatar: 'bg-slate-100 text-slate-600',
+    badge: 'bg-slate-100/90 text-slate-700 border-slate-200/80',
+    avatar: 'bg-slate-100 text-slate-700 border-slate-200/80',
+    dot: 'bg-slate-400',
     dim: true,
   },
 };
