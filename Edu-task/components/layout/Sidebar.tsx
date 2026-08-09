@@ -16,6 +16,7 @@ import {
   Target,
   GraduationCap,
   Award,
+  BookOpen,
   X
 } from 'lucide-react';
 import { useApp } from '@/Edu-task/context/AppContext';
@@ -29,7 +30,7 @@ import { APP_VERSION, describeVersion } from '@/Edu-task/lib/version';
 import { classesMissingRoll } from '@/Edu-task/lib/studentStats';
 import { toDateString } from '@/Edu-task/lib/schedule';
 
-export type TabType = 'dashboard' | 'leave' | 'task' | 'schedule' | 'lessons' | 'attendance' | 'meetings' | 'plans' | 'students' | 'gifted' | 'stats' | 'audit' | 'config';
+export type TabType = 'dashboard' | 'leave' | 'task' | 'schedule' | 'lessons' | 'attendance' | 'meetings' | 'plans' | 'students' | 'gifted' | 'stats' | 'audit' | 'config' | 'guide';
 
 interface SidebarProps {
   activeTab: TabType;
@@ -178,6 +179,13 @@ export function Sidebar({
       badge: pendingUsersCount > 0 ? `${pendingUsersCount} duyệt` : null,
       badgeColor: 'bg-amber-500 text-white font-bold',
     }] : []),
+    {
+      id: 'guide' as TabType,
+      label: 'Giới Thiệu & HDSD',
+      icon: BookOpen,
+      badge: 'Mới',
+      badgeColor: 'bg-emerald-100 text-emerald-800 font-bold',
+    },
   ];
 
   const handleSelectTab = (tab: TabType) => {

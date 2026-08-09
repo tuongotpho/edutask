@@ -26,6 +26,7 @@ export const TAB_SLUGS: Record<TabType, string> = {
   stats: 'bao-cao',
   audit: 'nhat-ky',
   config: 'quan-tri',
+  guide: 'huong-dan',
 };
 
 const SLUG_TO_TAB: Record<string, TabType> = Object.fromEntries(

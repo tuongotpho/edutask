@@ -62,6 +62,10 @@ const RbacConfigTab = dynamic(
   () => import('@/Edu-task/components/config/RbacConfigTab').then(m => m.RbacConfigTab),
   { ssr: false, loading }
 );
+const GuideTab = dynamic(
+  () => import('@/Edu-task/components/guide/GuideTab').then(m => m.GuideTab),
+  { ssr: false, loading }
+);
 const LeaveFormModal = dynamic(
   () => import('@/Edu-task/components/leave/LeaveFormModal').then(m => m.LeaveFormModal),
   { ssr: false }
@@ -234,6 +238,10 @@ function EduTaskMainApp() {
 
           {visibleTab === 'config' && (
             <RbacConfigTab />
+          )}
+
+          {visibleTab === 'guide' && (
+            <GuideTab />
           )}
         </main>
       </div>
