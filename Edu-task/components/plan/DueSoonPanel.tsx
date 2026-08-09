@@ -58,7 +58,7 @@ export function DueSoonPanel({ personalOnly = true }: DueSoonPanelProps) {
   const soon = items.filter(i => !i.isOverdue);
 
   return (
-    <section className="relative bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <section className="relative bg-white rounded-[5px] border border-slate-200 shadow-sm overflow-hidden">
       {/* Accent bar */}
       <div className="h-[3px] bg-gradient-to-r from-amber-400 via-orange-400 to-rose-400" />
 

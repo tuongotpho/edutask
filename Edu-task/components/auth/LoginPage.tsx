@@ -109,12 +109,12 @@ export function LoginPage() {
           EduTask - Quản lý Nhà trường
         </h2>
         <p className="mt-1 text-center text-xs text-slate-400">
-          THPT Chuyên Nguyễn Trãi • Hệ thống Quản lý Công việc & Đơn từ
+          THPT Chuyên Nguyễn Trãi • Giải pháp Chuyển đổi số Quản trị &amp; Vận hành Nhà trường
         </p>
       </div>
 
       <div className="mt-6 sm:mx-auto sm:w-full sm:max-w-md relative z-10 px-4">
-        <div className="bg-slate-800/90 backdrop-blur-md py-8 px-6 shadow-2xl rounded-3xl border border-slate-700/60 sm:px-10">
+        <div className="bg-slate-800/90 backdrop-blur-md py-8 px-6 shadow-2xl rounded-[5px] border border-slate-700/60 sm:px-10">
           
           {/* Primary Google Sign-In Button */}
           <button

@@ -48,3 +48,24 @@ firestore-debug.log*
 serviceAccountKey.json
 # Added by code-review-graph
 .code-review-graph/
+.github/code-review-graph.instruction.md
+
+# AI Agent & IDE configs
+.agents/
+.claude/
+.codebuddy/
+.cursorrules
+.gemini/
+.kiro/
+.mcp.json
+.qoder/
+.vscode/
+.windsurfrules
+AGENTS.md
+CLAUDE.md
+CODEBUDDY.md
+GEMINI.md
+QODER.md
+graphify-out/
+opencode.jsonc
+*.bak

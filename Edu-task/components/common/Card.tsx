@@ -68,7 +68,7 @@ export function Card({
   const hasHeader = !!title || !!actions;
 
   return (
-    <section className={`bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden ${className}`}>
+    <section className={`bg-white rounded-[5px] border border-slate-200 shadow-sm overflow-hidden ${className}`}>
       {/* A 3px accent along the top edge rather than a tinted background: it
           identifies the module without competing with the status colours
           inside, which are the ones that carry urgency. */}
@@ -136,7 +136,7 @@ export function EmptyState({
   hint?: React.ReactNode;
 }) {
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 py-12 px-6 text-center shadow-sm">
+    <div className="bg-white rounded-[5px] border border-slate-200 py-12 px-6 text-center shadow-sm">
       {Icon && (
         <div className="w-11 h-11 mx-auto rounded-2xl bg-slate-50 border border-slate-200 flex items-center justify-center mb-3">
           <Icon className="w-5 h-5 text-slate-300" />

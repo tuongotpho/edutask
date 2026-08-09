@@ -84,7 +84,7 @@ export function BookingFormModal({ onClose }: { onClose: () => void }) {
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/60 backdrop-blur-sm p-4">
-      <div className="bg-white rounded-3xl shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
+      <div className="bg-white rounded-[5px] shadow-xl w-full max-w-2xl max-h-[90vh] flex flex-col overflow-hidden">
 
         <div className="flex items-start justify-between gap-3 p-5 border-b border-slate-100 flex-shrink-0">
           <div>

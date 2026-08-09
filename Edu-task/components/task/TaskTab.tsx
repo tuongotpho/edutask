@@ -66,15 +66,15 @@ export function TaskTab({ onRequestNewTask, onSelectTask }: TaskTabProps) {
     <div className="space-y-6">
 
       {/* Header & Controls */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
+      <div className="bg-white rounded-[5px] border border-slate-200 p-6 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
           <div>
             <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
               <CheckSquare className="w-5 h-5 text-emerald-600" />
-              Quản Lý Giao Việc & Theo Dõi Tiến Độ
+              Quản Lý Giao Việc &amp; Theo Dõi Tiến Độ
             </h2>
             <p className="text-xs text-slate-500 mt-1">
-              Theo dõi việc cá nhân & tổ bộ môn, tránh giao trùng khi nhân sự nghỉ phép
+              Theo dõi việc cá nhân &amp; tổ bộ môn, tránh giao trùng khi nhân sự nghỉ phép
             </p>
           </div>
 
@@ -156,7 +156,7 @@ export function TaskTab({ onRequestNewTask, onSelectTask }: TaskTabProps) {
           {columns.map(col => {
             const columnTasks = filteredTasks.filter(t => t.status === col.status || (col.status === 'IN_PROGRESS' && t.status === 'VIEWED'));
             return (
-              <div key={col.status} className={`p-4 rounded-3xl border ${col.bg} space-y-3 min-h-[400px]`}>
+              <div key={col.status} className={`p-4 rounded-[5px] border ${col.bg} space-y-3 min-h-[400px]`}>
                 <div className="flex items-center justify-between border-b border-slate-200/80 pb-2">
                   <span className="font-extrabold text-slate-900 text-xs uppercase tracking-wider">{col.label}</span>
                   <span className="px-2 py-0.5 rounded-full bg-white text-slate-700 font-bold text-[10px] shadow-xs">
@@ -169,7 +169,7 @@ export function TaskTab({ onRequestNewTask, onSelectTask }: TaskTabProps) {
                     <div
                       key={task.id}
                       onClick={() => onSelectTask(task.id)}
-                      className="p-4 bg-white rounded-2xl border border-slate-200 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer space-y-2.5"
+                      className="p-4 bg-white rounded-[5px] border border-slate-200 shadow-xs hover:shadow-md hover:border-indigo-300 transition-all cursor-pointer space-y-2.5"
                     >
                       <div className="flex items-center justify-between">
                         <span className="font-mono text-[10px] font-bold text-slate-500">{task.code}</span>
@@ -203,7 +203,7 @@ export function TaskTab({ onRequestNewTask, onSelectTask }: TaskTabProps) {
         </div>
       ) : (
         /* LIST VIEW */
-        <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+        <div className="bg-white rounded-[5px] border border-slate-200 overflow-hidden shadow-sm">
           <div className="divide-y divide-slate-100 text-xs">
             {filteredTasks.map(task => (
               <div

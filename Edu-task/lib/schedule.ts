@@ -97,6 +97,20 @@ export function weekdayLabel(date: string): string {
   return parsed ? WEEKDAY_LABELS[parsed.getUTCDay()] : '';
 }
 
+/** True if date falls on a weekend (Saturday or Sunday UTC). */
+export function isWeekend(date: string): boolean {
+  const parsed = parseDate(date);
+  if (!parsed) return false;
+  const day = parsed.getUTCDay();
+  return day === 0 || day === 6;
+}
+
+/** True if date falls on Sunday. */
+export function isSunday(date: string): boolean {
+  const parsed = parseDate(date);
+  return parsed ? parsed.getUTCDay() === 0 : false;
+}
+
 /** `2026-08-10` → `10/08/2026`. Returns the input unchanged if unparseable. */
 export function formatDateVi(date: string): string {
   const parsed = parseDate(date);

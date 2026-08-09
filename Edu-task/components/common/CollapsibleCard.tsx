@@ -41,7 +41,7 @@ export function CollapsibleCard({
   const [isOpen, setIsOpen] = useState(defaultOpen);
 
   return (
-    <section className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <section className="bg-white rounded-[5px] border border-slate-200 shadow-sm overflow-hidden">
       <div className="flex items-start justify-between gap-3 p-5 sm:p-6">
         <button
           type="button"

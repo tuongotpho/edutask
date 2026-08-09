@@ -27,7 +27,7 @@ function StatCard({ label, value, sub, tone = 'slate' }: {
   }[tone];
 
   return (
-    <div className="bg-white p-5 rounded-3xl border border-slate-200 shadow-xs space-y-1.5">
+    <div className="bg-white p-5 rounded-[5px] border border-slate-200 shadow-xs space-y-1.5">
       <span className="text-[11px] font-bold text-slate-400 uppercase tracking-wider">{label}</span>
       <div className={`text-3xl font-extrabold ${valueTone}`}>{value}</div>
       {sub && <div className="text-xs text-slate-500">{sub}</div>}
@@ -51,7 +51,7 @@ export function AnalyticsTab() {
 
   if (!allowed) {
     return (
-      <div className="p-8 bg-white rounded-3xl border border-slate-200 text-center space-y-3 shadow-sm my-6">
+      <div className="p-8 bg-white rounded-[5px] border border-slate-200 text-center space-y-3 shadow-sm my-6">
         <div className="w-12 h-12 mx-auto rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 font-bold text-xl">
           🚫
         </div>
@@ -86,7 +86,7 @@ export function AnalyticsTab() {
   return (
     <div className="space-y-6">
 
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-2">
+      <div className="bg-white rounded-[5px] border border-slate-200 p-6 shadow-sm space-y-2">
         <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
           <BarChart3 className="w-5 h-5 text-indigo-600" />
           Thống Kê Báo Cáo Hiệu Quả Quản Lý
@@ -145,7 +145,7 @@ export function AnalyticsTab() {
       )}
 
       {/* Leave trend */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
+      <div className="bg-white rounded-[5px] border border-slate-200 p-6 shadow-sm space-y-4">
         <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
           <TrendingUp className="w-4 h-4 text-indigo-600" />
           Xu Hướng Nghỉ Phép 6 Tháng Gần Nhất
@@ -170,7 +170,7 @@ export function AnalyticsTab() {
       </div>
 
       {/* Department breakdown */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
+      <div className="bg-white rounded-[5px] border border-slate-200 p-6 shadow-sm space-y-4">
         <h3 className="font-bold text-slate-900 text-sm">Hiệu Quả Theo Tổ Bộ Môn</h3>
         <div className="overflow-x-auto">
           <table className="w-full text-left text-xs border-collapse">
@@ -213,7 +213,7 @@ export function AnalyticsTab() {
       </div>
 
       {/* Workload distribution */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
+      <div className="bg-white rounded-[5px] border border-slate-200 p-6 shadow-sm space-y-4">
         <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
           <Users className="w-4 h-4 text-indigo-600" />
           Nhân Sự Đang Gánh Nhiều Việc Nhất

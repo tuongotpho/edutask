@@ -98,7 +98,7 @@ export function EquipmentPanel() {
       </div>
 
       {isFormOpen && (
-        <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-3">
+        <div className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm space-y-3">
           <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
             <Wrench className="w-4 h-4 text-orange-600" />
             Phiếu Mượn Thiết Bị
@@ -189,7 +189,7 @@ export function EquipmentPanel() {
       )}
 
       {visibleLoans.length === 0 ? (
-        <div className="bg-white rounded-3xl border border-slate-200 p-10 text-center shadow-sm">
+        <div className="bg-white rounded-[5px] border border-slate-200 p-10 text-center shadow-sm">
           <p className="text-xs text-slate-500">
             {seesEverything ? 'Chưa có phiếu mượn nào.' : 'Bạn chưa mượn thiết bị nào.'}
           </p>
@@ -249,7 +249,7 @@ function LoanCard({
   const statusConfig = LOAN_STATUS_LABELS[loan.status];
 
   return (
-    <article className={`bg-white rounded-3xl border p-4 shadow-sm space-y-3 ${
+    <article className={`bg-white rounded-[5px] border p-4 shadow-sm space-y-3 ${
       overdue ? 'border-rose-300' : 'border-slate-200'
     }`}>
       <div className="flex items-start justify-between gap-3 flex-wrap">

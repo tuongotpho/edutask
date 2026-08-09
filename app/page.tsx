@@ -147,7 +147,7 @@ function EduTaskMainApp() {
     return <LoginPage />;
   }
 
-  if (currentUser.status === 'PENDING_APPROVAL') {
+  if (currentUser.status === 'PENDING_APPROVAL' || currentUser.status === 'REJECTED') {
     return <PendingApprovalPage />;
   }
 

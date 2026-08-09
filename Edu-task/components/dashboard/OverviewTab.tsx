@@ -90,7 +90,7 @@ export function OverviewTab({
           only real content — the active role — is in the navbar too. All it
           does here is push the actual figures below the fold. */}
       {!isSchoolLeadershipOrAdmin && (
-      <div className="relative bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-3xl p-6 md:p-8 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 overflow-hidden">
+      <div className="relative bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 text-white rounded-[5px] p-6 md:p-8 shadow-xl flex flex-col md:flex-row items-start md:items-center justify-between gap-6 overflow-hidden">
         {/* Decorative ambient orbs */}
         <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-indigo-500/15 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full bg-violet-500/10 blur-3xl pointer-events-none" />

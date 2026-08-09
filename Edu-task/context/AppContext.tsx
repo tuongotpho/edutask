@@ -412,7 +412,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
             ...match,
             roles: ['ADMIN', 'PRINCIPAL', 'TEACHER'],
             activeRole: match.activeRole || 'ADMIN',
-            status: 'ACTIVE',
+            status: match.status === 'REJECTED' ? 'REJECTED' : 'ACTIVE',
           };
         }
       }

@@ -24,16 +24,11 @@ import { TAB_SLUGS } from '@/Edu-task/lib/tabRouting';
 /**
  * The principal's operations screen.
  *
- * Every tile is rendered from the registry in `lib/dashboardMetrics.ts` — this
- * component knows how to draw a metric, never which metrics exist. Adding an
- * indicator is a registry entry, not a change here.
- *
- * Indicators whose module has not been built are shown, greyed, with the reason
- * they are empty. That is the deliberate choice: the alternative is either
- * hiding them (so the roadmap is invisible and the screen looks finished when
- * it is not) or filling them with zeros (so a placeholder is indistinguishable
- * from a measurement). A principal must never have to wonder which of the two
- * they are looking at.
+ * Adjusted parameters:
+ * - Corner radius set strictly to 5px (rounded-[5px]).
+ * - Top accent color bar enhanced to 5px (h-[5px]) with rich gradients.
+ * - Standard 1px border maintained (no extra thickness).
+ * - All metric data & visual card tones kept as original.
  */
 
 const TONE_STYLES: Record<MetricTone, {
@@ -44,35 +39,35 @@ const TONE_STYLES: Record<MetricTone, {
     dot: 'bg-rose-500', value: 'text-rose-700',
     card: 'bg-gradient-to-br from-rose-50/80 to-red-50/60 border-rose-200',
     glow: 'group-hover:shadow-rose-100/60',
-    accent: 'bg-gradient-to-r from-rose-400 to-red-400',
+    accent: 'bg-gradient-to-r from-rose-500 via-red-600 to-rose-500',
     hoverBg: 'bg-rose-50', hoverArrow: 'group-hover:text-rose-500',
   },
   WARNING: {
     dot: 'bg-amber-500', value: 'text-amber-700',
     card: 'bg-gradient-to-br from-amber-50/80 to-orange-50/60 border-amber-200',
     glow: 'group-hover:shadow-amber-100/60',
-    accent: 'bg-gradient-to-r from-amber-400 to-orange-400',
+    accent: 'bg-gradient-to-r from-amber-500 via-orange-500 to-amber-500',
     hoverBg: 'bg-amber-50', hoverArrow: 'group-hover:text-amber-500',
   },
   INFO: {
     dot: 'bg-sky-500', value: 'text-sky-700',
     card: 'bg-gradient-to-br from-sky-50/80 to-blue-50/60 border-sky-200',
     glow: 'group-hover:shadow-sky-100/60',
-    accent: 'bg-gradient-to-r from-sky-400 to-blue-400',
+    accent: 'bg-gradient-to-r from-sky-500 via-blue-600 to-sky-500',
     hoverBg: 'bg-sky-50', hoverArrow: 'group-hover:text-sky-500',
   },
   GOOD: {
     dot: 'bg-emerald-500', value: 'text-emerald-700',
     card: 'bg-gradient-to-br from-emerald-50/80 to-green-50/60 border-emerald-200',
     glow: 'group-hover:shadow-emerald-100/60',
-    accent: 'bg-gradient-to-r from-emerald-400 to-green-400',
+    accent: 'bg-gradient-to-r from-emerald-500 via-green-600 to-emerald-500',
     hoverBg: 'bg-emerald-50', hoverArrow: 'group-hover:text-emerald-500',
   },
   NEUTRAL: {
     dot: 'bg-slate-400', value: 'text-slate-700',
     card: 'bg-gradient-to-br from-slate-50 to-gray-50/60 border-slate-200',
     glow: 'group-hover:shadow-slate-100/60',
-    accent: 'bg-gradient-to-r from-slate-300 to-gray-300',
+    accent: 'bg-gradient-to-r from-slate-400 via-gray-500 to-slate-400',
     hoverBg: 'bg-slate-50', hoverArrow: 'group-hover:text-slate-500',
   },
 };
@@ -120,15 +115,14 @@ export function MissionControl({ onNavigate }: MissionControlProps) {
 
   const coverage = metricCoverage();
 
-  // Anything red or amber, surfaced above the fold: the point of the screen is
-  // to answer "is anything wrong" without scrolling six groups.
   const alerts = resolved.filter(
     ({ outcome }) => outcome.state === 'READY' && (outcome.tone === 'CRITICAL' || outcome.tone === 'WARNING')
   );
 
   return (
     <div className="space-y-5">
-      <div className="relative bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-3xl p-6 shadow-xl text-white overflow-hidden">
+      {/* Banner with 5px rounded corners */}
+      <div className="relative bg-gradient-to-br from-slate-900 via-indigo-950 to-slate-900 rounded-[5px] p-6 shadow-xl text-white overflow-hidden">
         {/* Decorative ambient orbs */}
         <div className="absolute -top-20 -right-20 w-64 h-64 rounded-full bg-indigo-500/15 blur-3xl pointer-events-none" />
         <div className="absolute -bottom-16 -left-16 w-48 h-48 rounded-full bg-violet-500/10 blur-3xl pointer-events-none" />
@@ -138,7 +132,6 @@ export function MissionControl({ onNavigate }: MissionControlProps) {
             <h2 className="text-xl font-extrabold tracking-tight flex items-center gap-2">
               <span className="relative">
                 <Radio className="w-5 h-5 text-indigo-400" />
-                {/* Animated live indicator */}
                 <span className="absolute -top-0.5 -right-0.5 w-2 h-2 rounded-full bg-emerald-400">
                   <span className="absolute inset-0 rounded-full bg-emerald-400 animate-ping opacity-75" />
                 </span>
@@ -153,16 +146,16 @@ export function MissionControl({ onNavigate }: MissionControlProps) {
             <div className="text-2xl font-extrabold flex items-center justify-end gap-2">
               {alerts.length === 0
                 ? <>
-                    <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 flex-shrink-0" />
-                    Ổn định
-                  </>
+                  <span className="w-2.5 h-2.5 rounded-full bg-emerald-400 flex-shrink-0" />
+                  Ổn định
+                </>
                 : <>
-                    <span className="relative flex-shrink-0">
-                      <span className="w-2.5 h-2.5 rounded-full bg-amber-400 block" />
-                      <span className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping opacity-75" />
-                    </span>
-                    {alerts.length} mục cần lưu ý
-                  </>
+                  <span className="relative flex-shrink-0">
+                    <span className="w-2.5 h-2.5 rounded-full bg-amber-400 block" />
+                    <span className="absolute inset-0 w-2.5 h-2.5 rounded-full bg-amber-400 animate-ping opacity-75" />
+                  </span>
+                  {alerts.length} mục cần lưu ý
+                </>
               }
             </div>
             <p className="text-[11px] text-slate-400">
@@ -178,7 +171,7 @@ export function MissionControl({ onNavigate }: MissionControlProps) {
                 key={definition.key}
                 type="button"
                 onClick={() => definition.linkTab && onNavigate?.(slugToTab(definition.linkTab))}
-                className={`px-3 py-1.5 rounded-xl text-[11px] font-bold flex items-center gap-1.5 transition-all duration-200 ${
+                className={`px-3 py-1.5 rounded-[5px] text-[11px] font-bold flex items-center gap-1.5 transition-all duration-200 ${
                   definition.linkTab ? 'hover:opacity-80 hover:-translate-y-0.5 cursor-pointer' : 'cursor-default'
                 } ${
                   outcome.state === 'READY' && outcome.tone === 'CRITICAL'
@@ -205,7 +198,7 @@ export function MissionControl({ onNavigate }: MissionControlProps) {
         <button
           type="button"
           onClick={() => setShowPlanned(!showPlanned)}
-          className="px-3 py-2 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all duration-200 hover:shadow-sm"
+          className="px-3 py-2 rounded-[5px] border border-slate-200 bg-white hover:bg-slate-50 text-slate-700 font-bold text-xs flex items-center gap-1.5 transition-all duration-200 hover:shadow-sm"
         >
           {showPlanned ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
           <span>
@@ -253,7 +246,6 @@ function formatValue(outcome: Extract<MetricOutcome, { state: 'READY' }>): strin
   return outcome.unit === 'PERCENT' ? `${outcome.value}%` : String(outcome.value);
 }
 
-/** Tab slugs are what metric definitions carry; the sidebar speaks TabType. */
 function slugToTab(slug: string): TabType {
   const entry = Object.entries(TAB_SLUGS).find(([, value]) => value === slug);
   return (entry?.[0] as TabType) ?? (slug as TabType);
@@ -270,8 +262,7 @@ function MetricTile({
 
   if (outcome.state === 'NOT_AVAILABLE') {
     return (
-      <div className="relative p-4 rounded-2xl border border-dashed border-slate-300 bg-white overflow-hidden">
-        {/* Subtle diagonal stripe pattern for "under construction" */}
+      <div className="relative p-4 rounded-[5px] border border-dashed border-slate-300 bg-white overflow-hidden">
         <div className="absolute inset-0 opacity-[0.03]" style={{
           backgroundImage: 'repeating-linear-gradient(45deg, transparent, transparent 10px, currentColor 10px, currentColor 11px)',
         }} />
@@ -292,9 +283,9 @@ function MetricTile({
     const isRealZero = outcome.zeroIsMeaningful === true;
     return (
       <Wrapper clickable={clickable} definition={definition} onNavigate={onNavigate}
-        className="group relative p-4 rounded-2xl border border-slate-200 bg-white text-left w-full transition-all duration-300 overflow-hidden hover:shadow-lg hover:shadow-slate-100/60 hover:-translate-y-0.5">
-        {/* Accent bar — green for real zero, grey otherwise */}
-        <div className={`absolute top-0 left-0 right-0 h-[3px] ${isRealZero ? 'bg-gradient-to-r from-emerald-400 to-green-400' : 'bg-slate-200'}`} />
+        className="group relative p-4 rounded-[5px] border border-slate-200 bg-white text-left w-full transition-all duration-300 overflow-hidden hover:shadow-lg hover:shadow-slate-100/60 hover:-translate-y-0.5">
+        {/* Accent bar — 5px height, bolder color */}
+        <div className={`absolute top-0 left-0 right-0 h-[5px] ${isRealZero ? 'bg-gradient-to-r from-emerald-500 via-green-600 to-emerald-500' : 'bg-slate-300'}`} />
         <div className="absolute -bottom-6 -right-6 w-20 h-20 rounded-full bg-slate-50 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
 
         <div className="relative">
@@ -315,12 +306,11 @@ function MetricTile({
 
   return (
     <Wrapper clickable={clickable} definition={definition} onNavigate={onNavigate}
-      className={`group relative p-4 rounded-2xl border text-left w-full transition-all duration-300 overflow-hidden ${style.card} ${
+      className={`group relative p-4 rounded-[5px] border text-left w-full transition-all duration-300 overflow-hidden ${style.card} ${
         clickable ? `hover:shadow-xl ${style.glow} hover:-translate-y-1` : ''
       }`}>
-      {/* Accent bar matching tone */}
-      <div className={`absolute top-0 left-0 right-0 h-[3px] ${style.accent}`} />
-      {/* Decorative hover shape */}
+      {/* Accent bar — 5px height with enhanced color */}
+      <div className={`absolute top-0 left-0 right-0 h-[5px] ${style.accent}`} />
       <div className={`absolute -bottom-6 -right-6 w-20 h-20 rounded-full opacity-0 group-hover:opacity-100 transition-opacity duration-300 ${style.hoverBg}`} />
 
       <div className="relative">
@@ -375,4 +365,3 @@ function Wrapper({
     </button>
   );
 }
-

@@ -3,8 +3,8 @@ import './globals.css'; // Global styles
 import { PwaProvider } from '@/Edu-task/components/common/PwaProvider';
 
 export const metadata: Metadata = {
-  title: 'EduTask - Quản lý Công việc & Nghỉ phép Trường học',
-  description: 'Hệ thống quản lý giao việc, đơn xin nghỉ phép và phân quyền cho trường học.',
+  title: 'EduTask - Giải pháp Chuyển đổi số Quản trị & Vận hành Nhà trường',
+  description: 'Nền tảng chuyển đổi số quản trị công việc, chuyên môn và vận hành nhà trường thông minh.',
   applicationName: 'EduTask',
   // Standalone mode on iOS, which ignores the web manifest for this.
   appleWebApp: {

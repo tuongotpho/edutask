@@ -10,7 +10,7 @@ import {
   StudentMark,
 } from '@/Edu-task/types/student';
 import { SCHOOL_SESSIONS, SCHOOL_SESSION_LABELS, SchoolSession } from '@/Edu-task/types/schedule';
-import { formatDateVi, sortClasses, toDateString, weekdayLabel } from '@/Edu-task/lib/schedule';
+import { formatDateVi, isWeekend, sortClasses, toDateString, weekdayLabel } from '@/Edu-task/lib/schedule';
 import { tallyEntries } from '@/Edu-task/lib/studentStats';
 
 /**
@@ -39,7 +39,7 @@ export function RollCallPanel() {
   const rosterSize = students.filter(s => s.classId === classId && s.isActive).length;
 
   return (
-    <section className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <section className="bg-white rounded-[5px] border border-slate-200 shadow-sm overflow-hidden">
       <div className="p-5 border-b border-slate-100">
         <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
           <ClipboardCheck className="w-4 h-4 text-sky-600" />
@@ -47,6 +47,7 @@ export function RollCallPanel() {
         </h3>
         <p className="text-xs text-slate-500 mt-0.5">
           {weekdayLabel(date)} {formatDateVi(date)}
+          {isWeekend(date) && <span className="ml-2 px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 font-medium text-[11px] border border-amber-200">Ngày nghỉ</span>}
           {saved && ` · đã điểm danh bởi ${saved.recordedByName}`}
         </p>
       </div>
@@ -217,10 +218,10 @@ function RollSheet({
                     type="button"
                     onClick={() => setMark(item.studentId, mark)}
                     title={config.label}
-                    className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${
+                    className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
                       item.mark === mark
                         ? `${config.bg} ${config.color}`
-                        : 'bg-white border-slate-200 text-slate-400 hover:bg-slate-100'
+                        : 'bg-white border-slate-200 text-slate-600 font-semibold hover:bg-slate-100 hover:text-slate-900'
                     }`}
                   >
                     {config.short}

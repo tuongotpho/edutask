@@ -31,6 +31,8 @@ import {
 } from '@/Edu-task/types/gifted';
 import { formatDateVi, toDateString } from '@/Edu-task/lib/schedule';
 import { canManageGifted } from '@/Edu-task/lib/permissions';
+import { GiftedProgramModal } from './GiftedProgramModal';
+import { GiftedLessonModal } from './GiftedLessonModal';
 
 const inputClass =
   'w-full px-4 py-3 bg-slate-50 border border-slate-200 rounded-xl text-sm text-slate-900 placeholder:text-slate-400 focus:bg-white focus:outline-none focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 transition-all duration-200';
@@ -253,50 +255,38 @@ export function GiftedTab() {
 
   return (
     <div className="space-y-8 pb-12">
-      {/* Premium Hero Banner */}
-      <div className="relative rounded-[2rem] p-8 sm:p-10 text-white shadow-[0_8px_30px_rgb(0,0,0,0.12)] overflow-hidden bg-slate-900 group">
-        {/* Abstract Mesh Gradient Background */}
-        <div className="absolute inset-0 bg-gradient-to-br from-blue-600/40 via-indigo-600/40 to-purple-800/40 opacity-90 mix-blend-overlay transition-transform duration-1000 group-hover:scale-105"></div>
-        <div className="absolute -top-24 -right-24 w-96 h-96 bg-blue-500 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-pulse"></div>
-        <div className="absolute -bottom-24 -left-24 w-72 h-72 bg-purple-500 rounded-full mix-blend-multiply filter blur-3xl opacity-50 animate-pulse" style={{ animationDelay: '2s' }}></div>
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-80 h-80 bg-indigo-500 rounded-full mix-blend-multiply filter blur-3xl opacity-40 animate-pulse" style={{ animationDelay: '4s' }}></div>
-        
-        {/* Glass Overlay */}
-        <div className="absolute inset-0 bg-white/5 backdrop-blur-[2px] border border-white/10 rounded-[2rem]"></div>
-
-        <div className="relative z-10 flex flex-wrap items-center justify-between gap-6">
-          <div className="max-w-2xl">
-            <div className="inline-flex items-center space-x-2 bg-white/10 backdrop-blur-md border border-white/20 px-3 py-1 rounded-full text-blue-200 text-xs font-bold uppercase tracking-widest mb-4 shadow-sm">
-              <Award className="w-3.5 h-3.5" />
-              <span>Đào Tạo Mũi Nhọn</span>
-            </div>
-            <h2 className="text-3xl sm:text-4xl font-black tracking-tight mb-2 text-transparent bg-clip-text bg-gradient-to-r from-white via-blue-100 to-indigo-200">
+      {/* Standard Header Card */}
+      <div className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm">
+        <div className="flex flex-wrap items-start justify-between gap-3">
+          <div>
+            <h2 className="text-lg font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+              <Award className="w-5 h-5 text-indigo-600" />
               Bồi Dưỡng Học Sinh Giỏi
             </h2>
-            <p className="text-xs text-indigo-100 mt-1 max-w-xl">
-              Quản lý các chuyên đề bồi dưỡng đội tuyển HSG, phân công giảng dạy chi tiết theo từng tiết và xác nhận hoàn thành tiến độ.
+            <p className="text-xs text-slate-500 mt-0.5">
+              Quản lý các chuyên đề bồi dưỡng đội tuyển HSG, phân công giảng dạy chi tiết và theo dõi tiến độ hoàn thành.
             </p>
           </div>
 
-          <div className="flex items-center space-x-3">
-            <div className="flex flex-col items-center justify-center bg-white/10 backdrop-blur-xl border border-white/20 px-6 py-4 rounded-2xl shadow-[0_8px_30px_rgb(0,0,0,0.1)]">
-              <div className="text-xs text-blue-200 font-semibold mb-1 uppercase tracking-wider">Tiến độ chung</div>
-              <div className="text-3xl font-black text-white flex items-baseline space-x-1">
-                <span>{overallStats.completedLessons}</span>
-                <span className="text-lg text-blue-300 font-bold">/ {overallStats.totalLessons}</span>
+          <div className="flex flex-wrap items-center gap-3">
+            {overallStats.totalLessons > 0 && (
+              <div className="px-3 py-1.5 rounded-2xl bg-indigo-50 border border-indigo-100 text-center">
+                <div className="text-xs font-extrabold text-indigo-900">
+                  {overallStats.completedLessons}/{overallStats.totalLessons} bài hoàn thành
+                </div>
+                <div className="text-[10px] text-indigo-600 font-semibold">
+                  Tiến độ chung: {overallStats.percent}%
+                </div>
               </div>
-              <div className="w-full bg-white/10 h-1.5 rounded-full mt-3 overflow-hidden">
-                <div className="bg-gradient-to-r from-blue-400 to-indigo-400 h-full rounded-full shadow-[0_0_10px_rgba(96,165,250,0.8)]" style={{ width: `${overallStats.percent}%` }}></div>
-              </div>
-            </div>
+            )}
 
             <button
+              type="button"
               onClick={handleOpenNewProgram}
-              className="relative overflow-hidden group bg-white text-blue-700 hover:text-blue-800 px-6 py-3.5 rounded-2xl font-extrabold text-sm flex items-center space-x-2 shadow-[0_8px_20px_rgba(255,255,255,0.2)] transition-all hover:scale-105 active:scale-95"
+              className="px-3.5 py-2 rounded-xl text-xs font-bold bg-slate-900 text-white hover:bg-slate-800 flex items-center gap-1.5 transition-all"
             >
-              <div className="absolute inset-0 bg-blue-50 opacity-0 group-hover:opacity-100 transition-opacity"></div>
-              <PlusCircle className="w-5 h-5 text-blue-600 relative z-10 group-hover:rotate-90 transition-transform duration-500" />
-              <span className="relative z-10">Tạo Chương Trình</span>
+              <PlusCircle className="w-4 h-4 text-indigo-400" />
+              <span>Tạo Chương Trình</span>
             </button>
           </div>
         </div>
@@ -349,7 +339,7 @@ export function GiftedTab() {
           </div>
 
           {/* Program Header Card */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-4">
+          <div className="bg-white rounded-[5px] border border-slate-200 p-6 shadow-sm space-y-4">
             <div className="flex flex-wrap items-start justify-between gap-4">
               <div className="space-y-1">
                 <div className="flex items-center space-x-2">
@@ -378,7 +368,7 @@ export function GiftedTab() {
                 const pct = total > 0 ? Math.round((completed / total) * 100) : 0;
 
                 return (
-                  <div className="bg-slate-50 border border-slate-200 rounded-2xl p-4 min-w-[220px]">
+                  <div className="bg-slate-50 border border-slate-200 rounded-[5px] p-4 min-w-[220px]">
                     <div className="flex items-center justify-between text-xs mb-1.5 font-bold">
                       <span className="text-slate-700">Tiến độ thực hiện</span>
                       <span className="text-indigo-600">{pct}%</span>
@@ -415,7 +405,7 @@ export function GiftedTab() {
           </div>
 
           {/* Lessons Table Section */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-4">
+          <div className="bg-white rounded-[5px] border border-slate-200 p-6 shadow-sm space-y-4">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <div>
                 <h3 className="text-base font-extrabold text-slate-900">Danh Sách Tiết Học / Chuyên Đề</h3>
@@ -434,13 +424,13 @@ export function GiftedTab() {
             </div>
 
             {selectedProgram.lessons.length === 0 ? (
-              <div className="text-center py-12 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
+              <div className="text-center py-12 bg-slate-50 rounded-[5px] border border-dashed border-slate-200">
                 <BookOpen className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                 <p className="text-sm font-semibold text-slate-700">Chưa có tiết/chuyên đề nào trong chương trình này</p>
                 <p className="text-xs text-slate-400 mt-1">Bấm "Thêm Tiết / Chuyên Đề" ở trên để phân công danh sách tiết học</p>
               </div>
             ) : (
-              <div className="overflow-x-auto rounded-2xl border border-slate-200">
+              <div className="overflow-x-auto rounded-[5px] border border-slate-200">
                 <table className="w-full text-left text-xs border-collapse">
                   <thead>
                     <tr className="bg-slate-50 text-slate-600 font-bold border-b border-slate-200">
@@ -598,7 +588,7 @@ export function GiftedTab() {
         /* PROGRAM LIST VIEW */
         <div className="space-y-6">
           {/* Filters & Control Bar */}
-          <div className="bg-white rounded-2xl border border-slate-100 p-5 shadow-[0_8px_30px_rgb(0,0,0,0.04)] space-y-4">
+          <div className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm space-y-4">
             <div className="grid grid-cols-1 sm:grid-cols-4 gap-3">
               {/* Search Bar */}
               <div className="relative sm:col-span-2">
@@ -670,7 +660,7 @@ export function GiftedTab() {
 
           {/* Cards Grid */}
           {filteredPrograms.length === 0 ? (
-            <div className="text-center py-20 bg-white/50 backdrop-blur-xl rounded-[2rem] border border-white p-8 shadow-[0_8px_30px_rgb(0,0,0,0.04)] relative overflow-hidden">
+            <div className="text-center py-16 bg-white rounded-[5px] border border-slate-200 p-8 shadow-sm relative overflow-hidden">
               <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 to-purple-50/50 -z-10"></div>
               <div className="w-20 h-20 bg-blue-100 rounded-full flex items-center justify-center mx-auto mb-4 shadow-inner">
                 <Award className="w-10 h-10 text-blue-500" />
@@ -699,7 +689,7 @@ export function GiftedTab() {
                   <div
                     key={program.id}
                     onClick={() => setSelectedProgramId(program.id)}
-                    className="relative bg-white/70 backdrop-blur-xl rounded-[2rem] border border-white p-6 shadow-[0_8px_30px_rgb(0,0,0,0.04)] hover:shadow-[0_20px_40px_rgba(37,99,235,0.12)] hover:-translate-y-2 hover:border-blue-200/60 transition-all duration-500 cursor-pointer flex flex-col justify-between space-y-5 group overflow-hidden"
+                    className="relative bg-white rounded-[5px] border border-slate-200 p-6 shadow-sm hover:shadow-md hover:border-indigo-300 transition-all duration-200 cursor-pointer flex flex-col justify-between space-y-5 group overflow-hidden"
                   >
                     {/* Decorative Background Blob */}
                     <div className="absolute -top-10 -right-10 w-32 h-32 bg-gradient-to-br from-blue-400/20 to-purple-400/20 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-700"></div>
@@ -784,262 +774,31 @@ export function GiftedTab() {
       )}
 
       {/* MODAL 1: Create/Edit Program */}
-      {isProgramModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-lg w-full p-6 shadow-2xl border border-slate-100 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-extrabold text-slate-900">
-                {editingProgram ? 'Chỉnh Sửa Chương Trình HSG' : 'Tạo Chương Trình Bồi Dưỡng HSG Mới'}
-              </h3>
-              <button
-                onClick={() => setIsProgramModalOpen(false)}
-                className="p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmitProgram} className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Tên Chương Trình *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ví dụ: Bồi dưỡng Đội tuyển HSG Toán 9 Cấp Thành phố"
-                  value={programForm.title}
-                  onChange={e => setProgramForm({ ...programForm, title: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Môn Học *</label>
-                  <select
-                    value={programForm.subject}
-                    onChange={e => setProgramForm({ ...programForm, subject: e.target.value })}
-                    className={inputClass}
-                  >
-                    <option value="Toán">Toán</option>
-                    <option value="Vật lý">Vật lý</option>
-                    <option value="Hóa học">Hóa học</option>
-                    <option value="Sinh học">Sinh học</option>
-                    <option value="Tin học">Tin học</option>
-                    <option value="Ngữ văn">Ngữ văn</option>
-                    <option value="Tiếng Anh">Tiếng Anh</option>
-                    <option value="Lịch sử">Lịch sử</option>
-                    <option value="Địa lý">Địa lý</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Khối Lớp</label>
-                  <input
-                    type="text"
-                    placeholder="e.g. Khối 9, Khối 8"
-                    value={programForm.grade}
-                    onChange={e => setProgramForm({ ...programForm, grade: e.target.value })}
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Người Phụ Trách Đội Tuyển *</label>
-                <select
-                  value={programForm.coordinatorId}
-                  onChange={e => setProgramForm({ ...programForm, coordinatorId: e.target.value })}
-                  className={inputClass}
-                >
-                  {users.map(u => (
-                    <option key={u.id} value={u.id}>
-                      {u.fullName} ({u.departmentName})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Ngày Bắt Đầu</label>
-                  <input
-                    type="date"
-                    value={programForm.startDate}
-                    onChange={e => setProgramForm({ ...programForm, startDate: e.target.value })}
-                    className={inputClass}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Ngày Kết Thúc Dự Kiến</label>
-                  <input
-                    type="date"
-                    value={programForm.endDate}
-                    onChange={e => setProgramForm({ ...programForm, endDate: e.target.value })}
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Trạng Thái</label>
-                <select
-                  value={programForm.status}
-                  onChange={e => setProgramForm({ ...programForm, status: e.target.value as GiftedProgramStatus })}
-                  className={inputClass}
-                >
-                  <option value="IN_PROGRESS">Đang triển khai</option>
-                  <option value="DRAFT">Dự thảo</option>
-                  <option value="COMPLETED">Hoàn thành</option>
-                  <option value="ARCHIVED">Lưu trữ</option>
-                </select>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Mô Tả / Ghi Chú Mụctiêu</label>
-                <textarea
-                  rows={2}
-                  placeholder="Ghi chú về nội dung cốt lõi, mục tiêu giải thưởng..."
-                  value={programForm.description}
-                  onChange={e => setProgramForm({ ...programForm, description: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsProgramModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white shadow-xs"
-                >
-                  {editingProgram ? 'Cập Nhật' : 'Tạo Chương Trình'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <GiftedProgramModal
+        isOpen={isProgramModalOpen}
+        editingProgram={editingProgram}
+        programForm={programForm}
+        users={users}
+        onClose={() => setIsProgramModalOpen(false)}
+        onChangeForm={setProgramForm}
+        onSubmit={handleSubmitProgram}
+      />
 
       {/* MODAL 2: Add/Edit Lesson */}
-      {isLessonModalOpen && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-md w-full p-6 shadow-2xl border border-slate-100 space-y-4">
-            <div className="flex items-center justify-between border-b border-slate-100 pb-3">
-              <h3 className="text-base font-extrabold text-slate-900">
-                {editingLesson ? 'Sửa Tiết / Chuyên Đề' : 'Thêm Tiết / Chuyên Đề Mới'}
-              </h3>
-              <button
-                onClick={() => setIsLessonModalOpen(false)}
-                className="p-1 hover:bg-slate-100 rounded-full text-slate-400 hover:text-slate-600"
-              >
-                <X className="w-5 h-5" />
-              </button>
-            </div>
-
-            <form onSubmit={handleSubmitLesson} className="space-y-3">
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Tên Tiết / Chuyên Đề *</label>
-                <input
-                  type="text"
-                  required
-                  placeholder="Ví dụ: Chuyên đề Bất đẳng thức Cauchy và ứng dụng"
-                  value={lessonForm.title}
-                  onChange={e => setLessonForm({ ...lessonForm, title: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Giáo Viên Phụ Trách Dạy *</label>
-                <select
-                  value={lessonForm.teacherId}
-                  onChange={e => setLessonForm({ ...lessonForm, teacherId: e.target.value })}
-                  className={inputClass}
-                >
-                  {users.map(u => (
-                    <option key={u.id} value={u.id}>
-                      {u.fullName} ({u.departmentName})
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              <div className="grid grid-cols-2 gap-3">
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Ngày Học Dự Kiến</label>
-                  <input
-                    type="date"
-                    value={lessonForm.scheduledDate}
-                    onChange={e => setLessonForm({ ...lessonForm, scheduledDate: e.target.value })}
-                    className={inputClass}
-                  />
-                </div>
-
-                <div>
-                  <label className="block text-xs font-bold text-slate-700 mb-1">Số Tiết Dạy</label>
-                  <input
-                    type="number"
-                    min={1}
-                    max={10}
-                    value={lessonForm.durationPeriods}
-                    onChange={e => setLessonForm({ ...lessonForm, durationPeriods: parseInt(e.target.value) || 1 })}
-                    className={inputClass}
-                  />
-                </div>
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Phòng / Địa Điểm Học</label>
-                <input
-                  type="text"
-                  placeholder="Ví dụ: Phòng Chuyên đề 1 / Phòng Máy 2"
-                  value={lessonForm.roomName}
-                  onChange={e => setLessonForm({ ...lessonForm, roomName: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-
-              <div>
-                <label className="block text-xs font-bold text-slate-700 mb-1">Mô Tả Nội Dung Chi Tiết</label>
-                <textarea
-                  rows={2}
-                  placeholder="Ghi chú nội dung trọng tâm bài giảng, bài tập đính kèm..."
-                  value={lessonForm.description}
-                  onChange={e => setLessonForm({ ...lessonForm, description: e.target.value })}
-                  className={inputClass}
-                />
-              </div>
-
-              <div className="flex justify-end space-x-2 pt-3 border-t border-slate-100">
-                <button
-                  type="button"
-                  onClick={() => setIsLessonModalOpen(false)}
-                  className="px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-semibold text-slate-600 hover:bg-slate-50"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  className="px-4 py-2.5 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-xs font-bold text-white shadow-xs"
-                >
-                  {editingLesson ? 'Cập Nhật' : 'Thêm Tiết Học'}
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+      <GiftedLessonModal
+        isOpen={isLessonModalOpen}
+        editingLesson={editingLesson}
+        lessonForm={lessonForm}
+        users={users}
+        onClose={() => setIsLessonModalOpen(false)}
+        onChangeForm={setLessonForm}
+        onSubmit={handleSubmitLesson}
+      />
 
       {/* MODAL 3: Confirm Complete Lesson with Note */}
       {completingLessonId && (
         <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-xs flex items-center justify-center p-4 z-50 animate-in fade-in duration-200">
-          <div className="bg-white rounded-3xl max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4">
+          <div className="bg-white rounded-[5px] max-w-sm w-full p-6 shadow-2xl border border-slate-100 space-y-4">
             <div className="flex items-center space-x-2 text-emerald-600">
               <CheckCircle2 className="w-6 h-6" />
               <h3 className="text-base font-extrabold text-slate-900">Xác Nhận Hoàn Thành Tiết Dạy</h3>

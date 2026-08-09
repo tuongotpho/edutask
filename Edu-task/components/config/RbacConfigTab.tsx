@@ -23,7 +23,8 @@ import {
   Users,
   Building2,
   PlusCircle,
-  X
+  X,
+  FileSpreadsheet
 } from 'lucide-react';
 import { ConfirmModal } from '@/Edu-task/components/common/ConfirmModal';
 import { CollapsibleCard } from '@/Edu-task/components/common/CollapsibleCard';
@@ -34,6 +35,9 @@ import {
   RoomCatalogCard,
 } from '@/Edu-task/components/config/CatalogConfigCard';
 import { EquipmentCatalogCard } from '@/Edu-task/components/config/EquipmentCatalogCard';
+import { EditUserRolesModal } from './EditUserRolesModal';
+import { PendingUserRow } from './PendingUserRow';
+import { BulkUserImportModal } from './BulkUserImportModal';
 
 /**
  * Leaders first, then Vietnamese alphabetical order.
@@ -76,13 +80,13 @@ export function RbacConfigTab() {
 
   if (!canManageRbac(currentUser, activeRole)) {
     return (
-      <div className="p-8 bg-white rounded-3xl border border-slate-200 text-center space-y-3 shadow-sm my-6">
+      <div className="p-8 bg-white rounded-[5px] border border-slate-200 text-center space-y-3 shadow-sm my-6">
         <div className="w-12 h-12 mx-auto rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 font-bold text-xl">
           🚫
         </div>
         <h3 className="text-base font-bold text-slate-900">Truy Cập Khu Vực Quản Trị Bị Từ Chối</h3>
         <p className="text-xs text-slate-500 max-w-md mx-auto">
-          Chỉ có Quản trị viên hệ thống (Admin) mới có quyền truy cập thẻ Quản trị RBAC & Phê duyệt tài khoản. Vai trò hiện tại của bạn: <strong>{ROLE_LABELS[activeRole] || activeRole}</strong>.
+          Chỉ có Quản trị viên hệ thống (Admin) mới có quyền truy cập thẻ Quản trị RBAC và Phê duyệt tài khoản. Vai trò hiện tại của bạn: <strong>{ROLE_LABELS[activeRole] || activeRole}</strong>.
         </p>
       </div>
     );
@@ -97,10 +101,10 @@ export function RbacConfigTab() {
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-2">
+      <div className="bg-white rounded-[5px] border border-slate-200 p-6 shadow-sm space-y-2">
         <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
           <Settings className="w-5 h-5 text-indigo-600" />
-          Cấu Hình Hệ Thống, Phân Quyền & Tổ Chuyên Môn
+          Cấu Hình Hệ Thống, Phân Quyền và Tổ Chuyên Môn
         </h2>
         <p className="text-xs text-slate-500">
           Thiết lập tên trường học, danh sách tổ chuyên môn linh hoạt, ma trận quyền hạn theo vai trò và quản lý người dùng.
@@ -393,7 +397,7 @@ export function RbacConfigTab() {
       {/* Add / Edit Department Modal */}
       {isDeptModalOpen && (
         <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full space-y-4 shadow-2xl border border-slate-200 animate-in fade-in duration-200">
+          <div className="bg-white rounded-[5px] p-6 max-w-md w-full space-y-4 shadow-2xl border border-slate-200 animate-in fade-in duration-200">
             <div className="flex items-center justify-between pb-3 border-b border-slate-100">
               <h3 className="font-bold text-slate-900 text-sm flex items-center gap-2">
                 <Building2 className="w-4 h-4 text-indigo-600" />
@@ -510,9 +514,10 @@ export function RbacConfigTab() {
 }
 
 function UserAccountManager() {
-  const { users, departments, addUserProfile, approveUserProfile, rejectUserProfile, deleteUserProfile } = useApp();
+  const { users, departments, addUserProfile, approveUserProfile, rejectUserProfile, deleteUserProfile, showToast } = useApp();
 
   const [showAddModal, setShowAddModal] = useState(false);
+  const [showBulkModal, setShowBulkModal] = useState(false);
   const [editingUser, setEditingUser] = useState<User | null>(null);
   const [deleteConfirm, setDeleteConfirm] = useState<{type: 'user' | null, id: string, name: string}>({type: null, id: '', name: ''});
 
@@ -577,18 +582,27 @@ function UserAccountManager() {
     setEmail('');
   };
 
+  const handleBulkImportUsers = async (newUsers: User[]): Promise<number> => {
+    let successCount = 0;
+    for (const u of newUsers) {
+      const ok = await addUserProfile(u);
+      if (ok) successCount++;
+    }
+    return successCount;
+  };
+
   return (
     <div className="space-y-6">
 
       {/* Pending User Approval Section */}
-      <div className="bg-amber-50 rounded-3xl border border-amber-200 p-6 shadow-sm space-y-4">
+      <div className="bg-amber-50 rounded-[5px] border border-amber-200 p-6 shadow-sm space-y-4">
         <div className="flex items-center justify-between">
           <div>
             <h3 className="font-bold text-amber-900 text-sm flex items-center gap-2">
               <ShieldCheck className="w-4 h-4 text-amber-600" />
               Tài Khoản Đăng Ký / Gmail Mới Chờ Admin Phê Duyệt ({pendingUsers.length})
             </h3>
-            <p className="text-xs text-amber-700 mt-0.5">Phê duyệt và phân bổ Tổ chuyên môn & Vai trò cho giáo viên mới đăng nhập lần đầu</p>
+            <p className="text-xs text-amber-700 mt-0.5">Phê duyệt và phân bổ Tổ chuyên môn và Vai trò cho giáo viên mới đăng nhập lần đầu</p>
           </div>
         </div>
 
@@ -619,13 +633,22 @@ function UserAccountManager() {
         defaultOpen
         badge={<span className="px-2 py-0.5 rounded-full bg-slate-100 text-slate-700 text-[10px] font-bold">{activeUsers.length} tài khoản</span>}
         headerAction={
-          <button
-            onClick={() => setShowAddModal(true)}
-            className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors shadow-xs flex items-center gap-1.5"
-          >
-            <UserPlus className="w-3.5 h-3.5" />
-            <span>Thêm Tài Khoản Mới</span>
-          </button>
+          <div className="flex flex-wrap items-center gap-2">
+            <button
+              onClick={() => setShowBulkModal(true)}
+              className="px-3.5 py-2 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-semibold text-xs transition-colors shadow-xs flex items-center gap-1.5"
+            >
+              <FileSpreadsheet className="w-3.5 h-3.5" />
+              <span>Nhập Hàng Loạt (CSV)</span>
+            </button>
+            <button
+              onClick={() => setShowAddModal(true)}
+              className="px-3.5 py-2 rounded-xl bg-indigo-600 hover:bg-indigo-700 text-white font-semibold text-xs transition-colors shadow-xs flex items-center gap-1.5"
+            >
+              <UserPlus className="w-3.5 h-3.5" />
+              <span>Thêm Thủ Công</span>
+            </button>
+          </div>
         }
       >
         {/* Search & filters */}
@@ -760,7 +783,7 @@ function UserAccountManager() {
       {/* Create New User Modal */}
       {showAddModal && (
         <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-          <div className="bg-white rounded-3xl p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
+          <div className="bg-white rounded-[5px] p-6 max-w-md w-full shadow-2xl border border-slate-200 space-y-4">
             <h4 className="font-bold text-slate-900 text-base">Thêm Tài Khoản Giáo Viên Mới</h4>
             <form onSubmit={handleCreateUser} className="space-y-3">
               <div>
@@ -850,6 +873,16 @@ function UserAccountManager() {
         />
       )}
 
+      {/* Bulk User Import CSV/Excel Modal */}
+      <BulkUserImportModal
+        isOpen={showBulkModal}
+        onClose={() => setShowBulkModal(false)}
+        departments={departments}
+        existingUsers={users}
+        onImportUsers={handleBulkImportUsers}
+        showToast={showToast}
+      />
+
       <ConfirmModal
         isOpen={deleteConfirm.type !== null}
         title="Xóa tài khoản"
@@ -863,236 +896,6 @@ function UserAccountManager() {
         }}
         onCancel={() => setDeleteConfirm({ type: null, id: '', name: '' })}
       />
-    </div>
-  );
-}
-
-function PendingUserRow({ 
-  user, 
-  deptMap, 
-  onApprove, 
-  onReject 
-}: { 
-  user: any; 
-  deptMap: Record<string, string>;
-  onApprove: (id: string, role: RoleType, deptId: string, deptName: string) => Promise<boolean>;
-  onReject: (id: string) => Promise<boolean>;
-}) {
-  const { departments } = useApp();
-  const [selectedDept, setSelectedDept] = useState(user.departmentId || departments[0]?.id || 'DEPT_TOAN_TIN');
-  const [selectedRole, setSelectedRole] = useState<RoleType>(user.roles?.[0] || 'TEACHER');
-
-  const handleApprove = () => {
-    onApprove(user.id, selectedRole, selectedDept, deptMap[selectedDept] || 'Tổ chuyên môn');
-  };
-
-  return (
-    <div className="p-4 bg-white rounded-2xl border border-amber-200 shadow-2xs flex flex-col md:flex-row items-start md:items-center justify-between gap-3 text-xs">
-      <div>
-        <div className="font-bold text-slate-900 text-sm flex items-center gap-2">
-          <span>{user.fullName}</span>
-          <span className="text-[10px] px-2 py-0.5 rounded bg-amber-100 text-amber-800 font-semibold border border-amber-200">
-            Chờ duyệt
-          </span>
-        </div>
-        <div className="text-slate-500">{user.email}</div>
-      </div>
-
-      <div className="flex flex-wrap items-center gap-2 w-full md:w-auto">
-        <select
-          value={selectedDept}
-          onChange={(e) => setSelectedDept(e.target.value)}
-          className="p-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-medium"
-        >
-          {departments.map(d => (
-            <option key={d.id} value={d.id}>{d.name}</option>
-          ))}
-        </select>
-
-        <select
-          value={selectedRole}
-          onChange={(e) => setSelectedRole(e.target.value as RoleType)}
-          className="p-1.5 rounded-xl border border-slate-200 bg-slate-50 text-xs font-bold"
-        >
-          <option value="TEACHER">Giáo viên (`TEACHER`)</option>
-          <option value="GROUP_LEADER">Nhóm trưởng (`GROUP_LEADER`)</option>
-          <option value="HEAD_OF_DEPT">Tổ trưởng (`HEAD_OF_DEPT`)</option>
-          <option value="VICE_PRINCIPAL">Hiệu phó (`VICE_PRINCIPAL`)</option>
-          <option value="PRINCIPAL">Hiệu trưởng (`PRINCIPAL`)</option>
-          <option value="SECRETARY">Văn thư (`SECRETARY`)</option>
-          <option value="ACCOUNTANT">Kế toán (`ACCOUNTANT`)</option>
-          <option value="TRADE_UNION">Công đoàn (`TRADE_UNION`)</option>
-          <option value="INSPECTOR">Thanh tra (`INSPECTOR`)</option>
-          <option value="ADMIN">Quản trị viên (`ADMIN`)</option>
-        </select>
-
-        <button
-          onClick={handleApprove}
-          className="px-3 py-1.5 rounded-xl bg-emerald-600 hover:bg-emerald-700 text-white font-bold text-xs transition-colors shadow-2xs"
-        >
-          ✓ Phê Duyệt
-        </button>
-
-        <button
-          onClick={() => onReject(user.id)}
-          className="px-3 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs transition-colors border border-rose-200"
-        >
-          Từ Chối
-        </button>
-      </div>
-    </div>
-  );
-}
-
-function EditUserRolesModal({ 
-  user, 
-  deptMap, 
-  onClose, 
-  onSave 
-}: { 
-  user: User; 
-  deptMap: Record<string, string>;
-  onClose: () => void;
-  onSave: (updatedUser: User) => Promise<boolean>;
-}) {
-  const { departments } = useApp();
-
-  // Deliberately no local copy of the role list here: this modal used to keep
-  // its own hardcoded array, so a role added to `RoleType` was assignable
-  // nowhere. It now renders from the shared `ALL_ROLES`.
-
-  const [fullName, setFullName] = useState(user.fullName);
-  const [departmentId, setDepartmentId] = useState(user.departmentId);
-  const [subject, setSubject] = useState(user.subject || '');
-  const [selectedRoles, setSelectedRoles] = useState<RoleType[]>(user.roles && user.roles.length > 0 ? user.roles : [user.activeRole || 'TEACHER']);
-  const [isSaving, setIsSaving] = useState(false);
-
-  const toggleRole = (r: RoleType) => {
-    if (selectedRoles.includes(r)) {
-      if (selectedRoles.length > 1) {
-        setSelectedRoles(selectedRoles.filter(item => item !== r));
-      }
-    } else {
-      setSelectedRoles([...selectedRoles, r]);
-    }
-  };
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setIsSaving(true);
-    try {
-      const updated: User = {
-        ...user,
-        fullName,
-        departmentId,
-        departmentName: deptMap[departmentId] || user.departmentName,
-        subject,
-        roles: selectedRoles,
-        activeRole: selectedRoles.includes(user.activeRole) ? user.activeRole : selectedRoles[0],
-      };
-      // Keep the modal open when the write is rejected so the edit is not lost.
-      if (await onSave(updated)) onClose();
-    } finally {
-      setIsSaving(false);
-    }
-  };
-
-  return (
-    <div className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs flex items-center justify-center p-4 z-50">
-      <div className="bg-white rounded-3xl p-6 max-w-lg w-full shadow-2xl border border-slate-200 space-y-4">
-        <div>
-          <h4 className="font-bold text-slate-900 text-base flex items-center gap-2">
-            <Edit className="w-4 h-4 text-indigo-600" />
-            Chỉnh Sửa Phân Quyền & Gán Nhiều Vai Trò (Multi-Role)
-          </h4>
-          <p className="text-xs text-slate-500">{user.email}</p>
-        </div>
-
-        <form onSubmit={handleSubmit} className="space-y-4">
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1">Họ và Tên</label>
-            <input
-              type="text"
-              value={fullName}
-              onChange={(e) => setFullName(e.target.value)}
-              className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-bold text-slate-900"
-              required
-            />
-          </div>
-
-          <div className="grid grid-cols-2 gap-3">
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Tổ Chuyên Môn</label>
-              <select
-                value={departmentId}
-                onChange={(e) => setDepartmentId(e.target.value)}
-                className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-semibold"
-              >
-                {departments.map(d => (
-                  <option key={d.id} value={d.id}>{d.name}</option>
-                ))}
-              </select>
-            </div>
-
-            <div>
-              <label className="block text-xs font-bold text-slate-700 mb-1">Môn Giảng Dạy</label>
-              <input
-                type="text"
-                value={subject}
-                onChange={(e) => setSubject(e.target.value)}
-                placeholder="VD: Toán Đại số"
-                className="w-full p-2.5 rounded-xl border border-slate-300 text-xs font-medium"
-              />
-            </div>
-          </div>
-
-          <div>
-            <label className="block text-xs font-bold text-slate-700 mb-1.5">
-              Gán Các Vai Trò (Tích chọn một hoặc nhiều vai trò):
-            </label>
-            <div className="grid grid-cols-2 gap-2 bg-slate-50 p-3 rounded-2xl border border-slate-200 max-h-48 overflow-y-auto">
-              {ALL_ROLES.map(r => {
-                const isChecked = selectedRoles.includes(r);
-                return (
-                  <label 
-                    key={r}
-                    onClick={() => toggleRole(r)}
-                    className={`flex items-center space-x-2 p-2 rounded-xl border cursor-pointer transition-all ${
-                      isChecked 
-                        ? 'bg-indigo-50 border-indigo-300 text-indigo-950 font-bold' 
-                        : 'bg-white border-slate-200 text-slate-600 hover:bg-slate-100'
-                    }`}
-                  >
-                    <div className={`w-4 h-4 rounded flex items-center justify-center border text-[10px] ${
-                      isChecked ? 'bg-indigo-600 border-indigo-600 text-white' : 'border-slate-300'
-                    }`}>
-                      {isChecked && '✓'}
-                    </div>
-                    <span className="text-xs">{ROLE_LABELS[r]}</span>
-                  </label>
-                );
-              })}
-            </div>
-          </div>
-
-          <div className="flex space-x-2 pt-2 justify-end">
-            <button
-              type="button"
-              onClick={onClose}
-              className="px-4 py-2 rounded-xl text-slate-600 bg-slate-100 hover:bg-slate-200 text-xs font-bold"
-            >
-              Hủy
-            </button>
-            <button
-              type="submit"
-              disabled={isSaving}
-              className="px-5 py-2 rounded-xl text-white bg-indigo-600 hover:bg-indigo-700 text-xs font-bold shadow-md disabled:opacity-50"
-            >
-              {isSaving ? 'Đang lưu...' : 'Lưu Thay Đổi Vai Trò'}
-            </button>
-          </div>
-        </form>
-      </div>
     </div>
   );
 }

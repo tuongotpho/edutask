@@ -119,7 +119,7 @@ export function Navbar({
                 {schoolName}
               </span>
             </div>
-            <p className="text-xs text-slate-500 hidden sm:block">Hệ thống Quản lý Công việc & Đơn từ Nội bộ</p>
+            <p className="text-xs text-slate-500 hidden sm:block">Giải pháp Chuyển đổi số Quản trị & Vận hành Nhà trường</p>
           </div>
         </div>
 

@@ -78,7 +78,7 @@ export function PlansTab() {
 
   return (
     <div className="space-y-5">
-      <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+      <div className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">Kế Hoạch &amp; Nhắc Việc</h2>
@@ -148,7 +148,7 @@ export function PlansTab() {
           )}
 
           {myPlans.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-slate-200 p-10 text-center shadow-sm">
+            <div className="bg-white rounded-[5px] border border-slate-200 p-10 text-center shadow-sm">
               <p className="text-xs text-slate-500">Chưa có kế hoạch nào.</p>
             </div>
           ) : (
@@ -206,7 +206,7 @@ export function PlansTab() {
           )}
 
           {reminders.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-slate-200 p-10 text-center shadow-sm">
+            <div className="bg-white rounded-[5px] border border-slate-200 p-10 text-center shadow-sm">
               <p className="text-xs text-slate-500">Chưa có lịch nhắc nào.</p>
             </div>
           ) : (
@@ -215,7 +215,7 @@ export function PlansTab() {
               return (
                 <article
                   key={reminder.id}
-                  className={`bg-white rounded-3xl border p-4 shadow-sm ${
+                  className={`bg-white rounded-[5px] border p-4 shadow-sm ${
                     reminder.isActive ? 'border-slate-200' : 'border-slate-200 opacity-60'
                   }`}
                 >
@@ -306,7 +306,7 @@ function PlanCard({
   const [newDueDate, setNewDueDate] = useState(today);
 
   return (
-    <article className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <article className="bg-white rounded-[5px] border border-slate-200 shadow-sm overflow-hidden">
       <div className="p-4">
         <button type="button" onClick={onToggle} className="w-full flex items-start gap-2 text-left">
           {isExpanded
@@ -488,7 +488,7 @@ function PlanForm({
   const [endDate, setEndDate] = useState(today);
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-3">
+    <div className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm space-y-3">
       <h3 className="text-sm font-bold text-slate-900">Kế Hoạch Mới</h3>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
@@ -577,7 +577,7 @@ function ReminderForm({
     scope === 'SCHOOL' ? ['ALL_STAFF', 'DEPT_LEADERS', 'CUSTOM'] : ['DEPARTMENT'];
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-3">
+    <div className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm space-y-3">
       <h3 className="text-sm font-bold text-slate-900">Lịch Nhắc Mới</h3>
 
       <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">

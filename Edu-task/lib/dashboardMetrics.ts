@@ -7,7 +7,7 @@ import {
 import { LeaveRequest } from '@/Edu-task/types/leave';
 import { isTaskOverdue, parseDeadline } from '@/Edu-task/lib/taskStatus';
 import { onTimeCompletionRate } from '@/Edu-task/lib/analytics';
-import { toDateString } from '@/Edu-task/lib/schedule';
+import { isSunday, isWeekend, toDateString } from '@/Edu-task/lib/schedule';
 import { isCounted, punctualityRate, recordsInMonth } from '@/Edu-task/lib/attendanceStats';
 import { isMinutesOutstanding } from '@/Edu-task/lib/meetingStats';
 import { aggregateProgress } from '@/Edu-task/lib/planProgress';
@@ -334,10 +334,13 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
       // situations. Reporting 100% for a day nobody has taken the register
       // would be the most dangerous number on this screen.
       if (stats.classesRecorded === 0 || stats.presentRate === null) {
+        const weekendNote = isSunday(ctx.today) ? 'Chủ Nhật (ngày nghỉ)' : 'Cuối tuần (ngày nghỉ)';
         return {
           state: 'EMPTY',
           note: activeClasses === 0
             ? 'Chưa có lớp nào trong danh mục'
+            : isWeekend(ctx.today)
+            ? weekendNote
             : 'Chưa lớp nào điểm danh hôm nay',
         };
       }
@@ -359,7 +362,11 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
     resolve: ctx => {
       const stats = summariseDay(ctx.studentAttendance, ctx.today);
       if (stats.classesRecorded === 0) {
-        return { state: 'EMPTY', note: 'Chưa lớp nào điểm danh hôm nay' };
+        const weekendNote = isSunday(ctx.today) ? 'Chủ Nhật (ngày nghỉ)' : 'Cuối tuần (ngày nghỉ)';
+        return {
+          state: 'EMPTY',
+          note: isWeekend(ctx.today) ? weekendNote : 'Chưa lớp nào điểm danh hôm nay',
+        };
       }
       return countOutcome(stats.absentCount, {
         warnAt: 5,
@@ -382,6 +389,13 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
       const activeClassIds = ctx.classes.filter(c => c.isActive).map(c => c.id);
       if (activeClassIds.length === 0) {
         return { state: 'EMPTY', note: 'Chưa có lớp nào trong danh mục' };
+      }
+      const stats = summariseDay(ctx.studentAttendance, ctx.today);
+      if (stats.classesRecorded === 0 && isWeekend(ctx.today)) {
+        const weekendNote = isSunday(ctx.today)
+          ? 'Chủ Nhật (ngày nghỉ) — không có lịch điểm danh'
+          : 'Cuối tuần (ngày nghỉ) — không có lịch điểm danh';
+        return { state: 'EMPTY', note: weekendNote };
       }
       const missing = classesMissingRoll(ctx.studentAttendance, ctx.today, activeClassIds);
       return countOutcome(missing.length, {

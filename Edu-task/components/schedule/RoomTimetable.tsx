@@ -45,7 +45,7 @@ export function RoomTimetable() {
   const busyCount = occupancyByCell.size;
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <div className="bg-white rounded-[5px] border border-slate-200 shadow-sm overflow-hidden">
       <div className="p-5 border-b border-slate-100 flex flex-wrap items-center justify-between gap-3">
         <div>
           <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">

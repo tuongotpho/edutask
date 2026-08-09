@@ -85,7 +85,7 @@ export function AttendanceTab() {
   return (
     <div className="space-y-5">
 
-      <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+      <div className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm">
         <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">Nề Nếp Chuyên Môn</h2>
         <p className="text-xs text-slate-500 mt-0.5">
           Giám thị ghi nhận giáo viên vào lớp muộn hoặc lớp trống giờ. Giáo viên xem được bản ghi
@@ -118,7 +118,7 @@ export function AttendanceTab() {
       {subView === 'records' && (
         <section className="space-y-3">
           {attendance.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-slate-200 p-10 text-center shadow-sm">
+            <div className="bg-white rounded-[5px] border border-slate-200 p-10 text-center shadow-sm">
               <p className="text-xs text-slate-500">
                 {canReview ? 'Chưa có ghi nhận nào.' : 'Không có ghi nhận nào về bạn. '}
               </p>
@@ -156,7 +156,7 @@ export function AttendanceTab() {
 
       {subView === 'summary' && canReview && (
         <section className="space-y-4">
-          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+          <div className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-sm font-bold text-slate-900">Tổng Hợp Theo Tháng</h3>
               <input
@@ -188,7 +188,7 @@ export function AttendanceTab() {
             </p>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-[5px] border border-slate-200 shadow-sm overflow-hidden">
             <div className="p-5 border-b border-slate-100">
               <h3 className="text-sm font-bold text-slate-900">Theo Giáo Viên</h3>
             </div>

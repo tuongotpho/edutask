@@ -103,7 +103,7 @@ export function StudentsTab() {
 
   return (
     <div className="space-y-5">
-      <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+      <div className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm">
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
             <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">Học Sinh</h2>
@@ -162,7 +162,7 @@ export function StudentsTab() {
 
       {subView === 'summary' && (
         <section className="space-y-4">
-          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+          <div className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-sm font-bold text-slate-900">Tổng Hợp Nề Nếp Học Sinh</h3>
               <input
@@ -178,7 +178,7 @@ export function StudentsTab() {
           </div>
 
           {perClass.length > 0 && (
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-[5px] border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-5 border-b border-slate-100">
                 <h3 className="text-sm font-bold text-slate-900">Thi Đua Giữa Các Lớp</h3>
               </div>
@@ -200,7 +200,7 @@ export function StudentsTab() {
           )}
 
           {perStudent.length > 0 && (
-            <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-[5px] border border-slate-200 shadow-sm overflow-hidden">
               <div className="p-5 border-b border-slate-100">
                 <h3 className="text-sm font-bold text-slate-900">Theo Học Sinh</h3>
                 <p className="text-[11px] text-slate-500 mt-0.5">
@@ -237,7 +237,7 @@ export function StudentsTab() {
           )}
 
           {supportList.length > 0 && (
-            <div className="bg-white rounded-3xl border border-amber-200 shadow-sm overflow-hidden">
+            <div className="bg-white rounded-[5px] border border-amber-200 shadow-sm overflow-hidden">
               <div className="p-5 border-b border-amber-100 bg-amber-50/50">
                 <h3 className="text-sm font-bold text-amber-900 flex items-center gap-2">
                   <HeartHandshake className="w-4 h-4" />
@@ -264,7 +264,7 @@ export function StudentsTab() {
           )}
 
           {monthConduct.length === 0 && supportList.length === 0 && (
-            <div className="bg-white rounded-3xl border border-slate-200 p-10 text-center shadow-sm">
+            <div className="bg-white rounded-[5px] border border-slate-200 p-10 text-center shadow-sm">
               <p className="text-xs text-slate-500">Tháng này chưa có bản ghi nào.</p>
             </div>
           )}
@@ -273,7 +273,7 @@ export function StudentsTab() {
 
       {subView === 'roster' && (
         <section className="space-y-3">
-          <div className="bg-white rounded-3xl border border-slate-200 p-4 shadow-sm">
+          <div className="bg-white rounded-[5px] border border-slate-200 p-4 shadow-sm">
             <div className="flex flex-wrap items-center gap-2">
               <div className="relative flex-1 min-w-[180px]">
                 <Search className="w-3.5 h-3.5 text-slate-400 absolute left-3 top-1/2 -translate-y-1/2" />
@@ -330,7 +330,7 @@ export function StudentsTab() {
           )}
 
           {filteredStudents.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-slate-200 p-10 text-center shadow-sm">
+            <div className="bg-white rounded-[5px] border border-slate-200 p-10 text-center shadow-sm">
               <p className="text-xs text-slate-500">
                 {students.length === 0 ? 'Chưa có học sinh nào trong danh sách.' : 'Không tìm thấy học sinh phù hợp.'}
               </p>
@@ -448,7 +448,7 @@ function ConductSection({
 
   return (
     <div className="space-y-3">
-      <section className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-3">
+      <section className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm space-y-3">
         <h3 className="text-sm font-bold text-slate-900">Ghi Nhận Mới</h3>
 
         <div className="flex gap-1.5">
@@ -539,7 +539,7 @@ function ConductSection({
 
       <section className="space-y-2">
         {records.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-slate-200 p-10 text-center shadow-sm">
+          <div className="bg-white rounded-[5px] border border-slate-200 p-10 text-center shadow-sm">
             <p className="text-xs text-slate-500">Chưa có bản ghi nào.</p>
           </div>
         ) : (
@@ -610,7 +610,7 @@ function StudentForm({
   const [isActive, setIsActive] = useState(editing?.isActive ?? true);
 
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm space-y-3">
+    <div className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm space-y-3">
       <h3 className="text-sm font-bold text-slate-900">
         {editing ? 'Sửa Hồ Sơ Học Sinh' : 'Thêm Học Sinh'}
       </h3>

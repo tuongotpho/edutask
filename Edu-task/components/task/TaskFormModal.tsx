@@ -133,7 +133,7 @@ export function TaskFormModal({ isOpen, onClose }: { isOpen: boolean; onClose: (
   // two columns once there is width for them.
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
-      <div className="bg-white rounded-3xl max-w-4xl w-full max-h-[92vh] shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+      <div className="bg-white rounded-[5px] max-w-4xl w-full max-h-[92vh] shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
 
         {/* Header */}
         <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between flex-shrink-0">

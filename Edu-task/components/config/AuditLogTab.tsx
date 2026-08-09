@@ -31,8 +31,8 @@ export function AuditLogTab() {
 
   if (!allowed) {
     return (
-      <div className="p-8 bg-white rounded-3xl border border-slate-200 text-center space-y-3 shadow-sm my-6">
-        <div className="w-12 h-12 mx-auto rounded-2xl bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 font-bold text-xl">
+      <div className="p-8 bg-white rounded-[5px] border border-slate-200 text-center space-y-3 shadow-sm my-6">
+        <div className="w-12 h-12 mx-auto rounded-[5px] bg-rose-50 border border-rose-200 flex items-center justify-center text-rose-600 font-bold text-xl">
           🚫
         </div>
         <h3 className="text-base font-bold text-slate-900">Truy Cập Nhật Ký Bị Từ Chối</h3>
@@ -61,7 +61,7 @@ export function AuditLogTab() {
   return (
     <div className="space-y-6">
 
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-4">
+      <div className="bg-white rounded-[5px] border border-slate-200 p-6 shadow-sm space-y-4">
         <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
           <div>
             <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
@@ -75,7 +75,7 @@ export function AuditLogTab() {
           <button
             type="button"
             onClick={handleExport}
-            className="px-4 py-2.5 rounded-xl bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-2 transition-all flex-shrink-0"
+            className="px-4 py-2.5 rounded-[5px] bg-slate-900 hover:bg-slate-800 text-white font-bold text-xs shadow-sm flex items-center justify-center gap-2 transition-all flex-shrink-0"
           >
             <Download className="w-4 h-4" />
             <span>Xuất CSV lưu sổ</span>
@@ -90,14 +90,14 @@ export function AuditLogTab() {
               value={search}
               onChange={e => { setSearch(e.target.value); setVisibleCount(PAGE_SIZE); }}
               placeholder="Tìm người, hành động, mã hồ sơ..."
-              className="w-full pl-9 pr-3 py-2 rounded-xl border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
+              className="w-full pl-9 pr-3 py-2 rounded-[5px] border border-slate-200 bg-slate-50 focus:bg-white focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
             />
           </div>
 
           <select
             value={source}
             onChange={e => { setSource(e.target.value as AuditSource | 'ALL'); setVisibleCount(PAGE_SIZE); }}
-            className="w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 font-medium text-slate-800"
+            className="w-full py-2 px-3 rounded-[5px] border border-slate-200 bg-slate-50 font-medium text-slate-800"
           >
             <option value="ALL">-- Tất cả loại hồ sơ --</option>
             <option value="LEAVE">Đơn xin nghỉ</option>
@@ -109,19 +109,19 @@ export function AuditLogTab() {
             value={from}
             onChange={e => { setFrom(e.target.value); setVisibleCount(PAGE_SIZE); }}
             aria-label="Từ ngày"
-            className="w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 font-medium text-slate-800"
+            className="w-full py-2 px-3 rounded-[5px] border border-slate-200 bg-slate-50 font-medium text-slate-800"
           />
           <input
             type="date"
             value={to}
             onChange={e => { setTo(e.target.value); setVisibleCount(PAGE_SIZE); }}
             aria-label="Đến ngày"
-            className="w-full py-2 px-3 rounded-xl border border-slate-200 bg-slate-50 font-medium text-slate-800"
+            className="w-full py-2 px-3 rounded-[5px] border border-slate-200 bg-slate-50 font-medium text-slate-800"
           />
         </div>
       </div>
 
-      <div className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm">
+      <div className="bg-white rounded-[5px] border border-slate-200 overflow-hidden shadow-sm">
         <div className="px-6 py-4 border-b border-slate-100 flex items-center justify-between">
           <span className="font-bold text-slate-800 text-xs uppercase tracking-wider">
             {filtered.length} thao tác

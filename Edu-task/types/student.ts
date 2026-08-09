@@ -69,10 +69,10 @@ export type StudentMark =
   | 'LATE';
 
 export const STUDENT_MARK_LABELS: Record<StudentMark, { label: string; short: string; color: string; bg: string }> = {
-  PRESENT: { label: 'Có mặt', short: 'CM', color: 'text-emerald-700', bg: 'bg-emerald-50 border-emerald-200' },
-  EXCUSED: { label: 'Nghỉ có phép', short: 'P', color: 'text-sky-700', bg: 'bg-sky-50 border-sky-200' },
-  UNEXCUSED: { label: 'Nghỉ không phép', short: 'K', color: 'text-rose-700', bg: 'bg-rose-50 border-rose-200' },
-  LATE: { label: 'Đi muộn', short: 'M', color: 'text-amber-700', bg: 'bg-amber-50 border-amber-200' },
+  PRESENT: { label: 'Có mặt', short: 'CM', color: 'text-emerald-800 font-extrabold', bg: 'bg-emerald-100 border-emerald-300 shadow-xs' },
+  EXCUSED: { label: 'Nghỉ có phép', short: 'P', color: 'text-sky-800 font-extrabold', bg: 'bg-sky-100 border-sky-300 shadow-xs' },
+  UNEXCUSED: { label: 'Nghỉ không phép', short: 'K', color: 'text-rose-800 font-extrabold', bg: 'bg-rose-100 border-rose-300 shadow-xs' },
+  LATE: { label: 'Đi muộn', short: 'M', color: 'text-amber-800 font-extrabold', bg: 'bg-amber-100 border-amber-300 shadow-xs' },
 };
 
 export const STUDENT_MARKS: StudentMark[] = ['PRESENT', 'LATE', 'EXCUSED', 'UNEXCUSED'];

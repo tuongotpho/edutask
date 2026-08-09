@@ -104,7 +104,7 @@ export function QuickEntryCard() {
   };
 
   return (
-    <section className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <section className="bg-white rounded-[5px] border border-slate-200 shadow-sm overflow-hidden">
       <div className="p-5 border-b border-slate-100">
         <h3 className="text-sm font-bold text-slate-900 flex items-center gap-2">
           <Zap className="w-4 h-4 text-amber-500" />

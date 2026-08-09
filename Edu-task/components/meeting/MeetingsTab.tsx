@@ -66,7 +66,7 @@ export function MeetingsTab() {
 
   return (
     <div className="space-y-5">
-      <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+      <div className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm">
         <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">Cuộc Họp &amp; Điểm Danh</h2>
         <p className="text-xs text-slate-500 mt-0.5">
           Văn thư tạo cuộc họp, gửi giấy mời, điểm danh và chốt biên bản.
@@ -111,7 +111,7 @@ export function MeetingsTab() {
       {subView === 'list' && (
         <section className="space-y-3">
           {meetings.length === 0 ? (
-            <div className="bg-white rounded-3xl border border-slate-200 p-10 text-center shadow-sm">
+            <div className="bg-white rounded-[5px] border border-slate-200 p-10 text-center shadow-sm">
               <p className="text-xs text-slate-500">
                 {canManage ? 'Chưa có cuộc họp nào.' : 'Bạn chưa được mời họp buổi nào.'}
               </p>
@@ -155,7 +155,7 @@ export function MeetingsTab() {
 
       {subView === 'summary' && canManage && (
         <section className="space-y-4">
-          <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+          <div className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
               <h3 className="text-sm font-bold text-slate-900">Tổng Hợp Dự Họp</h3>
               <input
@@ -174,7 +174,7 @@ export function MeetingsTab() {
             </p>
           </div>
 
-          <div className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+          <div className="bg-white rounded-[5px] border border-slate-200 shadow-sm overflow-hidden">
             {perPerson.length === 0 ? (
               <p className="p-6 text-xs text-slate-500 text-center">
                 Tháng này chưa có cuộc họp nào được điểm danh.
@@ -248,7 +248,7 @@ function MeetingCard({
   const mine = meeting.participants.find(p => p.userId === currentUserId);
 
   return (
-    <article className="bg-white rounded-3xl border border-slate-200 shadow-sm overflow-hidden">
+    <article className="bg-white rounded-[5px] border border-slate-200 shadow-sm overflow-hidden">
       <div className="p-4 space-y-2">
         <div className="flex items-start justify-between gap-3 flex-wrap">
           <button type="button" onClick={onToggle} className="flex items-start gap-2 text-left min-w-0 flex-1">
@@ -386,8 +386,8 @@ function MeetingCard({
                               showToast('error', 'Không lưu được điểm danh.');
                             }
                           }}
-                          className={`px-2 py-1 rounded-lg text-[10px] font-bold border transition-all ${
-                            selected ? `${config.bg} ${config.color}` : 'bg-white border-slate-200 text-slate-500 hover:bg-slate-100'
+                          className={`px-2.5 py-1 rounded-lg text-[11px] font-bold border transition-all ${
+                            selected ? `${config.bg} ${config.color}` : 'bg-white border-slate-200 text-slate-600 font-semibold hover:bg-slate-100 hover:text-slate-900'
                           }`}
                         >
                           {config.label}

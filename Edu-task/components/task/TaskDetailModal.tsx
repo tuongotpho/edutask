@@ -51,7 +51,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
   if (!canViewTask) {
     return (
       <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4">
-        <div className="bg-white rounded-3xl p-6 max-w-md w-full text-center space-y-3 shadow-2xl border border-slate-200 animate-in fade-in duration-200">
+        <div className="bg-white rounded-[5px] p-6 max-w-md w-full text-center space-y-3 shadow-2xl border border-slate-200 animate-in fade-in duration-200">
           <div className="w-12 h-12 rounded-2xl bg-rose-50 border border-rose-200 text-rose-600 flex items-center justify-center font-bold text-xl mx-auto">
             🚫
           </div>
@@ -107,7 +107,7 @@ export function TaskDetailModal({ task, onClose }: TaskDetailModalProps) {
       {/* `max-h` on the body alone did not cap the dialog: the header and the
           vertical margin sat outside it, so tall tasks still pushed past the
           bottom of the screen. The whole dialog is bounded instead. */}
-      <div className="bg-white rounded-3xl max-w-3xl w-full max-h-[92vh] shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
+      <div className="bg-white rounded-[5px] max-w-3xl w-full max-h-[92vh] shadow-2xl border border-slate-200 overflow-hidden flex flex-col">
 
         {/* Header */}
         <div className="px-6 py-4 bg-slate-900 text-white flex items-center justify-between flex-shrink-0">

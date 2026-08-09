@@ -99,7 +99,7 @@ export function ScheduleRegistrationTab() {
   return (
     <div className="space-y-5">
 
-      <div className="bg-white rounded-3xl border border-slate-200 p-5 shadow-sm">
+      <div className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm">
         <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">
           Dạy Bù, Phòng &amp; Thiết Bị
         </h2>
@@ -240,7 +240,7 @@ export function ScheduleRegistrationTab() {
 
 function EmptyState({ message }: { message: string }) {
   return (
-    <div className="bg-white rounded-3xl border border-slate-200 p-10 text-center shadow-sm">
+    <div className="bg-white rounded-[5px] border border-slate-200 p-10 text-center shadow-sm">
       <p className="text-xs text-slate-500">{message}</p>
     </div>
   );

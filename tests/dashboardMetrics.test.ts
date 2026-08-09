@@ -350,3 +350,19 @@ describe('an empty count and an unmeasured rate are different things', () => {
     });
   });
 });
+
+describe('student attendance on Sunday and weekends', () => {
+  it('handles Sunday correctly without flagging missing rolls', () => {
+    const SUNDAY_NOW = new Date('2026-08-09T05:00:00Z');
+    const ctx = emptyContext({
+      now: SUNDAY_NOW,
+      classes: [{ id: 'c1', name: '10A1', schoolId: 'S', grade: 10, isActive: true }],
+    });
+    expect(resolveMetric(find('student.present_today'), ctx)).toMatchObject({
+      state: 'EMPTY', note: 'Chủ Nhật (ngày nghỉ)',
+    });
+    expect(resolveMetric(find('student.rolls_missing'), ctx)).toMatchObject({
+      state: 'EMPTY', note: 'Chủ Nhật (ngày nghỉ) — không có lịch điểm danh',
+    });
+  });
+});

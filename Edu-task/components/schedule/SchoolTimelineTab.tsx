@@ -90,7 +90,7 @@ export function SchoolTimelineTab({ onSelectLeave }: { onSelectLeave?: (leaveId:
     <div className="space-y-6">
 
       {/* Header */}
-      <div className="bg-white rounded-3xl border border-slate-200 p-6 shadow-sm space-y-2">
+      <div className="bg-white rounded-[5px] border border-slate-200 p-6 shadow-sm space-y-2">
         <h2 className="text-xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
           <CalendarDays className="w-5 h-5 text-indigo-600" />
           {headerTitle}
@@ -135,7 +135,7 @@ export function SchoolTimelineTab({ onSelectLeave }: { onSelectLeave?: (leaveId:
       <div className="space-y-4">
 
         {/* Filters */}
-        <div className="bg-white rounded-3xl border border-slate-200 p-4 shadow-sm space-y-3">
+        <div className="bg-white rounded-[5px] border border-slate-200 p-4 shadow-sm space-y-3">
           <div className={`grid grid-cols-1 gap-3 text-xs ${isSchoolExecutiveOrAdmin ? 'sm:grid-cols-3' : 'sm:grid-cols-2'}`}>
             <div className="relative">
               <Search className="w-4 h-4 absolute left-3 top-1/2 -translate-y-1/2 text-slate-400" />
@@ -181,7 +181,7 @@ export function SchoolTimelineTab({ onSelectLeave }: { onSelectLeave?: (leaveId:
         </div>
 
         {visibleRows.length === 0 ? (
-          <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center shadow-sm space-y-2">
+          <div className="bg-white rounded-[5px] border border-slate-200 p-12 text-center shadow-sm space-y-2">
             <LayoutGrid className="w-10 h-10 mx-auto text-slate-300" />
             <p className="font-semibold text-sm text-slate-700">Không tìm thấy nhân sự nào</p>
             <p className="text-xs text-slate-400">Thử đổi từ khóa hoặc bỏ bớt bộ lọc</p>
@@ -192,7 +192,7 @@ export function SchoolTimelineTab({ onSelectLeave }: { onSelectLeave?: (leaveId:
           return (
             <div 
               key={teacher.id} 
-              className={`p-5 rounded-3xl border transition-all ${
+              className={`p-5 rounded-[5px] border transition-all ${
                 isOnLeaveToday 
                   ? 'bg-amber-50/70 border-amber-300 ring-2 ring-amber-400/20' 
                   : 'bg-white border-slate-200 shadow-xs'
