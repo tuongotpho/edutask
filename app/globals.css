@@ -1,5 +1,97 @@
 @import "tailwindcss";
 
+/* Hallmark · Design Tokens Specification for EduTask System */
+:root {
+  /* Brand Core Tokens */
+  --color-brand-primary: #4f46e5;
+  --color-brand-hover: #4338ca;
+  --color-brand-surface: #eef2ff;
+  
+  /* Surfaces & Backgrounds */
+  --color-surface-body: #f8fafc;
+  --color-surface-card: #ffffff;
+  --color-surface-glass: rgba(255, 255, 255, 0.85);
+  
+  /* Typography Colors */
+  --color-text-main: #0f172a;
+  --color-text-muted: #64748b;
+  --color-text-light: #94a3b8;
+
+  /* Borders & Hairlines */
+  --color-border-subtle: #e2e8f0;
+  --color-border-focus: #c7d2fe;
+
+  /* Workflow Status Tone Tokens */
+  /* PENDING */
+  --color-status-pending-bg: #fffbeb;
+  --color-status-pending-text: #78350f;
+  --color-status-pending-border: #fde68a;
+  --color-status-pending-dot: #f59e0b;
+
+  /* ACTIVE */
+  --color-status-active-bg: #f0f9ff;
+  --color-status-active-text: #0c4a6e;
+  --color-status-active-border: #bae6fd;
+  --color-status-active-dot: #0ea5e9;
+
+  /* DONE */
+  --color-status-done-bg: #ecfdf5;
+  --color-status-done-text: #064e3b;
+  --color-status-done-border: #a7f3d0;
+  --color-status-done-dot: #10b981;
+
+  /* REJECTED */
+  --color-status-rejected-bg: #fff1f2;
+  --color-status-rejected-text: #881337;
+  --color-status-rejected-border: #fecdd3;
+  --color-status-rejected-dot: #f43f5e;
+
+  /* NEUTRAL */
+  --color-status-neutral-bg: #f8fafc;
+  --color-status-neutral-text: #334155;
+  --color-status-neutral-border: #e2e8f0;
+  --color-status-neutral-dot: #94a3b8;
+
+  /* Spacing & Radius Tokens */
+  --radius-card: 1rem;
+  --radius-button: 0.75rem;
+  --radius-badge: 0.5rem;
+}
+
+/* Dark Mode Token Swaps */
+.dark {
+  --color-surface-body: #090d16;
+  --color-surface-card: #111827;
+  --color-surface-glass: rgba(17, 24, 39, 0.85);
+  
+  --color-text-main: #f8fafc;
+  --color-text-muted: #94a3b8;
+  --color-text-light: #64748b;
+
+  --color-border-subtle: #1e293b;
+  --color-border-focus: #4338ca;
+
+  --color-status-pending-bg: rgba(120, 53, 15, 0.2);
+  --color-status-pending-text: #fef3c7;
+  --color-status-pending-border: rgba(245, 158, 11, 0.3);
+
+  --color-status-active-bg: rgba(12, 74, 110, 0.2);
+  --color-status-active-text: #e0f2fe;
+  --color-status-active-border: rgba(14, 165, 233, 0.3);
+
+  --color-status-done-bg: rgba(6, 78, 59, 0.2);
+  --color-status-done-text: #d1fae5;
+  --color-status-done-border: rgba(16, 185, 129, 0.3);
+
+  --color-status-rejected-bg: rgba(136, 19, 55, 0.2);
+  --color-status-rejected-text: #ffe4e6;
+  --color-status-rejected-border: rgba(244, 63, 94, 0.3);
+
+  --color-status-neutral-bg: rgba(30, 41, 59, 0.4);
+  --color-status-neutral-text: #cbd5e1;
+  --color-status-neutral-border: rgba(148, 163, 184, 0.2);
+}
+
 /* iOS Safe Area & Mobile Header Insets */
 @layer utilities {
   .pt-safe-top {
@@ -7,5 +99,32 @@
   }
   .pb-safe-bottom {
     padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  }
+
+  /* Utility token aliases */
+  .badge-pending {
+    background-color: var(--color-status-pending-bg);
+    color: var(--color-status-pending-text);
+    border-color: var(--color-status-pending-border);
+  }
+  .badge-active {
+    background-color: var(--color-status-active-bg);
+    color: var(--color-status-active-text);
+    border-color: var(--color-status-active-border);
+  }
+  .badge-done {
+    background-color: var(--color-status-done-bg);
+    color: var(--color-status-done-text);
+    border-color: var(--color-status-done-border);
+  }
+  .badge-rejected {
+    background-color: var(--color-status-rejected-bg);
+    color: var(--color-status-rejected-text);
+    border-color: var(--color-status-rejected-border);
+  }
+  .badge-neutral {
+    background-color: var(--color-status-neutral-bg);
+    color: var(--color-status-neutral-text);
+    border-color: var(--color-status-neutral-border);
   }
 }
