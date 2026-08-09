@@ -3,15 +3,17 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import { LEAVE_TYPE_LABELS, LEAVE_SESSION_LABELS, LeaveType } from '@/Edu-task/types/leave';
-import { canViewLeave, isSchoolLeadership } from '@/Edu-task/lib/permissions';
+import { canViewLeave, isAdmin, isSchoolLeadership } from '@/Edu-task/lib/permissions';
 import { matchesSearch } from '@/Edu-task/lib/utils';
 import {
   FileText,
   Search,
-  PlusCircle
+  PlusCircle,
+  Trash2
 } from 'lucide-react';
 import { StatusRow } from '@/Edu-task/components/common/StatusRow';
 import { EmptyState } from '@/Edu-task/components/common/Card';
+import { ConfirmModal } from '@/Edu-task/components/common/ConfirmModal';
 import { leaveTone } from '@/Edu-task/lib/statusTone';
 
 /**
@@ -34,12 +36,15 @@ interface LeaveTabProps {
 }
 
 export function LeaveTab({ onRequestNewLeave, onSelectLeave }: LeaveTabProps) {
-  const { leaves, departments, currentUser, activeRole } = useApp();
+  const { leaves, departments, currentUser, activeRole, deleteLeaveRequest } = useApp();
 
   const [localSearch, setLocalSearch] = useState('');
   const [selectedDept, setSelectedDept] = useState('ALL');
   const [selectedType, setSelectedType] = useState<string>('ALL');
   const [selectedStatus, setSelectedStatus] = useState<string>('ALL');
+  const [deleteTargetLeaveId, setDeleteTargetLeaveId] = useState<string | null>(null);
+
+  const isAdminUser = isAdmin(currentUser, activeRole);
 
   const isSchoolLeadershipOrAdmin = isSchoolLeadership(currentUser, activeRole);
 
@@ -202,11 +207,41 @@ export function LeaveTab({ onRequestNewLeave, onSelectLeave }: LeaveTabProps) {
                   <span className="block text-slate-500 mt-0.5 line-clamp-1">{leave.reason}</span>
                 </>
               }
+              actions={
+                isAdminUser ? (
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setDeleteTargetLeaveId(leave.id);
+                    }}
+                    className="px-2.5 py-1 rounded-lg bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-[11px] border border-rose-200 flex items-center gap-1 transition-all"
+                    title="Xóa đơn này (Admin)"
+                  >
+                    <Trash2 className="w-3.5 h-3.5" />
+                    <span>Xóa Đơn (Admin)</span>
+                  </button>
+                ) : undefined
+              }
             />
           ))}
         </div>
       )}
 
+      <ConfirmModal
+        isOpen={!!deleteTargetLeaveId}
+        title="Xác nhận xóa đơn xin nghỉ phép"
+        message="Bạn có chắc chắn muốn XÓA VĨNH VIỄN đơn xin nghỉ phép này khỏi hệ thống?"
+        confirmText="Xóa Vĩnh Viễn"
+        onConfirm={async () => {
+          if (deleteTargetLeaveId) {
+            const idToDelete = deleteTargetLeaveId;
+            setDeleteTargetLeaveId(null);
+            await deleteLeaveRequest(idToDelete);
+          }
+        }}
+        onCancel={() => setDeleteTargetLeaveId(null)}
+      />
     </div>
   );
 }

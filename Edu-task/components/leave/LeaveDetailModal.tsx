@@ -5,7 +5,7 @@ import { useApp } from '@/Edu-task/context/AppContext';
 import { LeaveRequest, LEAVE_TYPE_LABELS, ApprovalStatus } from '@/Edu-task/types/leave';
 import { ROLE_LABELS } from '@/Edu-task/types/user';
 import { ConfirmModal } from '@/Edu-task/components/common/ConfirmModal';
-import { canApproveLeaveStep, canViewLeave, isDeptLeader, isSchoolLeadership } from '@/Edu-task/lib/permissions';
+import { canApproveLeaveStep, canDeleteLeave, canViewLeave, isAdmin, isDeptLeader, isSchoolLeadership } from '@/Edu-task/lib/permissions';
 import { FileAttachments } from '@/Edu-task/components/common/FileAttachments';
 import { 
   X, 
@@ -15,7 +15,8 @@ import {
   History,
   FileCheck,
   UserCheck,
-  Edit
+  Edit,
+  Trash2
 } from 'lucide-react';
 
 interface LeaveDetailModalProps {
@@ -108,7 +109,8 @@ export function LeaveDetailModal({ leave, onClose, onEditLeave }: LeaveDetailMod
     }
   };
 
-  const isCanceledAndCanBeDeleted = (leave.applicantId === currentUser.id || activeRole === 'ADMIN' || currentUser.roles?.includes('ADMIN')) && leave.overallStatus === 'CANCELLED';
+  const isAdminUser = isAdmin(currentUser, activeRole);
+  const canDelete = canDeleteLeave(currentUser, activeRole, leave);
 
   return (
     <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-xs flex items-center justify-center p-4 animate-in fade-in duration-200">
@@ -383,24 +385,25 @@ export function LeaveDetailModal({ leave, onClose, onEditLeave }: LeaveDetailMod
             </div>
           )}
 
-          {/* Delete Action Bar for Cancelled / Draft Leaves */}
-          {isCanceledAndCanBeDeleted && (
+          {/* Delete Action Bar for Admin or Cancelled Leaves */}
+          {canDelete && (
             <div className="flex justify-end pt-1">
               <button
                 type="button"
                 onClick={() => setIsDeleteModalOpen(true)}
-                className="px-4 py-2 rounded-xl bg-slate-100 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-slate-200 transition-all"
+                className="px-4 py-2 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 font-bold text-xs border border-rose-200 transition-all flex items-center gap-1.5 shadow-2xs"
               >
-                🗑️ Xóa Đơn Khỏi Danh Sách
+                <Trash2 className="w-4 h-4 text-rose-600" />
+                <span>{isAdminUser ? 'Xóa Đơn Khỏi Hệ Thống (Admin)' : 'Xóa Đơn Khỏi Danh Sách'}</span>
               </button>
             </div>
           )}
 
           <ConfirmModal
             isOpen={isDeleteModalOpen}
-            title="Xóa đơn nghỉ phép"
-            message="Bạn có chắc chắn muốn XÓA vĩnh viễn đơn nghỉ phép này khỏi danh sách?"
-            confirmText="Xóa vĩnh viễn"
+            title="Xác nhận xóa đơn xin nghỉ phép"
+            message="Bạn có chắc chắn muốn XÓA VĨNH VIỄN đơn xin nghỉ phép này khỏi hệ thống?"
+            confirmText="Xóa Vĩnh Viễn"
             onConfirm={async () => {
               setIsDeleteModalOpen(false);
               if (await deleteLeaveRequest(leave.id)) onClose();

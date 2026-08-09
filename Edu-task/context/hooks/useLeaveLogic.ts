@@ -255,6 +255,7 @@ export function useLeaveLogic({ currentUser, activeRole, users, leaves, setLeave
 
     try {
       await firebaseService.deleteLeave(leaveId);
+      notify('success', 'Đã xóa đơn xin nghỉ phép khỏi hệ thống.');
       return true;
     } catch (err) {
       console.error('Failed to delete leave request:', err);

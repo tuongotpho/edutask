@@ -279,6 +279,24 @@ export function canViewLeave(
 }
 
 /**
+ * Who can delete a leave request.
+ * - Admin or School Leadership (Ban Giám Hiệu / Quản trị viên) can delete any leave request.
+ * - Applicants can delete their own cancelled leave request.
+ */
+export function canDeleteLeave(
+  user: User | null,
+  activeRole?: RoleType | null,
+  leave?: { applicantId: string; overallStatus?: string }
+): boolean {
+  if (!user) return false;
+  if (isAdmin(user, activeRole)) return true;
+  if (leave && leave.applicantId === user.id && leave.overallStatus === 'CANCELLED') {
+    return true;
+  }
+  return false;
+}
+
+/**
  * Whether the acting role may sign off the approval step in front of them.
  *
  * Unlike the display helpers above this deliberately uses the ACTIVE role only:
