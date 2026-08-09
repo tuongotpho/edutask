@@ -209,7 +209,7 @@ export function Sidebar({
       <aside
         className={`bg-white border-r border-slate-200 flex-col justify-between p-4 flex-shrink-0 transition-all ${
           isMobileOpen
-            ? 'fixed inset-y-0 left-0 w-72 z-50 shadow-2xl overflow-y-auto flex md:relative md:w-64 md:z-auto md:shadow-none md:overflow-visible'
+            ? 'fixed inset-y-0 left-0 w-72 z-50 shadow-2xl overflow-y-auto flex pt-[max(1rem,env(safe-area-inset-top))] md:pt-4 md:relative md:w-64 md:z-auto md:shadow-none md:overflow-visible'
             : 'hidden md:flex md:w-64'
         }`}
       >

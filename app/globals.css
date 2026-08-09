@@ -1,1 +1,11 @@
 @import "tailwindcss";
+
+/* iOS Safe Area & Mobile Header Insets */
+@layer utilities {
+  .pt-safe-top {
+    padding-top: max(12px, env(safe-area-inset-top, 0px));
+  }
+  .pb-safe-bottom {
+    padding-bottom: max(12px, env(safe-area-inset-bottom, 0px));
+  }
+}

@@ -91,8 +91,8 @@ export function Navbar({
   };
 
   return (
-    <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs">
-      <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-2 sm:gap-4">
+    <header className="bg-white border-b border-slate-200 sticky top-0 z-40 shadow-xs pt-[env(safe-area-inset-top,0px)] transition-all">
+      <div className="w-full max-w-[1920px] mx-auto px-3 sm:px-6 lg:px-8 min-h-[3.75rem] sm:min-h-[4rem] py-1.5 sm:py-0 flex items-center justify-between gap-2 sm:gap-4">
         
         {/* Left Brand & School Name */}
         <div className="flex items-center space-x-2 sm:space-x-3 flex-shrink-0">
