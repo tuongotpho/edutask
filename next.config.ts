@@ -1,4 +1,5 @@
 import type {NextConfig} from 'next';
+import path from 'node:path';
 
 /**
  * Version = build date, encoded as YY M D with no leading zeros: a build made
@@ -13,6 +14,7 @@ function buildVersion(): string {
 }
 
 const nextConfig: NextConfig = {
+  outputFileTracingRoot: path.join(process.cwd()),
   reactStrictMode: true,
   env: {
     NEXT_PUBLIC_APP_VERSION: buildVersion(),
