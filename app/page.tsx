@@ -11,6 +11,7 @@ import { TaskTab } from '@/Edu-task/components/task/TaskTab';
 import { LoginPage } from '@/Edu-task/components/auth/LoginPage';
 import { PendingApprovalPage } from '@/Edu-task/components/auth/PendingApprovalPage';
 import { ToastViewport } from '@/Edu-task/components/common/Toast';
+import { ChunkErrorBoundary } from '@/Edu-task/components/common/ChunkErrorBoundary';
 import { LeaveRequest } from '@/Edu-task/types/leave';
 import { canAccessTab, DEFAULT_TAB, searchForTab, tabFromSearch } from '@/Edu-task/lib/tabRouting';
 
@@ -178,6 +179,11 @@ function EduTaskMainApp() {
 
         {/* Dynamic View Panel */}
         <main className="flex-1 p-4 md:p-6 overflow-y-auto">
+          {/* Every tab below the first three is a separately downloaded chunk.
+              Without this boundary a failed download renders nothing at all —
+              which is indistinguishable from the app having frozen. Keyed by tab
+              so a failure on one does not follow you to the next. */}
+          <ChunkErrorBoundary resetKey={visibleTab}>
           {visibleTab === 'dashboard' && (
             <OverviewTab
               onRequestNewLeave={handleOpenNewLeave}
@@ -243,6 +249,7 @@ function EduTaskMainApp() {
           {visibleTab === 'guide' && (
             <GuideTab />
           )}
+          </ChunkErrorBoundary>
         </main>
       </div>
 

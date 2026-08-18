@@ -20,10 +20,26 @@ const ASSET_CACHE = `${CACHE_VERSION}-assets`;
 self.addEventListener('install', event => {
   event.waitUntil(
     (async () => {
-      const cache = await caches.open(SHELL_CACHE);
+      // Build output goes in the ASSET cache and the HTML shell in the SHELL
+      // cache, because that is where each is looked up again on fetch.
+      //
+      // Everything used to be written to SHELL_CACHE, including every
+      // `/_next/static/**` chunk — while `cacheFirst`, the only reader for those
+      // URLs, opens ASSET_CACHE. The two never met, so the precache was dead
+      // weight: it cost a full download on install and served nothing. The app
+      // looked fine because every request simply fell through to the network,
+      // which is also why it was invisible until the network was not fine.
+      const [shellCache, assetCache] = await Promise.all([
+        caches.open(SHELL_CACHE),
+        caches.open(ASSET_CACHE),
+      ]);
+
       // Individually, so one 404 cannot abort the whole install.
       await Promise.all(
-        SHELL_URLS.map(url => cache.add(url).catch(() => undefined))
+        SHELL_URLS.map(url => {
+          const target = url.startsWith('/_next/static/') ? assetCache : shellCache;
+          return target.add(url).catch(() => undefined);
+        })
       );
       await self.skipWaiting();
     })()
@@ -67,14 +83,40 @@ function isImmutableAsset(url) {
   return url.pathname.startsWith('/_next/static/');
 }
 
+/**
+ * Every tab in this app is a `next/dynamic` chunk, and a rejected chunk request
+ * is not a recoverable error: React never mounts the component, nothing is
+ * rendered, and the tab sits blank until the user reloads the whole app. To the
+ * person using it that is not "a network blip", it is the tab being broken.
+ *
+ * So this must not reject on a failed fetch while a usable copy exists. It
+ * previously did — one `await fetch()` with no catch — which turned any momentary
+ * network fault into a permanently dead tab. `caches.match` is the global lookup
+ * across every cache, so a copy still counts whichever cache holds it.
+ */
 async function cacheFirst(request) {
-  const cache = await caches.open(ASSET_CACHE);
-  const cached = await cache.match(request);
+  const cached = await caches.match(request);
   if (cached) return cached;
 
-  const response = await fetch(request);
-  if (response.ok) cache.put(request, response.clone());
-  return response;
+  const cache = await caches.open(ASSET_CACHE);
+  try {
+    const response = await fetch(request);
+    if (response.ok) cache.put(request, response.clone());
+    return response;
+  } catch (first) {
+    // One retry. These URLs are content-hashed and immutable, so re-requesting
+    // is always safe, and the cost of not retrying is out of all proportion to
+    // the cost of one extra request: a chunk that fails twice in a row is a real
+    // outage, a chunk that fails once is a dropped packet that just bricked a
+    // tab until the user thinks to reload.
+    try {
+      const retry = await fetch(request);
+      if (retry.ok) cache.put(request, retry.clone());
+      return retry;
+    } catch {
+      throw first;
+    }
+  }
 }
 
 /**
