@@ -15,6 +15,18 @@
     ],
     "headers": [
       {
+        "comment": "Security headers. Firebase Hosting sends only HSTS on its own, so without this block the app ships with no clickjacking, MIME-sniffing or referrer protection at all. The CSP was verified by serving this exact static export behind this exact policy and driving it in a browser: the app rendered and hydrated, both service workers registered, and every origin the app needs answered over the network while a control request to example.com was refused by name. Notes on the awkward parts: 'unsafe-inline' in script-src is forced by Next's static export, which inlines its bootstrap and hydration payload with no nonce — the directive still pins WHICH external hosts may serve script, which is the half that stops an injected <script src>. gstatic must be in script-src because /firebase-messaging-sw.js importScripts the Firebase SDK from there, and a worker is governed by the CSP on its own response, not the page's. googleapis.com stays a wildcard on purpose: the probe ran from a logged-out page, so enumerating the six hosts it happened to touch would risk breaking a signed-in path nobody could test, and every host under it is Google-operated anyway. Note wss: is listed SEPARATELY from https: for both googleapis and firebaseio — CSP treats them as different schemes, and a first pass that only tested fetch() missed that Firestore's WebChannel can run over a WebSocket, which fails as a stalled listener rather than as a visible error. firebasestorage.app is listed in its own right because this project's bucket is app-from-ai.firebasestorage.app, the newer bucket domain, which is not under googleapis.com. COOP is same-origin-allow-popups, not same-origin: Google sign-in uses signInWithPopup and the stricter value severs the handle to the popup.",
+        "source": "**",
+        "headers": [
+          { "key": "Content-Security-Policy", "value": "default-src 'self'; script-src 'self' 'unsafe-inline' https://www.gstatic.com https://apis.google.com; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob: https://firebasestorage.googleapis.com https://*.firebasestorage.app https://*.googleusercontent.com; font-src 'self' data:; connect-src 'self' https://*.googleapis.com wss://*.googleapis.com https://*.firebaseio.com wss://*.firebaseio.com https://*.firebasestorage.app https://app-from-ai.firebaseapp.com https://api.telegram.org; frame-src 'self' https://app-from-ai.firebaseapp.com https://accounts.google.com https://apis.google.com; worker-src 'self'; manifest-src 'self'; base-uri 'self'; form-action 'self'; object-src 'none'; frame-ancestors 'none'" },
+          { "key": "X-Frame-Options", "value": "DENY" },
+          { "key": "X-Content-Type-Options", "value": "nosniff" },
+          { "key": "Referrer-Policy", "value": "strict-origin-when-cross-origin" },
+          { "key": "Cross-Origin-Opener-Policy", "value": "same-origin-allow-popups" },
+          { "key": "Permissions-Policy", "value": "camera=(), microphone=(), geolocation=(), payment=(), usb=(), interest-cohort=()" }
+        ]
+      },
+      {
         "comment": "The worker must never be served stale, or clients stay pinned to an old shell.",
         "source": "/sw.js",
         "headers": [
