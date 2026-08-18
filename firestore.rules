@@ -1,8 +1,24 @@
 // ============================================================================
 //  EduTask — Firestore Security Rules
 //
-//  PHIÊN BẢN: 2026-08-09 00:15
-//  Thay đổi:  VÁ LỖI PHÂN QUYỀN (PERMISSION-DENIED) — Sửa hàm `getUserData()`.
+//  PHIÊN BẢN: 2026-08-17 22:10
+//  Thay đổi:  VÁ LỖ HỔNG GIAO VIỆC — `tasks` trước đây chỉ kiểm ĐÚNG TÊN người
+//             giao, không kiểm vai trò. Giáo viên thường tuy bị giao diện ẩn
+//             nút, vẫn tự phát hành việc cho đồng nghiệp (kể cả Hiệu trưởng)
+//             qua SDK được. Thêm `canAssignTask()` soi chiếu `task:create`.
+//  Cùng đợt:  VÁ LỖ HỔNG PHẠM VI QUẢN TRỊ — hàm `isAdmin()` cũ trả về TRUE cho
+//             cả HIỆU TRƯỞNG và PHÓ HIỆU TRƯỞNG, trong khi `isAdmin()` bên
+//             client (lib/permissions.ts) chỉ là vai trò ADMIN. Trùng tên khác
+//             nghĩa nên hai bên lệch nhau mà không ai thấy: Hiệu trưởng ĐỌC
+//             ĐƯỢC token bot Telegram (đúng thứ bản 13:28 định khoá), sửa được
+//             danh mục phòng/lớp/tổ/thiết bị và xoá được tài khoản — dù giao
+//             diện đã ẩn hết những màn hình đó.
+//             Nay tách đôi: `isSystemAdmin()` = ADMIN thật (7 chỗ: settings,
+//             departments, rooms, classes, equipment, xoá users), còn
+//             `isExecutive()` = Ban Giám Hiệu, dùng cho các chỗ ghi đè/duyệt
+//             vốn CỐ Ý mở cho BGH — giữ nguyên hành vi cũ.
+//             Ràng buộc được ghim bằng tests/rules/adminScope.test.ts.
+//  Trước đó:  2026-08-09 00:15 — VÁ LỖI PHÂN QUYỀN (PERMISSION-DENIED) — Sửa hàm `getUserData()`.
 //             Sử dụng `exists()` trước khi gọi `.data` để tránh lỗi crash
 //             khiến toàn bộ các query bị từ chối với user vừa đăng nhập
 //             hoặc chưa có tài liệu profile trong collection `users`.
@@ -69,9 +85,26 @@ service cloud.firestore {
              request.auth.token.email in ['admin@gmail.com', 'admin@edutask.local'];
     }
 
-    function isAdmin() {
+    /**
+     * The SYSTEM administrator, and nobody else.
+     *
+     * This replaces a function called `isAdmin()` that also returned true for
+     * PRINCIPAL and VICE_PRINCIPAL. The name read like the client's `isAdmin()`
+     * in lib/permissions.ts — which is the ADMIN role alone — so the two drifted
+     * apart without anyone noticing, and the wider server-side meaning quietly
+     * governed everything the client reserves for administrators:
+     * `catalog:manage`, `config:rbac`, and the Telegram bot token. A hiệu trưởng
+     * could read the credential that posts to the school's Telegram group, even
+     * though the screen for it is hidden from them and the previous fix set out
+     * to make that document admin-only.
+     *
+     * Running the school and maintaining its configuration are different jobs.
+     * Where an executive override IS intended — approvals, unblocking a stuck
+     * workflow — the rules below say `isExecutive()`, which says so out loud.
+     */
+    function isSystemAdmin() {
       let data = getUserData();
-      let hasRole = data != null && data.roles.hasAny(['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL']);
+      let hasRole = data != null && data.roles.hasAny(['ADMIN']);
       return hasRole || isBootstrapAdminEmail();
     }
 
@@ -168,9 +201,31 @@ service cloud.firestore {
              data.roles.hasAny(['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_OF_DEPT', 'GROUP_LEADER']);
     }
 
+    // Mirrors `task:create` — "Phát hành & Giao việc". The create rule below
+    // used to check attribution only (you must name yourself as the assigner),
+    // which stops forgery but not the act: any teacher could put work on a
+    // colleague's dashboard, the principal's included, straight through the SDK
+    // while the button for it was hidden from them.
+    function canAssignTask() {
+      let data = getUserData();
+      return data != null &&
+             data.roles.hasAny(['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL', 'HEAD_OF_DEPT', 'GROUP_LEADER']);
+    }
+
+    /**
+     * Ban Giám Hiệu — the executive override.
+     *
+     * This is the set the old `isAdmin()` actually tested, so every approval and
+     * unblock rule that used to say `isAdmin()` now says `isExecutive()` and
+     * behaves exactly as before. The bootstrap email is carried over for the
+     * same reason: the very first account has no profile to hold a role yet, and
+     * dropping it here would have locked that account out of flows it could
+     * previously reach.
+     */
     function isExecutive() {
       let data = getUserData();
-      return data != null && data.roles.hasAny(['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL']);
+      let hasRole = data != null && data.roles.hasAny(['ADMIN', 'PRINCIPAL', 'VICE_PRINCIPAL']);
+      return hasRole || isBootstrapAdminEmail();
     }
 
     // Mirrors `student:manage` — who may edit the student roster. Deliberately
@@ -207,7 +262,7 @@ service cloud.firestore {
     // (dropdowns, headers); only admins may change them.
     match /departments/{deptId} {
       allow read: if isAuth();
-      allow write: if isAdmin();
+      allow write: if isSystemAdmin();
     }
 
     match /settings/{settingId} {
@@ -222,20 +277,20 @@ service cloud.firestore {
       // matching rule and grants access if ANY of them allows, so adding a
       // separate stricter `match /settings/telegram` block would be silently
       // overridden by this one.
-      allow read: if isAuth() && (settingId != 'telegram' || isAdmin());
-      allow write: if isAdmin();
+      allow read: if isAuth() && (settingId != 'telegram' || isSystemAdmin());
+      allow write: if isSystemAdmin();
     }
 
     // Room and class catalogs. Same shape as departments: everyone reads them
     // (they fill the pickers in every booking form), only admins maintain them.
     match /rooms/{roomId} {
       allow read: if isAuth();
-      allow write: if isAdmin();
+      allow write: if isSystemAdmin();
     }
 
     match /classes/{classId} {
       allow read: if isAuth();
-      allow write: if isAdmin();
+      allow write: if isSystemAdmin();
     }
 
     match /users/{userId} {
@@ -246,7 +301,7 @@ service cloud.firestore {
       // self-register as ['ADMIN'] / status 'ACTIVE'. Admins (or the bootstrap
       // admin email) may create any profile.
       allow create: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         (request.auth.uid == userId &&
          request.resource.data.id == userId &&
          request.resource.data.roles == ['TEACHER'] &&
@@ -257,17 +312,17 @@ service cloud.firestore {
       // department, or activeRole (those are approval-controlled and drive the
       // client-side authz UI). Admins may edit anything.
       allow update: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         (request.auth.uid == userId &&
          !request.resource.data.diff(resource.data).affectedKeys().hasAny(['roles', 'status', 'departmentId', 'activeRole']))
       );
 
-      allow delete: if isAdmin();
+      allow delete: if isSystemAdmin();
     }
 
     match /leaves/{leaveId} {
       allow read: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         resource.data.applicantId == request.auth.uid ||
         resource.data.substituteTeacherId == request.auth.uid ||
         isDeptLeader(resource.data.departmentId)
@@ -291,26 +346,27 @@ service cloud.firestore {
       // substitute with no clash check. Each of those is now closed, and each
       // has a test in tests/rules/leaves.test.ts.
       allow update: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         isDeptLeader(resource.data.departmentId) ||
         (resource.data.applicantId == request.auth.uid &&
          applicantMayUpdateLeave(resource.data, request.resource.data))
       );
 
       allow delete: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         resource.data.applicantId == request.auth.uid
       );
     }
 
     match /tasks/{taskId} {
       allow read: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         (request.auth.uid in resource.data.viewerIds)
       );
 
       // The creator must be the assigner and must include themselves as a viewer.
       allow create: if isAuth() &&
+        canAssignTask() &&
         request.resource.data.assignerId == request.auth.uid &&
         (request.auth.uid in request.resource.data.viewerIds);
 
@@ -318,7 +374,7 @@ service cloud.firestore {
       // may report progress / request extensions, but must NOT rewrite the ACL
       // or ownership fields — that would let any assignee hijack the task.
       allow update: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         resource.data.assignerId == request.auth.uid ||
         ((request.auth.uid in resource.data.viewerIds) &&
          !request.resource.data.diff(resource.data).affectedKeys()
@@ -326,7 +382,7 @@ service cloud.firestore {
       );
 
       allow delete: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         resource.data.assignerId == request.auth.uid
       );
     }
@@ -350,7 +406,7 @@ service cloud.firestore {
       // The department leader signs off; the teacher may still edit or cancel
       // their own request but may never move it to APPROVED.
       allow update: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         isDeptLeader(resource.data.departmentId) ||
         (resource.data.teacherId == request.auth.uid &&
          request.resource.data.status in ['IN_REVIEW', 'CANCELLED'] &&
@@ -358,7 +414,7 @@ service cloud.firestore {
       );
 
       allow delete: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         resource.data.teacherId == request.auth.uid
       );
     }
@@ -379,7 +435,7 @@ service cloud.firestore {
       // The office arbitrates the room timetable; the requester may only cancel
       // their own booking, never approve it.
       allow update: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         isOfficeStaff() ||
         (resource.data.requesterId == request.auth.uid &&
          request.resource.data.status in ['IN_REVIEW', 'CANCELLED'] &&
@@ -387,7 +443,7 @@ service cloud.firestore {
       );
 
       allow delete: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         isOfficeStaff() ||
         resource.data.requesterId == request.auth.uid
       );
@@ -399,7 +455,7 @@ service cloud.firestore {
     // school leadership plus the supervisor see everything.
     match /attendance/{recordId} {
       allow read: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         canRecordAttendance() ||
         resource.data.teacherId == request.auth.uid ||
         isDeptLeader(resource.data.departmentId)
@@ -415,7 +471,7 @@ service cloud.firestore {
 
       allow update: if isAuth() && (
         // Leadership settles a record: excuse it or let it stand.
-        isAdmin() ||
+        isExecutive() ||
         // The supervisor may correct their own entry.
         (canRecordAttendance() && resource.data.recordedById == request.auth.uid) ||
         // The teacher named may reply, and may ONLY reply — they cannot alter
@@ -429,7 +485,7 @@ service cloud.firestore {
       // Not deletable by the teacher it names — that would let anyone erase
       // their own record. The supervisor who wrote it may remove a mistake.
       allow delete: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         (canRecordAttendance() && resource.data.recordedById == request.auth.uid)
       );
     }
@@ -440,7 +496,7 @@ service cloud.firestore {
     // not. `participantIds` is the access list, the same device `tasks` uses.
     match /meetings/{meetingId} {
       allow read: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         isOfficeStaff() ||
         (request.auth.uid in resource.data.participantIds)
       );
@@ -457,7 +513,7 @@ service cloud.firestore {
       allow update: if isAuth() && isOfficeStaff();
 
       allow delete: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         resource.data.secretaryId == request.auth.uid
       );
     }
@@ -487,7 +543,7 @@ service cloud.firestore {
       );
 
       allow delete: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         (canManagePlans() &&
          resource.data.scope == 'DEPARTMENT' &&
          resource.data.departmentId == getUserData().departmentId)
@@ -516,7 +572,7 @@ service cloud.firestore {
       );
 
       allow delete: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         resource.data.createdById == request.auth.uid
       );
     }
@@ -527,7 +583,7 @@ service cloud.firestore {
     // computed from loans the browser is not allowed to see.
     match /equipment/{equipmentId} {
       allow read: if isAuth();
-      allow write: if isAdmin();
+      allow write: if isSystemAdmin();
     }
 
     match /equipmentLoans/{loanId} {
@@ -547,14 +603,14 @@ service cloud.firestore {
       // returned, which would let anyone clear a loan without handing anything
       // back.
       allow update: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         isOfficeStaff() ||
         (resource.data.borrowerId == request.auth.uid &&
          request.resource.data.status in ['REQUESTED', 'CANCELLED'])
       );
 
       allow delete: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         isOfficeStaff()
       );
     }
@@ -596,7 +652,7 @@ service cloud.firestore {
     match /students/{studentId} {
       allow read: if isAuth();
       allow create, update: if isAuth() && canManageStudents();
-      allow delete: if isAuth() && isAdmin();
+      allow delete: if isAuth() && isExecutive();
     }
 
     // Điểm danh học sinh. The document id is derived from class + date +
@@ -607,7 +663,7 @@ service cloud.firestore {
       allow create, update: if isAuth() && canRecordStudentLog();
       // Deleting a roll erases the record that a child was marked absent.
       // Corrections are made by editing marks, which keeps the history.
-      allow delete: if isAuth() && isAdmin();
+      allow delete: if isAuth() && isExecutive();
     }
 
     // Vi phạm & khen thưởng học sinh.
@@ -620,12 +676,12 @@ service cloud.firestore {
       // Only the teacher who wrote it may amend it — otherwise anyone could
       // quietly soften or delete a colleague's record of an incident.
       allow update: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         (canRecordStudentLog() && resource.data.recordedById == request.auth.uid)
       );
 
       allow delete: if isAuth() && (
-        isAdmin() ||
+        isExecutive() ||
         resource.data.recordedById == request.auth.uid
       );
     }

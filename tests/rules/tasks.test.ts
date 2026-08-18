@@ -92,6 +92,43 @@ describe('giao việc', () => {
       })
     );
   });
+
+  /**
+   * "Phát hành & Giao việc" is `task:create` in lib/permissions.ts, reserved for
+   * BGH and tổ trưởng, and TaskFormModal is the only way to create one. The rule
+   * used to check attribution alone — that the author names themselves — with no
+   * role test, so a plain teacher could put work on a colleague's dashboard, the
+   * principal's included, straight through the SDK.
+   */
+  it('CHẶN giáo viên thường tự phát hành việc cho đồng nghiệp', async () => {
+    const ownTask = {
+      ...TASK,
+      assignerId: UID.teacherToan,
+      assignerName: 'GV Toán',
+      assignerRole: 'Giáo viên',
+      assignees: [{
+        userId: UID.teacherToan2, userName: 'GV Toán 2',
+        departmentName: 'Tổ Toán', status: 'ASSIGNED',
+      }],
+      viewerIds: [UID.teacherToan, UID.teacherToan2],
+    };
+    await assertFails(
+      setDoc(doc(dbFor(testEnv, UID.teacherToan), 'tasks', 'TSK_NEW'), ownTask)
+    );
+  });
+
+  it('cho Ban Giám Hiệu phát hành việc', async () => {
+    const execTask = {
+      ...TASK,
+      assignerId: UID.principal,
+      assignerName: 'Hiệu trưởng',
+      assignerRole: 'Hiệu trưởng',
+      viewerIds: [UID.principal, UID.teacherToan],
+    };
+    await assertSucceeds(
+      setDoc(doc(dbFor(testEnv, UID.principal), 'tasks', 'TSK_NEW'), execTask)
+    );
+  });
 });
 
 describe('người nhận việc báo cáo tiến độ', () => {

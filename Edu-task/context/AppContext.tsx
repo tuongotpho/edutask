@@ -48,7 +48,7 @@ import { MakeupClass } from '@/Edu-task/types/makeup';
 import { RoomBooking } from '@/Edu-task/types/booking';
 import { AttendanceRecord } from '@/Edu-task/types/attendance';
 import { PeriodSlot } from '@/Edu-task/types/schedule';
-import { canViewAllAttendance, isDeptLeader } from '@/Edu-task/lib/permissions';
+import { canViewAllAttendance, isDeptLeader, isAdmin } from '@/Edu-task/lib/permissions';
 
 interface AppContextType {
   currentUser: User | null;
@@ -448,11 +448,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // every Firestore subscription each time anyone's profile is touched.
   const currentUserId = currentUser?.id;
   const currentUserDeptId = currentUser?.departmentId;
-  // Mirrors `isAdmin()` in firestore.rules — the roles allowed to write shared
-  // school config, and therefore the only ones that can seed it.
-  const canSeedConfig = !!currentUser?.roles?.some(r =>
-    r === 'ADMIN' || r === 'PRINCIPAL' || r === 'VICE_PRINCIPAL'
-  );
+  // Mirrors `isSystemAdmin()` in firestore.rules — the roles allowed to write
+  // shared school config, and therefore the only ones that can seed it or read
+  // `settings/telegram`.
+  //
+  // This was a hand-written copy of the role list, and it went stale the moment
+  // the rules narrowed from "ADMIN, PRINCIPAL, VICE_PRINCIPAL" to ADMIN alone:
+  // a hiệu trưởng still believed they could subscribe to the bot token, and the
+  // server refused. Deriving it from `isAdmin()` — the same helper the rest of
+  // the UI uses, bootstrap-email clause included — is what stops the next
+  // narrowing from silently breaking this again.
+  const canSeedConfig = isAdmin(currentUser, activeRole);
   // Reduced to booleans for the same reason: the subscription effect must not
   // depend on the `currentUser` object, whose identity changes every snapshot.
   const seesAllAttendance = canViewAllAttendance(currentUser, activeRole);

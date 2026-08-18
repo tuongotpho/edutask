@@ -2,6 +2,7 @@ import { GiftedLesson, GiftedLessonStatus, GiftedProgram, GiftedProgramStatus } 
 import { User, RoleType } from '@/Edu-task/types/user';
 import { genId } from '@/Edu-task/lib/utils';
 import { currentSchoolId } from '@/Edu-task/lib/tenant';
+import { canManageGifted } from '@/Edu-task/lib/permissions';
 import { firebaseService } from '@/Edu-task/services/firebaseService';
 import { ToastKind } from '@/Edu-task/components/common/Toast';
 
@@ -63,6 +64,16 @@ export function useGiftedLogic({
 
   const createProgram = async (data: GiftedProgramInput): Promise<GiftedProgram | null> => {
     if (!currentUser) throw new Error('User not logged in');
+
+    // Mirrors `allow create: if isAuth() && canManageGifted()` in firestore.rules.
+    // Every other logic hook checks before writing (see useMeetingLogic,
+    // useBookingLogic); this one took activeRole and never used it, so a caller
+    // without the role got an opaque "không lưu được lên máy chủ" from the
+    // rollback instead of being told why.
+    if (!canManageGifted(currentUser, activeRole)) {
+      notify('error', 'Bạn không có quyền tạo chương trình bồi dưỡng học sinh giỏi.');
+      return null;
+    }
 
     if (!data.title.trim()) {
       notify('error', 'Vui lòng nhập tên chương trình bồi dưỡng.');
