@@ -3,39 +3,28 @@
 import React, { useState } from 'react';
 import {
   BookOpen,
-  CheckCircle2,
   FileText,
   CheckSquare,
   Repeat,
   ClipboardList,
-  CalendarCheck,
-  Target,
   GraduationCap,
   Award,
   ShieldCheck,
   UserCheck,
   Users,
-  Search,
   HelpCircle,
-  Bell,
   Sparkles,
   ChevronDown,
-  ChevronRight,
-  ArrowRight,
   Info,
   Key,
   Database,
-  Calendar,
-  AlertTriangle,
   Cpu,
-  Zap,
   Radio,
   Activity,
   Terminal,
   Flame,
   RefreshCw,
   Layers,
-  Wifi,
   Globe,
   Lock,
   Server
@@ -60,16 +49,45 @@ export function GuideTab() {
     '[00:00:05] [STATUS_OK] All services operational - Latency 18ms | 100% Health Status'
   ]);
 
-  const [swStatus, setSwStatus] = useState<string>('ACTIVE (50 assets)');
+  // Real service-worker state, not a claim. The panel below used to print
+  // "ACTIVE (Cache-First)" and "50 Static Files" as fixed text while this value
+  // was computed and thrown away — so it read as ACTIVE on a browser where the
+  // worker had never registered, and the asset count was invented. Both now
+  // come from the browser: the registration list, and the Cache Storage entries.
+  const [swStatus, setSwStatus] = useState<string>('ĐANG KIỂM TRA…');
+  const [precachedCount, setPrecachedCount] = useState<number | null>(null);
 
   React.useEffect(() => {
-    if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
-      navigator.serviceWorker.getRegistrations().then(regs => {
-        if (regs.length > 0) {
-          setSwStatus('ACTIVE (50 precached assets)');
-        }
-      }).catch(() => {});
-    }
+    let cancelled = false;
+
+    // Every branch resolves through a promise rather than setting state in the
+    // effect body: the "not supported" case is known synchronously, but writing
+    // it straight into state there cascades an extra render for no reason.
+    const readWorker = async (): Promise<string> => {
+      if (!('serviceWorker' in navigator)) return 'KHÔNG HỖ TRỢ';
+      try {
+        const regs = await navigator.serviceWorker.getRegistrations();
+        return regs.length > 0 ? 'ACTIVE (Cache-First)' : 'CHƯA ĐĂNG KÝ';
+      } catch {
+        return 'KHÔNG ĐỌC ĐƯỢC';
+      }
+    };
+
+    const readCacheSize = async (): Promise<number | null> => {
+      if (!('caches' in window)) return null;
+      try {
+        const names = await caches.keys();
+        const lists = await Promise.all(names.map(n => caches.open(n).then(c => c.keys())));
+        return lists.reduce((sum, l) => sum + l.length, 0);
+      } catch {
+        return null;
+      }
+    };
+
+    readWorker().then(s => { if (!cancelled) setSwStatus(s); });
+    readCacheSize().then(n => { if (!cancelled) setPrecachedCount(n); });
+
+    return () => { cancelled = true; };
   }, []);
 
   const toggleFaq = (index: number) => {
@@ -93,7 +111,7 @@ export function GuideTab() {
         ...prev.slice(-6),
         `[${timeStr}] [REALTIME_PING] Cloud Firestore Google Endpoint: ${ms}ms - Network HTTP 200 OK`
       ]);
-    } catch (e: unknown) {
+    } catch {
       const ms = Math.max(1, Math.round(performance.now() - start));
       setPingResult(ms > 0 ? ms : 18);
       const timeStr = new Date().toLocaleTimeString('vi-VN');
@@ -363,11 +381,13 @@ export function GuideTab() {
                   </span>
                 </div>
                 <div className="text-sm font-extrabold text-indigo-400 font-mono">
-                  ACTIVE (Cache-First)
+                  {swStatus}
                 </div>
                 <div className="text-[11px] text-slate-400 flex items-center justify-between font-mono">
                   <span>Precached Assets</span>
-                  <span className="text-indigo-400 font-bold">50 Static Files</span>
+                  <span className="text-indigo-400 font-bold">
+                    {precachedCount === null ? '—' : `${precachedCount} Static Files`}
+                  </span>
                 </div>
               </div>
 
@@ -547,7 +567,7 @@ export function GuideTab() {
               <div className="space-y-1.5 flex-1">
                 <h3 className="font-bold text-slate-900 text-sm">Chuyển Đổi Vai Trò Thao Tác (RBAC) trên Thanh Header</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Nếu tài khoản của bạn đảm nhiệm nhiều vai trò (ví dụ: vừa là Giáo viên vừa là Tổ trưởng hoặc BGH), bấm vào nút **Vai trò** cạnh góc phải trên cùng để đổi vai trò thao tác. Hệ thống sẽ tự động cập nhật menu và các nút phê duyệt tương ứng.
+                  Nếu tài khoản của bạn đảm nhiệm nhiều vai trò (ví dụ: vừa là Giáo viên vừa là Tổ trưởng hoặc BGH), bấm vào nút <strong>Vai trò</strong> cạnh góc phải trên cùng để đổi vai trò thao tác. Hệ thống sẽ tự động cập nhật menu và các nút phê duyệt tương ứng.
                 </p>
               </div>
             </div>
@@ -560,7 +580,7 @@ export function GuideTab() {
               <div className="space-y-1.5 flex-1">
                 <h3 className="font-bold text-slate-900 text-sm">Nộp Đơn Xin Nghỉ Phép &amp; Chỉ Định Người Dạy Thay</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Bấm nút **"Tạo Đơn Xin Nghỉ"** ở menu bên trái hoặc tab Đơn Xin Nghỉ → Chọn Loại nghỉ (Bệnh, Việc riêng, Công tác...) → Điền ngày bắt đầu, kết thúc, buổi nghỉ → Chọn Giáo viên dạy thay (nếu có). Đơn sẽ tự động gửi tới Tổ trưởng chuyên môn duyệt cấp 1, sau đó tới Ban Giám Hiệu duyệt cấp 2.
+                  Bấm nút <strong>“Tạo Đơn Xin Nghỉ”</strong> ở menu bên trái hoặc tab Đơn Xin Nghỉ → Chọn Loại nghỉ (Bệnh, Việc riêng, Công tác...) → Điền ngày bắt đầu, kết thúc, buổi nghỉ → Chọn Giáo viên dạy thay (nếu có). Đơn sẽ tự động gửi tới Tổ trưởng chuyên môn duyệt cấp 1, sau đó tới Ban Giám Hiệu duyệt cấp 2.
                 </p>
               </div>
             </div>
@@ -573,7 +593,7 @@ export function GuideTab() {
               <div className="space-y-1.5 flex-1">
                 <h3 className="font-bold text-slate-900 text-sm">Tiếp Nhận &amp; Báo Cáo Tiến Độ Công Việc</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Vào tab **"Quản Lý Giao Việc"** → Nhấp vào công việc được giao để xem nội dung, tài liệu đính kèm → Cập nhật phần trăm hoàn thành hoặc gửi phản hồi/xin gia hạn trực tiếp tới người giao việc.
+                  Vào tab <strong>“Quản Lý Giao Việc”</strong> → Nhấp vào công việc được giao để xem nội dung, tài liệu đính kèm → Cập nhật phần trăm hoàn thành hoặc gửi phản hồi/xin gia hạn trực tiếp tới người giao việc.
                 </p>
               </div>
             </div>
@@ -586,7 +606,7 @@ export function GuideTab() {
               <div className="space-y-1.5 flex-1">
                 <h3 className="font-bold text-slate-900 text-sm">Điểm Danh &amp; Ghi Nề Nếp Học Sinh Hàng Ngày</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Vào tab **"Học Sinh"** → Chọn Lớp chủ nhiệm/bộ môn → Bấm **"Điểm Danh Lớp"** để chọn trạng thái Vắng/Đi trễ → Ghi nhận vi phạm nề nếp hoặc tuyên dương học sinh có thành tích xuất sắc.
+                  Vào tab <strong>“Học Sinh”</strong> → Chọn Lớp chủ nhiệm/bộ môn → Bấm <strong>“Điểm Danh Lớp”</strong> để chọn trạng thái Vắng/Đi trễ → Ghi nhận vi phạm nề nếp hoặc tuyên dương học sinh có thành tích xuất sắc.
                 </p>
               </div>
             </div>
@@ -599,7 +619,7 @@ export function GuideTab() {
               <div className="space-y-1.5 flex-1">
                 <h3 className="font-bold text-amber-950 text-sm">Tạo Tài Khoản Hàng Loạt (Dành Cho Quản Trị Viên - Admin)</h3>
                 <p className="text-xs text-amber-900 leading-relaxed">
-                  Vào tab **"Quản Trị &amp; Duyệt TK"** → Bấm **"Tạo Tài Khoản Hàng Loạt"** → Tải file mẫu CSV/Excel hoặc dán danh sách → Hệ thống tự động nhận diện Email, Họ tên, Tổ chuyên môn và Vai trò. Admin có thể chỉnh sửa trực tiếp từng dòng trên giao diện trước khi bấm **"Tạo Hàng Loạt"**.
+                  Vào tab <strong>“Quản Trị &amp; Duyệt TK”</strong> → Bấm <strong>“Tạo Tài Khoản Hàng Loạt”</strong> → Tải file mẫu CSV/Excel hoặc dán danh sách → Hệ thống tự động nhận diện Email, Họ tên, Tổ chuyên môn và Vai trò. Admin có thể chỉnh sửa trực tiếp từng dòng trên giao diện trước khi bấm <strong>“Tạo Hàng Loạt”</strong>.
                 </p>
               </div>
             </div>
@@ -696,7 +716,7 @@ export function GuideTab() {
                 </button>
                 {openFaqIndex === 0 && (
                   <div className="p-4 bg-white text-xs text-slate-600 leading-relaxed border-t border-slate-200">
-                    Tài khoản <strong>Admin</strong> có thể vào tab <strong>"Quản Trị &amp; Duyệt TK"</strong> → Bấm <strong>"Tạo Tài Khoản Hàng Loạt"</strong> → Tải file Excel/CSV danh sách giáo viên hoặc dán văn bản. Admin có thể chỉnh sửa trực tiếp Tổ chuyên môn &amp; Vai trò của từng người ngay trên bảng nhập trước khi bấm tạo.
+                    Tài khoản <strong>Admin</strong> có thể vào tab <strong>“Quản Trị &amp; Duyệt TK”</strong> → Bấm <strong>“Tạo Tài Khoản Hàng Loạt”</strong> → Tải file Excel/CSV danh sách giáo viên hoặc dán văn bản. Admin có thể chỉnh sửa trực tiếp Tổ chuyên môn &amp; Vai trò của từng người ngay trên bảng nhập trước khi bấm tạo.
                   </div>
                 )}
               </div>
@@ -712,7 +732,7 @@ export function GuideTab() {
                 </button>
                 {openFaqIndex === 1 && (
                   <div className="p-4 bg-white text-xs text-slate-600 leading-relaxed border-t border-slate-200">
-                    Người tạo đơn có thể xóa đơn của mình khi đơn ở trạng thái <strong>Đã Hủy (CANCELLED)</strong>. Riêng tài khoản <strong>Admin / Ban Giám Hiệu</strong> có nút bấm <strong>"Xóa Đơn Khỏi Hệ Thống (Admin)"</strong> để xóa vĩnh viễn đơn nghỉ phép bị nhầm lẫn trực tiếp trên giao diện.
+                    Người tạo đơn có thể xóa đơn của mình khi đơn ở trạng thái <strong>Đã Hủy (CANCELLED)</strong>. Riêng tài khoản <strong>Admin / Ban Giám Hiệu</strong> có nút bấm <strong>“Xóa Đơn Khỏi Hệ Thống (Admin)”</strong> để xóa vĩnh viễn đơn nghỉ phép bị nhầm lẫn trực tiếp trên giao diện.
                   </div>
                 )}
               </div>
@@ -744,7 +764,7 @@ export function GuideTab() {
                 </button>
                 {openFaqIndex === 3 && (
                   <div className="p-4 bg-white text-xs text-slate-600 leading-relaxed border-t border-slate-200">
-                    Bật nút công tắc <strong>"Bật thông báo đẩy"</strong> ở góc trên thanh Header. Khi có đơn xin nghỉ phép mới hoặc công việc được giao, hệ thống sẽ tự động phát thông báo tới thiết bị của bạn và tự động gửi tin nhắn báo vào kênh Telegram của nhà trường.
+                    Bật nút công tắc <strong>“Bật thông báo đẩy”</strong> ở góc trên thanh Header. Khi có đơn xin nghỉ phép mới hoặc công việc được giao, hệ thống sẽ tự động phát thông báo tới thiết bị của bạn và tự động gửi tin nhắn báo vào kênh Telegram của nhà trường.
                   </div>
                 )}
               </div>

@@ -9,25 +9,20 @@ import {
   ChevronLeft,
   Clock,
   Edit2,
-  Filter,
   PlusCircle,
   RotateCcw,
   Search,
   Trash2,
   User,
   UserCheck,
-  X,
-  AlertCircle,
-  MapPin,
-  FileText
+  MapPin
 } from 'lucide-react';
 import { useApp } from '@/Edu-task/context/AppContext';
 import {
   GiftedLesson,
   GiftedProgram,
   GiftedProgramStatus,
-  GIFTED_PROGRAM_STATUS_LABELS,
-  GIFTED_LESSON_STATUS_LABELS
+  GIFTED_PROGRAM_STATUS_LABELS
 } from '@/Edu-task/types/gifted';
 import { formatDateVi, toDateString } from '@/Edu-task/lib/schedule';
 import { canManageGifted } from '@/Edu-task/lib/permissions';
@@ -45,7 +40,8 @@ export function GiftedTab() {
     users,
     createGiftedProgram,
     updateGiftedProgram,
-    setGiftedProgramStatus,
+    // Status is changed by editing the programme (the modal has a status select),
+    // which is why context's setGiftedProgramStatus is not pulled in here.
     deleteGiftedProgram,
     addGiftedLesson,
     updateGiftedLesson,
@@ -69,7 +65,10 @@ export function GiftedTab() {
   // Program Form Modal State
   const [isProgramModalOpen, setIsProgramModalOpen] = useState(false);
   const [editingProgram, setEditingProgram] = useState<GiftedProgram | null>(null);
-  const [programForm, setProgramForm] = useState({
+  // Lazy initialiser: the default dates are read from the clock, so building
+  // this object on every render both wasted the work and made the component
+  // impure — React's purity rule flags exactly that.
+  const [programForm, setProgramForm] = useState(() => ({
     title: '',
     subject: 'Toán',
     grade: 'Khối 9',
@@ -78,19 +77,19 @@ export function GiftedTab() {
     startDate: toDateString(new Date()),
     endDate: toDateString(new Date(Date.now() + 90 * 86400000)),
     status: 'IN_PROGRESS' as GiftedProgramStatus,
-  });
+  }));
 
   // Lesson Form Modal State
   const [isLessonModalOpen, setIsLessonModalOpen] = useState(false);
   const [editingLesson, setEditingLesson] = useState<GiftedLesson | null>(null);
-  const [lessonForm, setLessonForm] = useState({
+  const [lessonForm, setLessonForm] = useState(() => ({
     title: '',
     teacherId: currentUser?.id || '',
     scheduledDate: toDateString(new Date()),
     durationPeriods: 2,
     roomName: '',
     description: '',
-  });
+  }));
 
   // Completion Note Modal State
   const [completingLessonId, setCompletingLessonId] = useState<string | null>(null);
@@ -427,7 +426,7 @@ export function GiftedTab() {
               <div className="text-center py-12 bg-slate-50 rounded-[5px] border border-dashed border-slate-200">
                 <BookOpen className="w-10 h-10 text-slate-300 mx-auto mb-2" />
                 <p className="text-sm font-semibold text-slate-700">Chưa có tiết/chuyên đề nào trong chương trình này</p>
-                <p className="text-xs text-slate-400 mt-1">Bấm "Thêm Tiết / Chuyên Đề" ở trên để phân công danh sách tiết học</p>
+                <p className="text-xs text-slate-400 mt-1">Bấm “Thêm Tiết / Chuyên Đề” ở trên để phân công danh sách tiết học</p>
               </div>
             ) : (
               <div className="overflow-x-auto rounded-[5px] border border-slate-200">
