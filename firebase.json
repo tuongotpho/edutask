@@ -7,6 +7,14 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "redirects": [
+      {
+        "comment": "Browsers ask for /favicon.ico whether or not the page declares an icon link. Without a file there, the catch-all SPA rewrite below answers with index.html — a 200 of text/html where an image was expected, which renders as no icon at all rather than as an error anyone would notice. Redirecting to the real PNG is better than shipping a duplicate .ico: one file stays the source of truth, and it is served with the correct image/png rather than a mislabelled payload that X-Content-Type-Options would then refuse.",
+        "source": "/favicon.ico",
+        "destination": "/icon.png",
+        "type": 301
+      }
+    ],
     "rewrites": [
       {
         "source": "**",
