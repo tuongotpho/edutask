@@ -34,6 +34,17 @@ const DEAD_TOKEN_ERRORS = new Set([
   'messaging/invalid-registration-token',
 ]);
 
+/**
+ * `sendEachForMulticast` REJECTS a list longer than this — it does not truncate.
+ *
+ * That mattered on the school-wide reminder path: `sendToUsers` flattens every
+ * device of every recipient into one list, so a school past ~500 registered
+ * devices tripped the limit, the throw was swallowed by the catch below, and
+ * NOBODY was notified — while the schedule was still stamped `lastFiredOn`, so
+ * the occurrence was never retried. One log line was the only trace.
+ */
+const FCM_MAX_TOKENS_PER_SEND = 500;
+
 async function tokensFor(userId: string): Promise<string[]> {
   const snapshot = await getDb().collection('pushTokens').where('userId', '==', userId).get();
   return snapshot.docs.map(doc => doc.id);
@@ -68,6 +79,17 @@ export async function sendToUsers(userIds: string[], payload: PushPayload): Prom
 async function sendToTokens(tokens: string[], payload: PushPayload): Promise<number> {
   if (tokens.length === 0) return 0;
 
+  // Batches are sent in sequence, not in parallel: a school-wide push is not
+  // time-critical, and firing every batch at once is how a burst turns into
+  // rate-limiting that costs deliveries.
+  let total = 0;
+  for (let i = 0; i < tokens.length; i += FCM_MAX_TOKENS_PER_SEND) {
+    total += await sendOneBatch(tokens.slice(i, i + FCM_MAX_TOKENS_PER_SEND), payload);
+  }
+  return total;
+}
+
+async function sendOneBatch(tokens: string[], payload: PushPayload): Promise<number> {
   try {
     const response = await getPushMessaging().sendEachForMulticast({
       tokens,
@@ -103,8 +125,9 @@ async function sendToTokens(tokens: string[], payload: PushPayload): Promise<num
     return response.successCount;
   } catch (err) {
     // Never rethrow: the record this announces is already saved, and a retry
-    // would re-notify everyone who did receive it.
-    logger.error('Push send failed entirely', err);
+    // would re-notify everyone who did receive it. Losing one batch is better
+    // than re-buzzing every device that already got it.
+    logger.error(`Push send failed for a batch of ${tokens.length} token(s)`, err);
     return 0;
   }
 }
