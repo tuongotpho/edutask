@@ -31,6 +31,27 @@ export function currentSchoolId(): string {
   return process.env.NEXT_PUBLIC_SCHOOL_ID?.trim() || DEFAULT_SCHOOL_ID;
 }
 
+/**
+ * The school's display name, baked in at build time.
+ *
+ * It has to come from the environment rather than from `settings/school`
+ * because the first place it appears is the LOGIN page — and `settings` is
+ * readable only to signed-in accounts, by design. A name shown before anyone
+ * has signed in cannot come from behind that gate.
+ *
+ * Once inside, `settings/school` is the source of truth: an administrator can
+ * rename the school from the config screen and every screen follows. This value
+ * is the starting point and the fallback, not a competing copy.
+ *
+ * The default is deliberately generic. A hard-coded real school name is exactly
+ * what makes a codebase serve one school and no other.
+ */
+export const DEFAULT_SCHOOL_NAME = 'Trường học';
+
+export function currentSchoolName(): string {
+  return process.env.NEXT_PUBLIC_SCHOOL_NAME?.trim() || DEFAULT_SCHOOL_NAME;
+}
+
 /** Mixed into every record created after this change. */
 export interface TenantScoped {
   schoolId: string;

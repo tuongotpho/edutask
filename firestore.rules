@@ -89,10 +89,27 @@ service cloud.firestore {
       return exists(path) ? get(path).data : null;
     }
 
-    // Admin is determined by the ROLE stored in the user's own profile.
-    // The email allow-list below is only a bootstrap escape hatch so the very
-    // first admin account can create its own profile. Keep it in sync with
-    // NEXT_PUBLIC_ADMIN_EMAILS but treat roles as the real source of truth.
+    // ========================================================================
+    //  >>> CẤU HÌNH RIÊNG CHO TỪNG TRƯỜNG — ĐỔI DÒNG DƯỚI KHI TRIỂN KHAI MỚI <<<
+    // ========================================================================
+    //
+    //  Quyền quản trị THẬT nằm ở vai trò ADMIN trong hồ sơ người dùng. Danh
+    //  sách email dưới đây chỉ là cửa thoát hiểm để tài khoản quản trị ĐẦU TIÊN
+    //  của một trường tự tạo được hồ sơ cho mình — lúc đó chưa có hồ sơ nào để
+    //  mang vai trò, nên không có gì khác để dựa vào.
+    //
+    //  KHI DỰNG CHO TRƯỜNG MỚI:
+    //    1. Đổi email dưới đây thành email quản trị của trường đó, deploy rules
+    //    2. Đăng nhập bằng email đó, hệ thống tạo hồ sơ ADMIN
+    //    3. Rút danh sách này về rỗng `[]` rồi deploy lại
+    //
+    //  Bước 3 hay bị bỏ qua, và nó mới là bước quan trọng: để nguyên nghĩa là
+    //  bất kỳ ai chiếm được hộp thư đó đều thành quản trị, vĩnh viễn, kể cả sau
+    //  khi trường đã có ADMIN thật. Danh sách rỗng vẫn chạy đúng — mọi thứ khi
+    //  ấy dựa hoàn toàn vào vai trò, đúng như thiết kế.
+    //
+    //  Phải khớp với NEXT_PUBLIC_ADMIN_EMAILS bên client. Hai bản chép tay là
+    //  chỗ dễ lệch nhau; tests/rules/bootstrapAdmin.test.ts ghim ràng buộc này.
     function isBootstrapAdminEmail() {
       return request.auth != null &&
              request.auth.token.email in ['admin@gmail.com', 'admin@edutask.local'];

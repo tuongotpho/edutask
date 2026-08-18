@@ -57,6 +57,16 @@ jobs:
           NEXT_PUBLIC_FIREBASE_APP_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_APP_ID }}
           NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID: ${{ secrets.NEXT_PUBLIC_FIREBASE_MEASUREMENT_ID }}
           NEXT_PUBLIC_ADMIN_EMAILS: ${{ secrets.NEXT_PUBLIC_ADMIN_EMAILS }}
+          # Tên trường hiện trên trang ĐĂNG NHẬP — trước khi đăng nhập thì
+          # settings/school không đọc được (nó nằm sau hàng rào xác thực, cố ý),
+          # nên tên phải được nướng vào lúc build.
+          #
+          # Viết thẳng chứ không để secret: đây không phải bí mật, nó in ngay
+          # trên màn hình đầu tiên ai cũng thấy. Để secret thì lỡ quên đặt là
+          # site âm thầm đổi thành "Trường học" mà build vẫn xanh.
+          #
+          # >>> ĐÂY LÀ CHỖ ĐỔI KHI TRIỂN KHAI CHO TRƯỜNG KHÁC. <<<
+          NEXT_PUBLIC_SCHOOL_NAME: THPT Chuyên Nguyễn Trãi
           # Web Push certificate (VAPID public key). Written inline rather than
           # kept as a secret because it is genuinely public — it ships inside
           # the client bundle by design, so hiding it here would protect

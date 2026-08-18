@@ -122,7 +122,7 @@ export function RbacConfigTab() {
             type="text"
             value={editingSchoolName}
             onChange={(e) => setEditingSchoolName(e.target.value)}
-            placeholder="Nhập tên trường học (VD: Trường THPT Chuyên Nguyễn Trãi)..."
+            placeholder="Nhập tên trường học (VD: Trường THPT Nguyễn Du)..."
             className="flex-1 px-4 py-2.5 rounded-xl border border-slate-200 text-xs font-bold text-slate-900 focus:outline-none focus:ring-2 focus:ring-indigo-500/20"
           />
           <button

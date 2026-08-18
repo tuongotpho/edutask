@@ -2,12 +2,13 @@ import { User, Department } from '@/Edu-task/types/user';
 import { LeaveRequest } from '@/Edu-task/types/leave';
 import { Task } from '@/Edu-task/types/task';
 import { AppNotification } from '@/Edu-task/types/notification';
+import { currentSchoolName } from '@/Edu-task/lib/tenant';
 
 export const INITIAL_DEPARTMENTS: Department[] = [
   { id: 'DEPT_BGH', name: 'Ban Giám Hiệu', code: 'BGH', description: 'Ban Lãnh đạo Nhà trường' },
   { id: 'DEPT_TOAN_TIN', name: 'Tổ Toán - Tin', code: 'TOAN-TIN', description: 'Tổ Chuyên môn Toán học & Tin học' },
   { id: 'DEPT_VAN_SU', name: 'Tổ Ngữ Văn - Lịch Sử', code: 'VAN-SU', description: 'Tổ Chuyên môn Ngữ Văn & Lịch Sử' },
-  { id: 'DEPT_ANH', name: 'Tổ Ngoại Ngữ', code: 'NGOAI-NGU', description: 'Tổ Chuyên môn Tiếng Anh & Tiếng Pháp' },
+  { id: 'DEPT_ANH', name: 'Tổ Ngoại Ngữ', code: 'NGOAI-NGU', description: 'Tổ Chuyên môn Ngoại ngữ' },
   { id: 'DEPT_LY_HOA_SINH', name: 'Tổ Lý - Hóa - Sinh', code: 'KHOA-HOC-TU-NHIEN', description: 'Tổ Chuyên môn Khoa học Tự nhiên' },
   { id: 'DEPT_HANH_CHINH', name: 'Tổ Hành Chính - Kế Toán', code: 'HANH-CHINH', description: 'Văn thư, Kế toán, Thủ quỹ' },
 ];
@@ -103,8 +104,14 @@ class StorageService {
   }
 
   // School Name
+  //
+  // The fallback comes from the build environment rather than a name written
+  // here. This value is only what the app shows in the instant before
+  // `settings/school` arrives from Firestore, so a wrong one is brief — but a
+  // real school's name sitting in the source is what quietly makes this
+  // codebase belong to one school.
   getSchoolName(): string {
-    return this.getItem<string>('school_name', 'Trường THPT Chuyên EduTask');
+    return this.getItem<string>('school_name', currentSchoolName());
   }
 
   saveSchoolName(name: string): void {

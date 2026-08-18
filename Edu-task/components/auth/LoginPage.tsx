@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import Image from 'next/image';
 import { useApp } from '@/Edu-task/context/AppContext';
+import { currentSchoolName } from '@/Edu-task/lib/tenant';
 import { 
   Lock, 
   Mail, 
@@ -108,8 +109,13 @@ export function LoginPage() {
         <h2 className="text-center text-2xl font-extrabold text-white tracking-tight">
           EduTask - Quản lý Nhà trường
         </h2>
+        {/* Read from the build environment, not written in: this line is the
+            first thing a school sees, and a name baked into the source is what
+            stops the same code serving a second school. `settings/school` is
+            the source of truth once signed in, but it is unreadable here — that
+            document is gated behind authentication, deliberately. */}
         <p className="mt-1 text-center text-xs text-slate-400">
-          THPT Chuyên Nguyễn Trãi • Giải pháp Chuyển đổi số Quản trị &amp; Vận hành Nhà trường
+          {currentSchoolName()} &bull; Giải pháp Chuyển đổi số Quản trị &amp; Vận hành Nhà trường
         </p>
       </div>
 
