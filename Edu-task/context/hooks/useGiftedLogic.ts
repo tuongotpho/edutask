@@ -18,6 +18,24 @@ interface GiftedLogicProps {
 
 const SAVE_FAILED = 'Không lưu được lên máy chủ. Thay đổi đã được hoàn tác — vui lòng thử lại.';
 
+/**
+ * A refusal and a dropped connection are not the same problem, and telling a
+ * teacher to "thử lại" when the server will refuse every attempt sends them
+ * round a loop that cannot end. `permission-denied` here has one realistic
+ * cause: the programme predates the `teacherIds` field, so the rules cannot see
+ * that this teacher owns the lesson. Naming the fix is the difference between a
+ * dead end and a thirty-second job for whoever runs the module.
+ */
+function messageFor(err: unknown): string {
+  const code = (err as { code?: string } | null)?.code;
+  if (code === 'permission-denied') {
+    return 'Máy chủ từ chối: chương trình này được tạo trước khi có tính năng '
+      + 'giáo viên tự xác nhận. Nhờ tổ trưởng hoặc quản trị viên mở tab '
+      + 'Bồi Dưỡng HSG một lần để hệ thống cập nhật, sau đó thử lại.';
+  }
+  return SAVE_FAILED;
+}
+
 export interface GiftedProgramInput {
   title: string;
   subject: string;
@@ -111,7 +129,7 @@ export function useGiftedLogic({
     } catch (err) {
       console.error('Failed to save gifted program:', err);
       setGiftedPrograms(previous);
-      notify('error', SAVE_FAILED);
+      notify('error', messageFor(err));
       return false;
     }
   };
