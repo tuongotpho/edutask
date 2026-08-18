@@ -1,5 +1,6 @@
 import { logger } from 'firebase-functions';
 import { getDb, getPushMessaging } from './firebase';
+import { runInBatches } from './shared/lib/batching';
 
 /**
  * Delivering a notification to a person's devices.
@@ -79,14 +80,17 @@ export async function sendToUsers(userIds: string[], payload: PushPayload): Prom
 async function sendToTokens(tokens: string[], payload: PushPayload): Promise<number> {
   if (tokens.length === 0) return 0;
 
-  // Batches are sent in sequence, not in parallel: a school-wide push is not
-  // time-critical, and firing every batch at once is how a burst turns into
-  // rate-limiting that costs deliveries.
-  let total = 0;
-  for (let i = 0; i < tokens.length; i += FCM_MAX_TOKENS_PER_SEND) {
-    total += await sendOneBatch(tokens.slice(i, i + FCM_MAX_TOKENS_PER_SEND), payload);
-  }
-  return total;
+  // The batching itself lives in shared/lib/batching so it can be tested
+  // without standing up firebase-admin — see the note in that file.
+  return runInBatches(
+    tokens,
+    FCM_MAX_TOKENS_PER_SEND,
+    batch => sendOneBatch(batch, payload),
+    // Never rethrow: the record this announces is already saved, and a retry
+    // would re-notify everyone who did receive it. Losing one batch is better
+    // than re-buzzing every device that already got it.
+    (err, batch) => logger.error(`Push send failed for a batch of ${batch.length} token(s)`, err)
+  );
 }
 
 async function sendOneBatch(tokens: string[], payload: PushPayload): Promise<number> {
@@ -124,10 +128,9 @@ async function sendOneBatch(tokens: string[], payload: PushPayload): Promise<num
     await pruneTokens(dead);
     return response.successCount;
   } catch (err) {
-    // Never rethrow: the record this announces is already saved, and a retry
-    // would re-notify everyone who did receive it. Losing one batch is better
-    // than re-buzzing every device that already got it.
-    logger.error(`Push send failed for a batch of ${tokens.length} token(s)`, err);
-    return 0;
+    // Rethrown so runInBatches records exactly one failure for this batch and
+    // carries on with the next. Swallowing it here would report the batch as
+    // zero successful sends, which reads identically to "nobody was subscribed".
+    throw err;
   }
 }

@@ -29,6 +29,7 @@ const LIB_FILES = [
   'taskStatus.ts',
   'reminderSchedule.ts',
   'planProgress.ts',
+  'batching.ts',
 ];
 
 /** Types are pure by construction, so the whole folder comes across. */
