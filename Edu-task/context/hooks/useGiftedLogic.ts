@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react';
 import { GiftedLesson, GiftedLessonStatus, GiftedProgram, GiftedProgramStatus } from '@/Edu-task/types/gifted';
 import { User, RoleType } from '@/Edu-task/types/user';
 import { genId } from '@/Edu-task/lib/utils';
@@ -47,6 +48,59 @@ export function useGiftedLogic({
   notify,
 }: GiftedLogicProps) {
   const now = () => new Date().toISOString().replace('T', ' ').slice(0, 16);
+
+  /**
+   * The teacher list the security rules read, derived from the lessons.
+   *
+   * Sorted and de-duplicated so the SAME set of teachers always produces the
+   * identical array. That is not tidiness: Firestore's `affectedKeys()` compares
+   * values, so an array that merely reordered would register as a changed field
+   * — and the rule that lets a teacher confirm their own lesson pins exactly
+   * which fields they may touch. Unstable ordering here would fail their write
+   * for a field they never meant to change.
+   */
+  const teacherIdsFrom = (lessons: GiftedLesson[]): string[] =>
+    Array.from(new Set(lessons.map(l => l.teacherId).filter(Boolean))).sort();
+
+  /**
+   * Backfills `teacherIds` onto programmes created before the field existed.
+   *
+   * Those documents predate the rule that lets an assigned teacher confirm
+   * their own lesson, so without this they stay permanently broken for the
+   * teacher — the rule reads an absent field as "no teachers" and refuses.
+   *
+   * Done from the app rather than as a migration script on purpose: the script
+   * would need a service-account key set up before anyone could run it, for a
+   * handful of documents, while a manager opening the module already holds
+   * exactly the permission the write requires. It is idempotent and converges —
+   * once a programme is patched, the comparison below stops matching it — and
+   * it only ever writes the value derived from lessons that are already there,
+   * so it cannot invent access that the roster does not already imply.
+   */
+  const backfilled = useRef(new Set<string>());
+
+  useEffect(() => {
+    if (!canManageGifted(currentUser, activeRole)) return;
+
+    const stale = giftedPrograms.filter(p => {
+      if (backfilled.current.has(p.id)) return false;
+      const expected = teacherIdsFrom(p.lessons ?? []);
+      const actual = p.teacherIds ?? [];
+      return expected.join('|') !== actual.join('|');
+    });
+    if (stale.length === 0) return;
+
+    for (const program of stale) {
+      backfilled.current.add(program.id);
+      const patched = { ...program, teacherIds: teacherIdsFrom(program.lessons ?? []) };
+      firebaseService.saveGiftedProgram(patched).catch(err => {
+        // Not surfaced as a toast: the manager did not ask for this, and the
+        // only consequence of it failing is that it is retried next session.
+        backfilled.current.delete(program.id);
+        console.error(`[HSG] Không vá được teacherIds cho ${program.id}:`, err);
+      });
+    }
+  }, [giftedPrograms, currentUser, activeRole]);
 
   const commitProgram = async (next: GiftedProgram[], toSave: GiftedProgram): Promise<boolean> => {
     const previous = giftedPrograms;
@@ -106,6 +160,7 @@ export function useGiftedLogic({
       coordinatorId: coordinator.id,
       coordinatorName: coordinator.fullName,
       lessons: [],
+      teacherIds: [],
       status: data.status || 'IN_PROGRESS',
       startDate: data.startDate,
       endDate: data.endDate,
@@ -210,6 +265,7 @@ export function useGiftedLogic({
     const updated: GiftedProgram = {
       ...target,
       lessons: [...target.lessons, lesson],
+      teacherIds: teacherIdsFrom([...target.lessons, lesson]),
       updatedAt: now(),
     };
 
@@ -245,6 +301,8 @@ export function useGiftedLogic({
     const updated: GiftedProgram = {
       ...target,
       lessons: updatedLessons,
+      // Reassigning a lesson to a different teacher changes who may confirm it.
+      teacherIds: teacherIdsFrom(updatedLessons),
       updatedAt: now(),
     };
 
@@ -264,6 +322,8 @@ export function useGiftedLogic({
     const updated: GiftedProgram = {
       ...target,
       lessons: updatedLessons,
+      // Removing the only lesson a teacher had also removes their access.
+      teacherIds: teacherIdsFrom(updatedLessons),
       updatedAt: now(),
     };
 

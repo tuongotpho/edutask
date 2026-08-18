@@ -51,7 +51,25 @@ export interface GiftedProgram {
   coordinatorName: string;
   
   lessons: GiftedLesson[]; // Danh sách các tiết / chuyên đề
-  
+
+  /**
+   * Every `lessons[].teacherId`, copied up to the top of the document.
+   *
+   * Redundant data earns its keep here. A programme is ONE document with its
+   * lessons in an array inside it, so "giáo viên xác nhận đã dạy xong tiết của
+   * mình" is an update of the whole document — and Firestore rules cannot
+   * iterate an array, so they have no way to ask "is the caller the teacher of
+   * the lesson that changed". Without this field the rule could only choose
+   * between refusing every teacher (which broke the feature: the button was
+   * shown, the write was denied, and the teacher saw "không lưu được lên máy
+   * chủ") or allowing everyone.
+   *
+   * Maintained by useGiftedLogic on every write that touches `lessons`, and
+   * never writable by a teacher — the rule pins the fields they may change, and
+   * this is not one of them.
+   */
+  teacherIds: string[];
+
   status: GiftedProgramStatus;
   startDate: string; // YYYY-MM-DD
   endDate: string; // YYYY-MM-DD

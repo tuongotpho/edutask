@@ -1,7 +1,20 @@
 // ============================================================================
 //  EduTask — Firestore Security Rules
 //
-//  PHIÊN BẢN: 2026-08-17 22:10
+//  PHIÊN BẢN: 2026-08-18 09:45
+//  Thay đổi:  MỞ ĐƯỜNG CHO GIÁO VIÊN XÁC NHẬN TIẾT HSG MÌNH ĐÃ DẠY.
+//             Giao diện vốn đã hiện nút "hoàn thành tiết" cho giáo viên được
+//             phân công, nhưng rules chỉ cho quản lý/điều phối viên sửa
+//             `giftedPrograms/{id}` — nên giáo viên bấm vào là bị từ chối, cuộn
+//             ngược, hiện "không lưu được lên máy chủ". Tính năng hỏng đúng với
+//             người nó sinh ra để phục vụ.
+//             Chương trình nay mang thêm mảng `teacherIds` (bản sao phẳng của
+//             mọi lessons[].teacherId) vì rules KHÔNG lặp được mảng lessons để
+//             hỏi "người gọi có phải giáo viên của tiết vừa đổi không".
+//             Phạm vi khoá chặt bằng hasOnly(['lessons','status','updatedAt']):
+//             giáo viên không đổi được tên, ngày, điều phối viên, và nhất là
+//             không tự ghi mình vào `teacherIds`.
+//  Trước đó:  2026-08-17 22:10
 //  Thay đổi:  VÁ LỖ HỔNG GIAO VIỆC — `tasks` trước đây chỉ kiểm ĐÚNG TÊN người
 //             giao, không kiểm vai trò. Giáo viên thường tuy bị giao diện ẩn
 //             nút, vẫn tự phát hành việc cho đồng nghiệp (kể cả Hiệu trưởng)
@@ -717,8 +730,53 @@ service cloud.firestore {
     match /giftedPrograms/{programId} {
       allow read: if isAuth();
       allow create: if isAuth() && canManageGifted();
-      allow update, delete: if isAuth() && (
-        canManageGifted() || 
+
+      /**
+       * The teacher assigned a lesson, confirming they taught it.
+       *
+       * A programme is ONE document with its lessons in an array inside it, so
+       * this is an update of the whole document — and rules cannot iterate an
+       * array to ask "is the caller the teacher of the lesson that changed".
+       * The programme therefore carries `teacherIds`, a flat copy of every
+       * lessons[].teacherId, which `in` CAN test. Without it the only options
+       * were refusing every teacher — which is what happened, and it broke the
+       * feature for exactly the people it exists for — or allowing everyone.
+       *
+       * `hasOnly` is what keeps this narrow. An assigned teacher may move
+       * lesson state and the timestamp, nothing else: not the title, not the
+       * dates, not the coordinator, and crucially not `teacherIds` itself, so
+       * nobody can write themselves into a programme they have no lesson in.
+       * `status` is included because completing the last lesson closes the
+       * programme automatically.
+       *
+       * Honest limit: rules cannot see WHICH entry in `lessons` changed, so a
+       * teacher on a programme can still alter another lesson within that same
+       * programme. That is a much smaller surface than the document as a whole,
+       * it is confined to colleagues they already share a programme with, and
+       * every completion records completedByUserId — so it is attributable
+       * rather than anonymous. Closing it properly would mean one document per
+       * lesson, which is a bigger change than this bug is worth.
+       *
+       * `get('teacherIds', [])` rather than a bare field read: programmes
+       * created before this field existed simply have no teachers, instead of
+       * erroring and failing the whole rule.
+       */
+      function assignedTeacherRecordingLesson() {
+        return request.auth.uid in resource.data.get('teacherIds', []) &&
+               request.resource.data.diff(resource.data).affectedKeys()
+                 .hasOnly(['lessons', 'status', 'updatedAt']);
+      }
+
+      allow update: if isAuth() && (
+        canManageGifted() ||
+        resource.data.coordinatorId == request.auth.uid ||
+        assignedTeacherRecordingLesson()
+      );
+
+      // Deleting a whole programme stays with whoever owns it. Teaching one
+      // lesson in it is not grounds for removing everyone else's.
+      allow delete: if isAuth() && (
+        canManageGifted() ||
         resource.data.coordinatorId == request.auth.uid
       );
     }

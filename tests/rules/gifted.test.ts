@@ -55,6 +55,9 @@ const PROGRAM = {
   endDate: '2026-12-01',
   status: 'IN_PROGRESS',
   lessons: LESSONS,
+  // Flat copy of every lessons[].teacherId — the only thing the rules can test,
+  // since they cannot iterate the lessons array.
+  teacherIds: [UID.teacherToan],
   createdAt: '2026-08-17 08:00',
   updatedAt: '2026-08-17 08:00',
 };
@@ -153,28 +156,113 @@ describe('marking a lesson done', () => {
   });
 
   /**
-   * KNOWN GAP — this test asserts the CURRENT behaviour, which is wrong.
-   *
-   * GiftedTab offers the "hoàn thành tiết" button to the assigned teacher
-   * (`canCompleteLesson = isMyLesson || canManageProgram`), but the rules only
-   * allow updating `giftedPrograms/{id}` for canManageGifted() or the
-   * coordinator. So a plain teacher marking their OWN lesson is denied, the
-   * optimistic update rolls back, and they are told "không lưu được lên máy
-   * chủ" — a server error for something they are supposed to be able to do.
-   *
-   * Fixing it needs a schema change: the rules cannot look inside `lessons` to
-   * see who owns the changed entry, so the programme has to carry a
-   * `teacherIds` array the rules can test with `in`. Until that is decided,
-   * this test pins the gap so it cannot be lost — and it will fail loudly on
-   * the day the rules are widened, which is the reminder to update it.
+   * The point of the whole `teacherIds` field: this used to be REFUSED, because
+   * the rules could only see the document, not which lesson inside it changed.
+   * The button was shown to the teacher, the write was denied, and they were
+   * told "không lưu được lên máy chủ" for the one thing the feature exists to
+   * let them do.
    */
-  it('is currently REFUSED for the teacher who taught it (known gap)', async () => {
+  it('works for the teacher who actually taught it', async () => {
     await seedProgram();
-    await assertFails(
+    await assertSucceeds(
       updateDoc(doc(dbFor(testEnv, UID.teacherToan), 'giftedPrograms', PROGRAM.id), {
         lessons: completedLessons(UID.teacherToan),
         updatedAt: '2026-09-01 16:00',
       })
     );
+  });
+
+  it('still refuses a teacher with no lesson in the programme', async () => {
+    await seedProgram();
+    await assertFails(
+      updateDoc(doc(dbFor(testEnv, UID.teacherHoa), 'giftedPrograms', PROGRAM.id), {
+        lessons: completedLessons(UID.teacherHoa),
+        updatedAt: '2026-09-01 16:00',
+      })
+    );
+  });
+
+  it('lets the last completion close the programme', async () => {
+    await seedProgram();
+    await assertSucceeds(
+      updateDoc(doc(dbFor(testEnv, UID.teacherToan), 'giftedPrograms', PROGRAM.id), {
+        lessons: completedLessons(UID.teacherToan),
+        status: 'COMPLETED',
+        updatedAt: '2026-09-01 16:00',
+      })
+    );
+  });
+
+  it('refuses a programme created before teacherIds existed, rather than erroring', async () => {
+    // `get('teacherIds', [])` means a legacy document simply has no teachers.
+    const { teacherIds: _dropped, ...legacy } = PROGRAM;
+    await seedDoc(testEnv, 'giftedPrograms', 'GIFTED_CU', { ...legacy, id: 'GIFTED_CU' });
+    await assertFails(
+      updateDoc(doc(dbFor(testEnv, UID.teacherToan), 'giftedPrograms', 'GIFTED_CU'), {
+        lessons: completedLessons(UID.teacherToan),
+        updatedAt: '2026-09-01 16:00',
+      })
+    );
+  });
+});
+
+describe('what an assigned teacher must NOT be able to do', () => {
+  it('cannot rename the programme while confirming a lesson', async () => {
+    await seedProgram();
+    await assertFails(
+      updateDoc(doc(dbFor(testEnv, UID.teacherToan), 'giftedPrograms', PROGRAM.id), {
+        lessons: completedLessons(UID.teacherToan),
+        title: 'Đổi tên',
+        updatedAt: '2026-09-01 16:00',
+      })
+    );
+  });
+
+  it('cannot take over as coordinator', async () => {
+    await seedProgram();
+    await assertFails(
+      updateDoc(doc(dbFor(testEnv, UID.teacherToan), 'giftedPrograms', PROGRAM.id), {
+        lessons: completedLessons(UID.teacherToan),
+        coordinatorId: UID.teacherToan,
+        updatedAt: '2026-09-01 16:00',
+      })
+    );
+  });
+
+  /** The one that would unravel the whole scheme. */
+  it('cannot write another teacher into teacherIds', async () => {
+    await seedProgram();
+    await assertFails(
+      updateDoc(doc(dbFor(testEnv, UID.teacherToan), 'giftedPrograms', PROGRAM.id), {
+        teacherIds: [UID.teacherToan, UID.teacherHoa],
+        updatedAt: '2026-09-01 16:00',
+      })
+    );
+  });
+
+  it('cannot write ITSELF into a programme it has no lesson in', async () => {
+    await seedProgram();
+    await assertFails(
+      updateDoc(doc(dbFor(testEnv, UID.teacherHoa), 'giftedPrograms', PROGRAM.id), {
+        teacherIds: [UID.teacherToan, UID.teacherHoa],
+        updatedAt: '2026-09-01 16:00',
+      })
+    );
+  });
+
+  it('cannot move the programme dates', async () => {
+    await seedProgram();
+    await assertFails(
+      updateDoc(doc(dbFor(testEnv, UID.teacherToan), 'giftedPrograms', PROGRAM.id), {
+        lessons: completedLessons(UID.teacherToan),
+        endDate: '2027-06-01',
+        updatedAt: '2026-09-01 16:00',
+      })
+    );
+  });
+
+  it('cannot delete the programme', async () => {
+    await seedProgram();
+    await assertFails(deleteDoc(doc(dbFor(testEnv, UID.teacherToan), 'giftedPrograms', PROGRAM.id)));
   });
 });
