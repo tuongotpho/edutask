@@ -4,12 +4,16 @@ import {
   setDoc,
   deleteDoc,
   updateDoc,
-  onSnapshot,
+  onSnapshot as onSnapshotRaw,
   writeBatch,
   Unsubscribe,
   query,
   where,
   Query,
+  CollectionReference,
+  DocumentReference,
+  DocumentSnapshot,
+  QuerySnapshot,
   DocumentData
 } from 'firebase/firestore';
 import { db } from '@/Edu-task/lib/firebase';
@@ -34,6 +38,55 @@ import { ReminderSchedule } from '@/Edu-task/types/reminder';
 import { Equipment, EquipmentLoan } from '@/Edu-task/types/equipment';
 import { ClassAttendance, ConductRecord, Student } from '@/Edu-task/types/student';
 import { GiftedProgram } from '@/Edu-task/types/gifted';
+
+/**
+ * `onSnapshot` with an error handler — always.
+ *
+ * A Firestore listener created without one does not warn and does not retry: on
+ * `permission-denied` it simply stops, and the state it feeds never updates
+ * again. The screen waiting on that data therefore shows its loading state
+ * forever, which reads to the user as the tab having frozen rather than as a
+ * permissions problem — and leaves nothing in the console to diagnose it with.
+ *
+ * Every listener in this file went out that way. Rather than add a third
+ * argument to twenty-six call sites, the import is aliased and `onSnapshot`
+ * below shadows it, so each call keeps its original shape and none can be
+ * written without a handler by accident.
+ *
+ * This makes the failure VISIBLE, not harmless: a denied listener still leaves
+ * its screen without data. The console line names the path so the next person
+ * can go straight to the rule that refused it.
+ */
+function describeTarget(target: unknown): string {
+  const path = (target as { path?: string }).path;
+  if (typeof path === 'string') return path;
+  // A Query keeps its collection path internally; best-effort, never throws.
+  const internal = (target as { _query?: { path?: { toString(): string } } })._query?.path;
+  return internal ? `${internal.toString()} (query)` : 'unknown path';
+}
+
+function onSnapshot(
+  target: DocumentReference<DocumentData>,
+  next: (snapshot: DocumentSnapshot<DocumentData>) => void
+): Unsubscribe;
+function onSnapshot(
+  target: Query<DocumentData> | CollectionReference<DocumentData>,
+  next: (snapshot: QuerySnapshot<DocumentData>) => void
+): Unsubscribe;
+function onSnapshot(
+  target: DocumentReference<DocumentData> | Query<DocumentData>,
+  next: (snapshot: never) => void
+): Unsubscribe {
+  return onSnapshotRaw(
+    target as Query<DocumentData>,
+    next as (snapshot: QuerySnapshot<DocumentData>) => void,
+    err => {
+      console.error(
+        `[Firestore] Mất kết nối dữ liệu "${describeTarget(target)}" — ${err.code}: ${err.message}`
+      );
+    }
+  );
+}
 
 export const firebaseService = {
   // --- Departments (shared config: must live server-side so every device and
