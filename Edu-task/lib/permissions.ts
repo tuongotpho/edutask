@@ -79,7 +79,7 @@ export const PERMISSION_LABELS: Record<PermissionKey, string> = {
   'room:book': 'Đăng ký phòng đa năng / phòng thí nghiệm',
   'room:manage': 'Duyệt & điều phối lịch phòng toàn trường',
   'attendance:record': 'Ghi nhận giáo viên chậm giờ / trống giờ',
-  'attendance:view_all': 'Xem sổ nề nếp toàn trường',
+  'attendance:view_all': 'Xem sổ nền nếp toàn trường',
   'meeting:manage': 'Quản lý cuộc họp & điểm danh',
   'reminder:manage': 'Cài đặt lịch nhắc tiến độ kế hoạch',
   'student:manage': 'Quản lý hồ sơ học sinh (gồm liên hệ phụ huynh)',

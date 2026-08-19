@@ -351,7 +351,7 @@ export function ClassCatalogCard() {
     <>
       <CollapsibleCard
         title="Danh Mục Lớp Học"
-        subtitle="Dùng cho đăng ký dạy bù, đặt phòng và sổ ghi nề nếp của giám thị."
+        subtitle="Dùng cho đăng ký dạy bù, đặt phòng và sổ ghi nền nếp của giám thị."
         icon={GraduationCap}
         iconClassName="text-sky-600"
         badge={
@@ -579,7 +579,7 @@ export function PeriodConfigCard() {
   return (
     <CollapsibleCard
       title="Khung Giờ Tiết Học"
-      subtitle="Số tiết mỗi buổi và giờ ra vào lớp. Dùng chung cho đăng ký dạy bù, đặt phòng và sổ nề nếp."
+      subtitle="Số tiết mỗi buổi và giờ ra vào lớp. Dùng chung cho đăng ký dạy bù, đặt phòng và sổ nền nếp."
       icon={Clock}
       iconClassName="text-violet-600"
       badge={

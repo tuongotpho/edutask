@@ -5,7 +5,7 @@ import {
 } from '@/Edu-task/types/attendance';
 
 /**
- * Turning the nề nếp log into the numbers a monthly thi đua meeting needs.
+ * Turning the nền nếp log into the numbers a monthly thi đua meeting needs.
  *
  * Pure functions over records, so the rules that decide what "counts" are
  * testable and stated once. The subtle one is `COUNTED_STATUSES`: an entry

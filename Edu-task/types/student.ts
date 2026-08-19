@@ -1,7 +1,7 @@
 import { SchoolSession } from './schedule';
 
 /**
- * Học sinh, điểm danh và nề nếp học sinh.
+ * Học sinh, điểm danh và nền nếp học sinh.
  *
  * This is the most sensitive data in the system by a wide margin: it concerns
  * minors, and it includes parent contact details. Two consequences run through
@@ -127,7 +127,7 @@ export function classAttendanceId(classId: string, date: string, session: School
   return `${classId}_${date}_${session}`;
 }
 
-// --- Nề nếp học sinh --------------------------------------------------------
+// --- Nền nếp học sinh --------------------------------------------------------
 
 export type ConductKind = 'VIOLATION' | 'COMMENDATION';
 

@@ -11,6 +11,77 @@ import { auth, db, googleProvider } from '@/Edu-task/lib/firebase';
 import { sanitizeForFirestore } from '@/Edu-task/lib/utils';
 import { User, RoleType } from '@/Edu-task/types/user';
 import { isAdminEmail } from '@/Edu-task/lib/admin';
+import { firebaseService } from '@/Edu-task/services/firebaseService';
+
+/**
+ * Hồ sơ dành cho một tài khoản vừa đăng nhập lần đầu.
+ *
+ * Trước đây chỗ này chỉ hỏi đúng một câu — "đã có hồ sơ ở users/{mã đăng nhập}
+ * chưa?" — và nếu chưa thì dựng một hồ sơ mới toanh ở trạng thái chờ duyệt.
+ * Nó không hề biết tới danh sách đã nhập từ file, vì không ai tra theo email.
+ * Hậu quả: giáo viên đã có tên trong danh sách vẫn bị coi là người lạ, mất
+ * vai trò đã được phân, và quản trị phải gán lại bằng tay từng người.
+ *
+ * Nay có thêm một bước: tra thư mời theo email. Có thư thì lập hồ sơ ngay với
+ * đúng vai trò trong thư và trạng thái hoạt động — không phải duyệt lại. Vai
+ * trò được đối chiếu ở MÁY CHỦ với chính thư mời đó, nên kể cả khi trình duyệt
+ * bị can thiệp cũng không tự nâng quyền được.
+ *
+ * Không có thư mời thì giữ nguyên đường cũ: giáo viên chờ duyệt.
+ */
+async function buildFirstLoginProfile(fbUser: FbUser): Promise<User> {
+  const email = fbUser.email || '';
+  const isAdmin = isAdminEmail(email);
+
+  if (!isAdmin && email) {
+    const invitation = await firebaseService.getInvitation(email).catch(() => null);
+    if (invitation) {
+      return {
+        id: fbUser.uid,
+        fullName: invitation.fullName || fbUser.displayName || email,
+        email,
+        avatarUrl: fbUser.photoURL || '',
+        phone: invitation.phone || fbUser.phoneNumber || '',
+        departmentId: invitation.departmentId,
+        departmentName: invitation.departmentName,
+        roles: invitation.roles,
+        activeRole: invitation.activeRole,
+        isTeachingStaff: invitation.isTeachingStaff,
+        subject: invitation.subject || 'Chưa phân công môn',
+        status: 'ACTIVE',
+      };
+    }
+  }
+
+  return {
+    id: fbUser.uid,
+    fullName: fbUser.displayName || email || 'Người dùng',
+    email,
+    avatarUrl: fbUser.photoURL || '',
+    phone: fbUser.phoneNumber || '',
+    departmentId: 'DEPT_TOAN_TIN',
+    departmentName: 'Tổ Toán - Tin',
+    roles: isAdmin ? ['ADMIN', 'PRINCIPAL'] : ['TEACHER'],
+    activeRole: isAdmin ? 'ADMIN' : 'TEACHER',
+    isTeachingStaff: true,
+    subject: 'Chưa phân công môn',
+    status: isAdmin ? 'ACTIVE' : 'PENDING_APPROVAL',
+  };
+}
+
+/**
+ * Xoá thư mời sau khi đã lập hồ sơ, để nó không nằm lại thành rác và không
+ * dùng lại được lần hai. Hỏng ở bước này không được làm hỏng việc đăng nhập —
+ * hồ sơ đã lập xong rồi, thư mời thừa chỉ là rác chứ không gây hại.
+ */
+async function consumeInvitation(email: string): Promise<void> {
+  if (!email) return;
+  try {
+    await firebaseService.deleteInvitation(email);
+  } catch (err) {
+    console.warn('[Thư mời] Không xoá được thư mời sau khi lập hồ sơ:', err);
+  }
+}
 
 export const firebaseAuthService = {
   // Listen to Auth State Changes
@@ -31,22 +102,11 @@ export const firebaseAuthService = {
     const userDocSnap = await getDoc(userDocRef);
 
     if (!userDocSnap.exists()) {
-      const isAdmin = isAdminEmail(fbUser.email);
-      const userProfile: User = {
-        id: fbUser.uid,
-        fullName: fbUser.displayName || fbUser.email || 'Người dùng',
-        email: fbUser.email || '',
-        avatarUrl: fbUser.photoURL || '',
-        phone: fbUser.phoneNumber || '',
-        departmentId: 'DEPT_TOAN_TIN',
-        departmentName: 'Tổ Toán - Tin',
-        roles: isAdmin ? ['ADMIN', 'PRINCIPAL'] : ['TEACHER'],
-        activeRole: isAdmin ? 'ADMIN' : 'TEACHER',
-        isTeachingStaff: true,
-        subject: 'Chưa phân công môn',
-        status: isAdmin ? 'ACTIVE' : 'PENDING_APPROVAL',
-      };
+      const userProfile = await buildFirstLoginProfile(fbUser);
       await setDoc(userDocRef, sanitizeForFirestore(userProfile));
+      if (userProfile.status === 'ACTIVE' && !isAdminEmail(fbUser.email)) {
+        await consumeInvitation(fbUser.email || '');
+      }
     }
 
     return fbUser;
@@ -65,23 +125,12 @@ export const firebaseAuthService = {
     if (userDocSnap.exists()) {
       userProfile = userDocSnap.data() as User;
     } else {
-      // First time Google sign in -> Create Pending Approval Profile
-      const isAdmin = isAdminEmail(fbUser.email);
-      userProfile = {
-        id: fbUser.uid,
-        fullName: fbUser.displayName || 'Giáo viên mới',
-        email: fbUser.email || '',
-        avatarUrl: fbUser.photoURL || '',
-        phone: fbUser.phoneNumber || '',
-        departmentId: 'DEPT_TOAN_TIN',
-        departmentName: 'Tổ Toán - Tin',
-        roles: isAdmin ? ['ADMIN', 'PRINCIPAL'] : ['TEACHER'],
-        activeRole: isAdmin ? 'ADMIN' : 'TEACHER',
-        isTeachingStaff: true,
-        subject: 'Chưa phân công môn',
-        status: isAdmin ? 'ACTIVE' : 'PENDING_APPROVAL',
-      };
+      // Lần đầu đăng nhập: nhận thư mời nếu có, không thì vào diện chờ duyệt.
+      userProfile = await buildFirstLoginProfile(fbUser);
       await setDoc(userDocRef, sanitizeForFirestore(userProfile));
+      if (userProfile.status === 'ACTIVE' && !isAdminEmail(fbUser.email)) {
+        await consumeInvitation(fbUser.email || '');
+      }
     }
 
     return { fbUser, userProfile };

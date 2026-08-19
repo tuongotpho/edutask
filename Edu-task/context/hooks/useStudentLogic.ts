@@ -23,7 +23,7 @@ import { firebaseService } from '@/Edu-task/services/firebaseService';
 import { ToastKind } from '@/Edu-task/components/common/Toast';
 
 /**
- * Hồ sơ học sinh, điểm danh và nề nếp.
+ * Hồ sơ học sinh, điểm danh và nền nếp.
  *
  * The roll is built from the CURRENT roster each time it is opened, but once
  * saved the entries are a snapshot. A child who transfers out in March must
@@ -184,7 +184,7 @@ export function useStudentLogic({
     if (conductCount > 0) {
       notify(
         'error',
-        `Không thể xóa: còn ${conductCount} bản ghi nề nếp về học sinh này. ` +
+        `Không thể xóa: còn ${conductCount} bản ghi nền nếp về học sinh này. ` +
         'Hãy bỏ tick "Đang học" thay vì xóa để giữ lại hồ sơ.'
       );
       return false;
@@ -289,12 +289,12 @@ export function useStudentLogic({
     }
   };
 
-  // --- Nề nếp học sinh -----------------------------------------------------
+  // --- Nền nếp học sinh -----------------------------------------------------
 
   const recordConduct = async (data: ConductInput): Promise<ConductRecord | null> => {
     if (!currentUser) throw new Error('User not logged in');
     if (!canRecordConduct(currentUser, activeRole)) {
-      notify('error', 'Vai trò hiện tại không có quyền ghi nhận nề nếp học sinh.');
+      notify('error', 'Vai trò hiện tại không có quyền ghi nhận nền nếp học sinh.');
       return null;
     }
 

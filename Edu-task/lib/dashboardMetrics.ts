@@ -160,7 +160,7 @@ export const METRIC_DEFINITIONS: MetricDefinition[] = [
   },
   {
     key: 'staff.attendance_open',
-    label: 'Ghi nhận nề nếp chưa kết luận',
+    label: 'Ghi nhận nền nếp chưa kết luận',
     group: 'STAFF',
     linkTab: 'attendance',
     resolve: ctx =>

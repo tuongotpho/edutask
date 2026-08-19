@@ -398,7 +398,7 @@ export function StudentsTab() {
         <ConfirmModal
           isOpen
           title="Xóa hồ sơ học sinh?"
-          message={`Hồ sơ "${pendingDelete.fullName}" sẽ bị xóa vĩnh viễn. Với học sinh đã chuyển trường hoặc ra trường, hãy bỏ tick "Đang học" thay vì xóa — cách đó giữ lại toàn bộ hồ sơ điểm danh và nề nếp.`}
+          message={`Hồ sơ "${pendingDelete.fullName}" sẽ bị xóa vĩnh viễn. Với học sinh đã chuyển trường hoặc ra trường, hãy bỏ tick "Đang học" thay vì xóa — cách đó giữ lại toàn bộ hồ sơ điểm danh và nền nếp.`}
           confirmText="Xóa hồ sơ"
           onConfirm={async () => {
             const target = pendingDelete;

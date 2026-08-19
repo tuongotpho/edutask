@@ -3,6 +3,7 @@
 import React, { useState } from 'react';
 import { Upload, Download, FileSpreadsheet, CheckCircle2, X, Info, FileText } from 'lucide-react';
 import { Department, ROLE_LABELS, RoleType, User } from '@/Edu-task/types/user';
+import { Invitation } from '@/Edu-task/types/invitation';
 import { ALL_ROLES } from '@/Edu-task/lib/permissions';
 import { ToastKind } from '@/Edu-task/components/common/Toast';
 
@@ -11,7 +12,7 @@ interface BulkUserImportModalProps {
   onClose: () => void;
   departments: Department[];
   existingUsers: User[];
-  onImportUsers: (newUsers: User[]) => Promise<number>;
+  onImportUsers: (invitations: Invitation[]) => Promise<number>;
   showToast: (kind: ToastKind, message: string) => void;
 }
 
@@ -365,25 +366,33 @@ export function BulkUserImportModal({
     setIsProcessing(true);
 
     const now = Date.now();
-    const newUsers: User[] = validRowsToImport.map((row, idx) => ({
-      id: `USR_BULK_${now}_${idx}`,
+    // Ghi THƯ MỜI, không phải hồ sơ người dùng.
+    //
+    // Trước đây chỗ này dựng thẳng hồ sơ với mã tự chế `USR_BULK_<thời gian>_<số
+    // thứ tự>`, vì lúc nhập danh sách thì giáo viên chưa từng đăng nhập nên chưa
+    // có mã đăng nhập nào để dùng. Nhưng luật bảo mật lại tra hồ sơ THEO mã đăng
+    // nhập, nên hồ sơ ấy vĩnh viễn không khớp với ai: giáo viên đăng nhập xong bị
+    // coi là người lạ, hệ thống tạo thêm hồ sơ thứ hai ở trạng thái chờ duyệt, và
+    // vai trò ghi trong file bị bỏ qua hoàn toàn.
+    //
+    // Thư mời không giả vờ biết mã đăng nhập. Nó gắn với email, và hồ sơ thật chỉ
+    // được lập vào đúng lúc người ta đăng nhập — khi mã đăng nhập đã tồn tại.
+    const invitations: Invitation[] = validRowsToImport.map(row => ({
+      email: row.email.trim().toLowerCase(),
       fullName: row.fullName,
-      email: row.email,
-      phone: '0900 123 456',
       departmentId: row.departmentId,
       departmentName: row.departmentName,
       roles: [row.role],
       activeRole: row.role,
       isTeachingStaff: true,
-      subject: 'Bộ môn chuyên',
-      status: 'ACTIVE',
+      createdAt: new Date(now).toISOString().replace('T', ' ').slice(0, 16),
     }));
 
-    const importedCount = await onImportUsers(newUsers);
+    const importedCount = await onImportUsers(invitations);
     setIsProcessing(false);
 
     if (importedCount > 0) {
-      showToast('success', `Đã nhập thành công ${importedCount} tài khoản vào hệ thống!`);
+      showToast('success', `Đã mời ${importedCount} tài khoản. Vai trò sẽ được cấp ngay khi họ đăng nhập lần đầu.`);
       onClose();
     } else {
       showToast('error', 'Đã xảy ra lỗi khi tạo tài khoản hàng loạt.');

@@ -115,7 +115,7 @@ interface AppContextType {
   cancelBooking: (id: string, reason?: string) => Promise<boolean>;
   deleteBooking: (id: string) => Promise<boolean>;
 
-  // Sổ nề nếp (giám thị)
+  // Sổ nền nếp (giám thị)
   attendance: AttendanceRecord[];
   recordIssue: (data: AttendanceInput) => Promise<AttendanceRecord | null>;
   updateAttendanceRecord: (id: string, data: AttendanceInput) => Promise<boolean>;
@@ -586,7 +586,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const unsubMakeups = firebaseService.subscribeMakeups(setMakeups, scheduleWindowStart);
     const unsubBookings = firebaseService.subscribeBookings(setBookings, scheduleWindowStart);
 
-    // The nề nếp log is narrowed by audience in the QUERY, not just in the UI:
+    // The nền nếp log is narrowed by audience in the QUERY, not just in the UI:
     // a teacher's browser should never receive records about their colleagues
     // in the first place. Mirrors the read rule in firestore.rules.
     const unsubAttendance = firebaseService.subscribeAttendance(

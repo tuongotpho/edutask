@@ -1,7 +1,7 @@
 import { PeriodSlot } from './schedule';
 
 /**
- * Sổ nề nếp — the supervisor's record of teachers arriving late or a class
+ * Sổ nền nếp — the supervisor's record of teachers arriving late or a class
  * being left without one.
  *
  * This is the most socially delicate data in the system: it feeds thi đua and

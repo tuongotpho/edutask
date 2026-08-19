@@ -2,6 +2,7 @@ import {
   collection,
   doc,
   setDoc,
+  getDoc,
   deleteDoc,
   updateDoc,
   onSnapshot as onSnapshotRaw,
@@ -38,6 +39,7 @@ import { ReminderSchedule } from '@/Edu-task/types/reminder';
 import { Equipment, EquipmentLoan } from '@/Edu-task/types/equipment';
 import { ClassAttendance, ConductRecord, Student } from '@/Edu-task/types/student';
 import { GiftedProgram } from '@/Edu-task/types/gifted';
+import { Invitation, invitationKey } from '@/Edu-task/types/invitation';
 
 /**
  * `onSnapshot` with an error handler — always.
@@ -392,7 +394,7 @@ export const firebaseService = {
     await deleteDoc(doc(db, 'bookings', bookingId));
   },
 
-  // --- Sổ nề nếp (supervisor's lateness log) ---
+  // --- Sổ nền nếp (supervisor's lateness log) ---
   //
   // Scoped by BOTH date and audience. Unlike bookings, these records are about
   // named colleagues, so the query is narrowed to what the viewer is entitled
@@ -676,6 +678,40 @@ export const firebaseService = {
 
   async saveGiftedProgram(program: GiftedProgram): Promise<void> {
     await setDoc(doc(db, 'giftedPrograms', program.id), sanitizeForFirestore(program), { merge: true });
+  },
+
+  // --- Thư mời tài khoản ---
+
+  /**
+   * Đọc thư mời của CHÍNH người đang đăng nhập.
+   *
+   * Luật chỉ cho lấy đúng một tài liệu mang tên email của mình, không cho liệt
+   * kê cả danh sách — nên hàm này nhận email chứ không nhận điều kiện lọc.
+   */
+  async getInvitation(email: string): Promise<Invitation | null> {
+    const snap = await getDoc(doc(db, 'invitations', invitationKey(email)));
+    return snap.exists() ? (snap.data() as Invitation) : null;
+  },
+
+  async saveInvitation(invitation: Invitation): Promise<void> {
+    await setDoc(
+      doc(db, 'invitations', invitationKey(invitation.email)),
+      sanitizeForFirestore({ ...invitation, email: invitationKey(invitation.email) })
+    );
+  },
+
+  async deleteInvitation(email: string): Promise<void> {
+    await deleteDoc(doc(db, 'invitations', invitationKey(email)));
+  },
+
+  /** Danh sách thư mời chưa dùng — chỉ Ban Giám hiệu đọc được. */
+  subscribeInvitations(onUpdate: (invitations: Invitation[]) => void): Unsubscribe {
+    return onSnapshot(collection(db, 'invitations'), snapshot => {
+      const list: Invitation[] = [];
+      snapshot.forEach(d => list.push(d.data() as Invitation));
+      list.sort((a, b) => a.fullName.localeCompare(b.fullName, 'vi'));
+      onUpdate(list);
+    });
   },
 
   async deleteGiftedProgram(programId: string): Promise<void> {

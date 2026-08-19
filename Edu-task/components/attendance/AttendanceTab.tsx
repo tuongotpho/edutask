@@ -30,7 +30,7 @@ import { StatusRow, rowButton } from '@/Edu-task/components/common/StatusRow';
 import { attendanceRecordTone } from '@/Edu-task/lib/statusTone';
 
 /**
- * Nề nếp.
+ * Nền nếp.
  *
  * What each role sees differs sharply, and on purpose. A supervisor gets the
  * entry form first. A teacher gets only records about themselves, with a reply

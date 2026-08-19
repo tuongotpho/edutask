@@ -14,7 +14,7 @@ import { firebaseService } from '@/Edu-task/services/firebaseService';
 import { ToastKind } from '@/Edu-task/components/common/Toast';
 
 /**
- * Sổ nề nếp — recording, answering and settling lateness entries.
+ * Sổ nền nếp — recording, answering and settling lateness entries.
  *
  * The one rule worth stating out loud: the teacher named in a record is
  * notified the moment it is written. Finding out at the end-of-month thi đua
@@ -82,7 +82,7 @@ export function useAttendanceLogic({
     if (!currentUser) throw new Error('User not logged in');
 
     if (!canRecordAttendance(currentUser, activeRole)) {
-      notify('error', 'Vai trò hiện tại không có quyền ghi nhận nề nếp.');
+      notify('error', 'Vai trò hiện tại không có quyền ghi nhận nền nếp.');
       return null;
     }
 
@@ -131,7 +131,7 @@ export function useAttendanceLogic({
       await pushNotification({
         id: genId('NTF'),
         recipientUserId: teacher.id,
-        title: 'Có ghi nhận nề nếp về bạn',
+        title: 'Có ghi nhận nền nếp về bạn',
         message: `${formatSlot(data.slot)} · Lớp ${classGroup.name}: ${
           data.issue === 'LATE'
             ? `vào lớp muộn ${data.minutes} phút`
@@ -208,7 +208,7 @@ export function useAttendanceLogic({
     await pushNotification({
       id: genId('NTF'),
       recipientUserId: target.recordedById,
-      title: 'Có giải trình cho ghi nhận nề nếp',
+      title: 'Có giải trình cho ghi nhận nền nếp',
       message: `${target.teacherName ?? 'Giáo viên'} đã giải trình cho ghi nhận ${target.code}.`,
       type: 'SYSTEM',
       isRead: false,
@@ -228,7 +228,7 @@ export function useAttendanceLogic({
     if (!target || !currentUser) return false;
 
     if (!canViewAllAttendance(currentUser, activeRole)) {
-      notify('error', 'Vai trò hiện tại không có quyền kết luận ghi nhận nề nếp.');
+      notify('error', 'Vai trò hiện tại không có quyền kết luận ghi nhận nền nếp.');
       return false;
     }
 
@@ -250,7 +250,7 @@ export function useAttendanceLogic({
       await pushNotification({
         id: genId('NTF'),
         recipientUserId: target.teacherId,
-        title: decision === 'EXCUSED' ? 'Ghi nhận nề nếp đã được miễn' : 'Ghi nhận nề nếp được giữ nguyên',
+        title: decision === 'EXCUSED' ? 'Ghi nhận nền nếp đã được miễn' : 'Ghi nhận nền nếp được giữ nguyên',
         message: `${target.code} — ${
           decision === 'EXCUSED' ? 'giải trình được chấp nhận, không tính vào thi đua' : 'giữ nguyên ghi nhận'
         }${reviewNote ? `: ${reviewNote}` : '.'}`,

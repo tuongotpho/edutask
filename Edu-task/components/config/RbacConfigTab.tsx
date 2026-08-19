@@ -1,5 +1,8 @@
 import React, { useMemo, useState } from 'react';
 import { useApp } from '@/Edu-task/context/AppContext';
+import { Invitation } from '@/Edu-task/types/invitation';
+import { planLegacyMigration } from '@/Edu-task/lib/legacyProfileMigration';
+import { firebaseService } from '@/Edu-task/services/firebaseService';
 import { ROLE_LABELS, RoleType, User } from '@/Edu-task/types/user';
 import { isAdminEmail } from '@/Edu-task/lib/admin';
 import { matchesSearch } from '@/Edu-task/lib/utils';
@@ -582,17 +585,103 @@ function UserAccountManager() {
     setEmail('');
   };
 
-  const handleBulkImportUsers = async (newUsers: User[]): Promise<number> => {
+  /**
+   * Dọn các hồ sơ do đợt nhập danh sách cũ để lại.
+   *
+   * Đợt nhập cũ tạo hồ sơ với mã tự chế `USR_BULK_...`, trong khi luật bảo mật
+   * tra hồ sơ theo mã đăng nhập — nên những hồ sơ ấy không khớp với ai. Người
+   * trong danh sách đăng nhập vào là bị coi như người lạ.
+   *
+   * Kế hoạch được tính trước và hiện ra để xem, vì việc này vừa xoá vừa ghi
+   * lên hồ sơ nhân sự; bấm rồi mới biết mình vừa làm gì là quá muộn.
+   */
+  const legacyPlan = useMemo(
+    () => planLegacyMigration(users, new Date().toISOString().replace('T', ' ').slice(0, 16)),
+    [users]
+  );
+  const legacyCount = legacyPlan.toInvite.length + legacyPlan.toMerge.length + legacyPlan.needsReview.length;
+  const [isMigrating, setIsMigrating] = useState(false);
+
+  const handleLegacyMigration = async () => {
+    setIsMigrating(true);
+    let invited = 0, merged = 0, failed = 0;
+
+    for (const item of legacyPlan.toMerge) {
+      try {
+        const real = users.find(u => u.id === item.realUserId);
+        if (!real) { failed++; continue; }
+        await firebaseService.saveUser({ ...real, ...item.patch } as typeof real);
+        await firebaseService.deleteUser(item.deleteUserId);
+        merged++;
+      } catch (err) {
+        failed++;
+        console.error('[Dọn hồ sơ cũ] Không ghép được', item.deleteUserId, err);
+      }
+    }
+
+    for (const item of legacyPlan.toInvite) {
+      try {
+        await firebaseService.saveInvitation(item.invitation);
+        await firebaseService.deleteUser(item.deleteUserId);
+        invited++;
+      } catch (err) {
+        failed++;
+        console.error('[Dọn hồ sơ cũ] Không chuyển được thành thư mời', item.deleteUserId, err);
+      }
+    }
+
+    setIsMigrating(false);
+    if (failed > 0) {
+      showToast('error', `Đã xử lý ${merged + invited} hồ sơ, còn ${failed} hồ sơ lỗi — xem Console để biết chi tiết.`);
+    } else {
+      showToast('success', `Xong: ${merged} tài khoản đã đăng nhập được khôi phục vai trò, ${invited} tài khoản chuyển thành thư mời.`);
+    }
+  };
+
+  const handleBulkImportUsers = async (invitations: Invitation[]): Promise<number> => {
     let successCount = 0;
-    for (const u of newUsers) {
-      const ok = await addUserProfile(u);
-      if (ok) successCount++;
+    for (const inv of invitations) {
+      try {
+        await firebaseService.saveInvitation(inv);
+        successCount++;
+      } catch (err) {
+        console.error('[Thư mời] Không lưu được thư mời cho', inv.email, err);
+      }
     }
     return successCount;
   };
 
   return (
     <div className="space-y-6">
+
+      {/* Hồ sơ còn sót từ đợt nhập danh sách cũ */}
+      {legacyCount > 0 && (
+        <div className="bg-rose-50 rounded-[5px] border border-rose-200 p-6 shadow-sm space-y-3">
+          <h3 className="text-sm font-bold text-rose-900">
+            Cần dọn {legacyCount} hồ sơ từ đợt nhập danh sách cũ
+          </h3>
+          <p className="text-xs text-rose-800 leading-relaxed max-w-3xl">
+            Những hồ sơ này mang mã tự sinh nên máy chủ không nhận ra chủ nhân của chúng.
+            Người trong danh sách khi đăng nhập sẽ bị coi là tài khoản lạ, mất vai trò đã được phân,
+            và mọi thao tác cần quyền đều bị từ chối.
+          </p>
+          <ul className="text-xs text-rose-800 space-y-1">
+            <li>• <strong>{legacyPlan.toMerge.length}</strong> người đã đăng nhập — khôi phục vai trò vào hồ sơ thật của họ.</li>
+            <li>• <strong>{legacyPlan.toInvite.length}</strong> người chưa đăng nhập — chuyển thành thư mời, vai trò cấp ngay khi họ vào lần đầu.</li>
+            {legacyPlan.needsReview.length > 0 && (
+              <li>• <strong>{legacyPlan.needsReview.length}</strong> hồ sơ thiếu email — không tự xử lý được, cần xem lại thủ công.</li>
+            )}
+          </ul>
+          <button
+            type="button"
+            onClick={handleLegacyMigration}
+            disabled={isMigrating}
+            className="px-4 py-2 rounded-[5px] bg-rose-600 text-white text-xs font-semibold hover:bg-rose-700 disabled:opacity-60 focus:outline-none focus:ring-4 focus:ring-rose-500/20 transition-colors"
+          >
+            {isMigrating ? 'Đang dọn…' : 'Dọn ngay'}
+          </button>
+        </div>
+      )}
 
       {/* Pending User Approval Section */}
       <div className="bg-amber-50 rounded-[5px] border border-amber-200 p-6 shadow-sm space-y-4">

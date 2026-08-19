@@ -144,7 +144,7 @@ export function GuideTab() {
           </h1>
 
           <p className="text-sm text-slate-300 max-w-3xl leading-relaxed">
-            EduTask là nền tảng Chuyển đổi số Quản trị &amp; Vận hành Nhà trường thông minh, hỗ trợ toàn bộ luồng công việc từ Quản lý Đơn nghỉ phép (2 cấp duyệt), Phân công Giao việc, Đăng ký Dạy bù/Phòng học, Sổ nề nếp chuyên môn, Điểm danh &amp; Hồ sơ học sinh đến Bồi dưỡng Học sinh giỏi.
+            EduTask là nền tảng Chuyển đổi số Quản trị &amp; Vận hành Nhà trường thông minh, hỗ trợ toàn bộ luồng công việc từ Quản lý Đơn nghỉ phép (2 cấp duyệt), Phân công Giao việc, Đăng ký Dạy bù/Phòng học, Sổ nền nếp chuyên môn, Điểm danh &amp; Hồ sơ học sinh đến Bồi dưỡng Học sinh giỏi.
           </p>
 
           {/* Sub Navigation Bar */}
@@ -276,7 +276,7 @@ export function GuideTab() {
                 </div>
                 <h3 className="font-bold text-slate-900 text-sm">Quản Lý Học Sinh &amp; Điểm Danh</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Quản lý hồ sơ học sinh, liên hệ phụ huynh, điểm danh 1-click hàng ngày, ghi nhận nề nếp vi phạm &amp; tuyên dương khen thưởng.
+                  Quản lý hồ sơ học sinh, liên hệ phụ huynh, điểm danh 1-click hàng ngày, ghi nhận nền nếp vi phạm &amp; tuyên dương khen thưởng.
                 </p>
               </div>
 
@@ -606,7 +606,7 @@ export function GuideTab() {
               <div className="space-y-1.5 flex-1">
                 <h3 className="font-bold text-slate-900 text-sm">Điểm Danh &amp; Ghi Nề Nếp Học Sinh Hàng Ngày</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
-                  Vào tab <strong>“Học Sinh”</strong> → Chọn Lớp chủ nhiệm/bộ môn → Bấm <strong>“Điểm Danh Lớp”</strong> để chọn trạng thái Vắng/Đi trễ → Ghi nhận vi phạm nề nếp hoặc tuyên dương học sinh có thành tích xuất sắc.
+                  Vào tab <strong>“Học Sinh”</strong> → Chọn Lớp chủ nhiệm/bộ môn → Bấm <strong>“Điểm Danh Lớp”</strong> để chọn trạng thái Vắng/Đi trễ → Ghi nhận vi phạm nền nếp hoặc tuyên dương học sinh có thành tích xuất sắc.
                 </p>
               </div>
             </div>
@@ -642,8 +642,8 @@ export function GuideTab() {
                 <li>Tạo đơn xin nghỉ phép &amp; chọn giáo viên dạy thay.</li>
                 <li>Theo dõi danh sách công việc cá nhân được BGH / Tổ trưởng giao.</li>
                 <li>Đăng ký dạy bù, mượn phòng thí nghiệm &amp; thiết bị.</li>
-                <li>Ghi nhận điểm danh &amp; sổ nề nếp học sinh lớp phụ trách.</li>
-                <li>Gửi giải trình nề nếp chuyên môn khi có ghi nhận chậm giờ.</li>
+                <li>Ghi nhận điểm danh &amp; sổ nền nếp học sinh lớp phụ trách.</li>
+                <li>Gửi giải trình nền nếp chuyên môn khi có ghi nhận chậm giờ.</li>
               </ul>
             </div>
 
@@ -671,7 +671,7 @@ export function GuideTab() {
               <ul className="text-xs text-slate-600 space-y-2 list-disc list-inside leading-relaxed">
                 <li>Phê duyệt đơn xin nghỉ phép cấp 2 (Ban Giám Hiệu).</li>
                 <li>Phát hành chỉ đạo &amp; giao việc toàn trường.</li>
-                <li>Xem báo cáo thống kê chuyên môn, nề nếp &amp; tình hình giảng dạy.</li>
+                <li>Xem báo cáo thống kê chuyên môn, nền nếp &amp; tình hình giảng dạy.</li>
                 <li>Xem nhật ký hoạt động &amp; quản lý kế hoạch chung nhà trường.</li>
                 <li>Duyệt các trường hợp xin dạy bù / mượn phòng thí nghiệm toàn trường.</li>
               </ul>

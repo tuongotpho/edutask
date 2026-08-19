@@ -1,7 +1,28 @@
 // ============================================================================
 //  EduTask — Firestore Security Rules
 //
-//  PHIÊN BẢN: 2026-08-18 09:45
+//  PHIÊN BẢN: 2026-08-20 10:30
+//  Thay đổi:  THÊM THƯ MỜI TÀI KHOẢN — vá tận gốc chuyện "nhập danh sách xong
+//             vẫn phải gán quyền lại từng người".
+//             Nhập hàng loạt không thể biết trước mã đăng nhập của giáo viên vì
+//             mã đó chỉ ra đời khi họ đăng nhập lần đầu. Bản cũ lấp chỗ trống
+//             bằng mã tự chế `USR_BULK_...` rồi lưu thẳng thành hồ sơ, trong
+//             khi mọi luật ở đây tra hồ sơ THEO mã đăng nhập — hai bên không
+//             bao giờ gặp nhau. Giáo viên đăng nhập bị coi là người lạ, hệ
+//             thống tạo hồ sơ thứ hai ở trạng thái chờ duyệt, vai trò trong
+//             file bị bỏ qua; và vì getUserData() không thấy hồ sơ nào ở mã
+//             đăng nhập nên MỌI luật theo vai trò đều từ chối họ.
+//             Nay tách đôi: `invitations/{email}` là danh sách dự kiến, còn
+//             `users/{uid}` là hồ sơ thật, chỉ lập khi người ta đăng nhập.
+//             Mã tài liệu thư mời chính là email đã hạ chữ thường, nên luật so
+//             thẳng được với email trong phiếu đăng nhập mà không phải tra vòng
+//             qua `users` — thứ mà người mới đăng nhập chưa hề có.
+//             Vai trò được đối chiếu với THƯ MỜI chứ không tin vào thứ trình
+//             duyệt gửi lên, nên không ai tự nâng quyền được. `get` tách khỏi
+//             `list` để người dùng lấy đúng thư của mình mà không đọc được cả
+//             danh sách nhân sự kèm vai trò dự kiến.
+//             Ghim bằng tests/rules/invitations.test.ts (16 kịch bản).
+//  Trước đó:  2026-08-18 09:45
 //  Thay đổi:  MỞ ĐƯỜNG CHO GIÁO VIÊN XÁC NHẬN TIẾT HSG MÌNH ĐÃ DẠY.
 //             Giao diện vốn đã hiện nút "hoàn thành tiết" cho giáo viên được
 //             phân công, nhưng rules chỉ cho quản lý/điều phối viên sửa
@@ -136,6 +157,42 @@ service cloud.firestore {
       let data = getUserData();
       let hasRole = data != null && data.roles.hasAny(['ADMIN']);
       return hasRole || isBootstrapAdminEmail();
+    }
+
+    /**
+     * Thư mời của chính người đang đăng nhập, hoặc null.
+     *
+     * Mã tài liệu thư mời CHÍNH LÀ email đã hạ chữ thường, nên luật so sánh
+     * thẳng được với email trong phiếu đăng nhập mà không phải tra vòng qua
+     * `users` — thứ mà tài khoản mới đăng nhập lần đầu chưa hề có.
+     *
+     * Đây là chỗ giải quyết bài toán gốc: nhập danh sách hàng loạt không thể
+     * biết trước mã đăng nhập của giáo viên, vì mã đó chỉ ra đời khi họ đăng
+     * nhập lần đầu. Trước đây phần mềm lấp chỗ trống bằng một mã tự chế
+     * (USR_BULK_...), khiến hồ sơ nằm ở một mã còn máy chủ lại tra theo mã
+     * đăng nhập — hai bên không bao giờ gặp nhau.
+     */
+    function myInvitation() {
+      let email = request.auth.token.email is string
+        ? request.auth.token.email.lower() : '';
+      let path = /databases/$(database)/documents/invitations/$(email);
+      return email != '' && exists(path) ? get(path).data : null;
+    }
+
+    /**
+     * Hồ sơ đang được tạo có khớp đúng thư mời dành cho người này không.
+     *
+     * Vai trò lấy từ THƯ MỜI chứ không phải từ thứ trình duyệt gửi lên. Thư mời
+     * chỉ quản trị viên mới ghi được, nên người dùng không thể tự nâng quyền cho
+     * mình dù có can thiệp vào trình duyệt.
+     */
+    function claimsOwnInvitation() {
+      let inv = myInvitation();
+      let d = request.resource.data;
+      return inv != null &&
+             d.roles == inv.roles &&
+             d.departmentId == inv.departmentId &&
+             d.status == 'ACTIVE';
     }
 
     /**
@@ -330,12 +387,19 @@ service cloud.firestore {
       // TEACHER. This blocks the privilege-escalation hole where anyone could
       // self-register as ['ADMIN'] / status 'ACTIVE'. Admins (or the bootstrap
       // admin email) may create any profile.
+      //
+      // Đường thứ ba: người có THƯ MỜI do quản trị viên tạo sẵn được lập hồ sơ
+      // ngay với đúng vai trò trong thư, không phải chờ duyệt lại. Vai trò được
+      // đối chiếu với thư mời chứ không tin vào thứ trình duyệt gửi lên.
       allow create: if isAuth() && (
         isExecutive() ||
         (request.auth.uid == userId &&
          request.resource.data.id == userId &&
          request.resource.data.roles == ['TEACHER'] &&
-         request.resource.data.status == 'PENDING_APPROVAL')
+         request.resource.data.status == 'PENDING_APPROVAL') ||
+        (request.auth.uid == userId &&
+         request.resource.data.id == userId &&
+         claimsOwnInvitation())
       );
 
       // A user may edit their own profile but NOT their roles, status,
@@ -741,6 +805,32 @@ service cloud.firestore {
 
       allow update: if isAuth() && resource.data.recipientUserId == request.auth.uid && request.resource.data.diff(resource.data).affectedKeys().hasOnly(['isRead']);
       allow delete: if isAuth() && resource.data.recipientUserId == request.auth.uid;
+    }
+
+    // --- Thư mời tài khoản (nhập danh sách hàng loạt) ---
+    //
+    // Mã tài liệu là email đã hạ chữ thường. Điều đó khiến luật đọc trở nên đơn
+    // giản và chặt: một người lấy được đúng thư mời của mình, không lấy được
+    // của ai khác, và không liệt kê được cả danh sách.
+    match /invitations/{inviteId} {
+      function isMine() {
+        return request.auth.token.email is string &&
+               request.auth.token.email.lower() == inviteId;
+      }
+
+      // `get` tách khỏi `list` là chủ đích: người dùng thường đọc được đúng một
+      // tài liệu mang tên email của mình. Cho `list` là cho họ đọc toàn bộ danh
+      // sách nhân sự sắp vào trường kèm vai trò dự kiến.
+      allow get: if isAuth() && (isExecutive() || isMine());
+      allow list: if isAuth() && isExecutive();
+
+      // Chỉ Ban Giám hiệu tạo được thư mời — đây là nơi quyết định vai trò, nên
+      // ai ghi được vào đây là ghi được quyền cho người khác.
+      allow create, update: if isAuth() && isExecutive();
+
+      // Người nhận tự xoá thư mời của mình sau khi đã lập hồ sơ, để thư không
+      // nằm lại thành rác và không dùng lại được lần hai.
+      allow delete: if isAuth() && (isExecutive() || isMine());
     }
 
     // --- Bồi dưỡng Học sinh giỏi ---
