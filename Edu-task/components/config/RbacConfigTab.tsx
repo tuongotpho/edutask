@@ -602,6 +602,11 @@ function UserAccountManager() {
   const legacyCount = legacyPlan.toInvite.length + legacyPlan.toMerge.length + legacyPlan.needsReview.length;
   const [isMigrating, setIsMigrating] = useState(false);
 
+  // Mặc định thu gọn: danh sách này thường dài bằng cả biên chế nhà trường, và
+  // sau đợt nhập file thì nó đẩy mọi thứ khác xuống dưới màn hình. Con số ở
+  // tiêu đề mới là thứ cần thấy hằng ngày, chi tiết chỉ cần khi đi tra một người.
+  const [showInvitations, setShowInvitations] = useState(false);
+
   const handleLegacyMigration = async () => {
     setIsMigrating(true);
     let invited = 0, merged = 0, failed = 0;
@@ -657,9 +662,17 @@ function UserAccountManager() {
       {/* Danh sách đã mời, chưa từng đăng nhập */}
       <div className="bg-sky-50 rounded-[5px] border border-sky-200 p-6 shadow-sm space-y-4">
         <div>
-          <h3 className="text-sm font-bold text-sky-900">
-            Đã mời, chờ đăng nhập lần đầu ({invitations.length})
-          </h3>
+          <button
+            type="button"
+            onClick={() => setShowInvitations(v => !v)}
+            aria-expanded={showInvitations}
+            className="w-full flex items-center gap-2 text-left text-sm font-bold text-sky-900 hover:text-sky-700 focus:outline-none focus:ring-4 focus:ring-sky-500/20 rounded-[5px]"
+          >
+            <ChevronDown
+              className={`w-4 h-4 flex-shrink-0 transition-transform ${showInvitations ? '' : '-rotate-90'}`}
+            />
+            <span>Đã mời, chờ đăng nhập lần đầu ({invitations.length})</span>
+          </button>
           <p className="text-xs text-sky-800 mt-1 leading-relaxed max-w-3xl">
             Danh sách nhập từ file nằm ở đây cho tới khi từng người đăng nhập lần đầu.
             Lúc đó hệ thống mới lập hồ sơ thật cho họ, kèm đúng vai trò và tổ đã phân —
@@ -668,7 +681,7 @@ function UserAccountManager() {
           </p>
         </div>
 
-        {invitations.length === 0 ? (
+        {!showInvitations ? null : invitations.length === 0 ? (
           <p className="text-xs text-sky-700 italic">
             Chưa có lời mời nào đang chờ. Nhập danh sách từ file để mời hàng loạt.
           </p>
