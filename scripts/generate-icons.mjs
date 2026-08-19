@@ -86,10 +86,11 @@ async function onBrand(size, scale) {
 const targets = [
   // The logo the app itself shows, in the navbar and above the sign-in form.
   // Transparent outside the circle so it sits correctly on both the dark
-  // sign-in page and the white navbar. 256 px, not 512: it is displayed at
-  // 56 px at most, so this still covers a 3x screen with room to spare, and the
-  // sign-in page loads it with `priority`.
-  { dir: PUBLIC_DIR, file: 'brand-logo.png', render: () => crest(256) },
+  // sign-in page and the white navbar. 320 px, not 512: it is displayed at
+  // 84 px at most, so a 3x screen asks for 252 — this clears that with headroom
+  // instead of landing 4 px short of it, and the sign-in page loads this file
+  // with `priority` so the weight is not free.
+  { dir: PUBLIC_DIR, file: 'brand-logo.png', render: () => crest(320) },
 
   // Transparent outside the crest: browsers and launchers place these on their
   // own background.

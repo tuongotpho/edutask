@@ -100,10 +100,10 @@ export function LoginPage() {
           <Image
             src="/brand-logo.png"
             alt="EduTask"
-            width={56}
-            height={56}
+            width={84}
+            height={84}
             priority
-            className="w-14 h-14 rounded-full shadow-lg shadow-slate-900/40"
+            className="w-21 h-21 rounded-full shadow-lg shadow-slate-900/40"
           />
         </div>
         <h2 className="text-center text-2xl font-extrabold text-white tracking-tight">
