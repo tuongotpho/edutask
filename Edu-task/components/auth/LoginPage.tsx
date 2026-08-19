@@ -115,7 +115,7 @@ export function LoginPage() {
             the source of truth once signed in, but it is unreadable here — that
             document is gated behind authentication, deliberately. */}
         <p className="mt-1 text-center text-xs text-slate-400">
-          {currentSchoolName()} &bull; Giải pháp Chuyển đổi số Quản trị &amp; Vận hành Nhà trường
+          {currentSchoolName()}
         </p>
       </div>
 
