@@ -27,6 +27,27 @@ export function isLegacyBulkId(id: string): boolean {
   return /^USR_BULK_/.test(id);
 }
 
+/**
+ * Hồ sơ quản trị do bản cũ seed tay vào `users/USR_ADMIN`.
+ *
+ * Cùng một căn bệnh với `USR_BULK_*` — mã tự đặt thay vì mã đăng nhập — nhưng
+ * xử lý phải khác, và khác ở chỗ nguy hiểm: nếu tài khoản đó CHƯA từng đăng
+ * nhập thì đây có thể là hồ sơ quản trị duy nhất của trường. Xoá nó đi mà không
+ * có hồ sơ thay thế là tự khoá mình ra ngoài phần quản trị.
+ *
+ * Nên nó chỉ được dọn khi đã có hồ sơ thật cùng email để chuyển vai trò sang.
+ * Không bao giờ chuyển thành thư mời: thư mời dành cho người chưa có hồ sơ, còn
+ * đây là tài khoản đang nắm quyền cao nhất.
+ */
+export function isAdminPlaceholderId(id: string): boolean {
+  return id === 'USR_ADMIN';
+}
+
+/** Mọi hồ sơ mang mã tự đặt thay vì mã đăng nhập. */
+export function isPlaceholderId(id: string): boolean {
+  return isLegacyBulkId(id) || isAdminPlaceholderId(id);
+}
+
 export interface MigrationPlan {
   /** Người chưa đăng nhập: dựng thư mời rồi xoá hồ sơ giữ chỗ. */
   toInvite: Array<{ invitation: Invitation; deleteUserId: string }>;
@@ -46,10 +67,10 @@ export interface MigrationPlan {
 export function planLegacyMigration(users: User[], now: string): MigrationPlan {
   const plan: MigrationPlan = { toInvite: [], toMerge: [], needsReview: [] };
 
-  const legacy = users.filter(u => isLegacyBulkId(u.id));
+  const legacy = users.filter(u => isPlaceholderId(u.id));
   const byEmail = new Map<string, User[]>();
   for (const u of users) {
-    if (isLegacyBulkId(u.id)) continue;
+    if (isPlaceholderId(u.id)) continue;
     const key = (u.email || '').trim().toLowerCase();
     if (!key) continue;
     byEmail.set(key, [...(byEmail.get(key) ?? []), u]);
@@ -77,6 +98,10 @@ export function planLegacyMigration(users: User[], now: string): MigrationPlan {
         },
         deleteUserId: old.id,
       });
+    } else if (isAdminPlaceholderId(old.id)) {
+      // Chưa có hồ sơ thật để chuyển sang. Không xoá, không mời — báo để người
+      // ta tự quyết, vì đây có thể là hồ sơ quản trị duy nhất còn lại.
+      plan.needsReview.push(old);
     } else {
       plan.toInvite.push({
         invitation: {

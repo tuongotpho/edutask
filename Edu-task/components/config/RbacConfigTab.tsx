@@ -747,7 +747,12 @@ function UserAccountManager() {
             <li>• <strong>{legacyPlan.toMerge.length}</strong> người đã đăng nhập — khôi phục vai trò vào hồ sơ thật của họ.</li>
             <li>• <strong>{legacyPlan.toInvite.length}</strong> người chưa đăng nhập — chuyển thành thư mời, vai trò cấp ngay khi họ vào lần đầu.</li>
             {legacyPlan.needsReview.length > 0 && (
-              <li>• <strong>{legacyPlan.needsReview.length}</strong> hồ sơ thiếu email — không tự xử lý được, cần xem lại thủ công.</li>
+              <li>
+                • <strong>{legacyPlan.needsReview.length}</strong> hồ sơ hệ thống không tự quyết:{' '}
+                {legacyPlan.needsReview.map(u => u.fullName || u.id).join(', ')} — hoặc thiếu email
+                để ghép, hoặc là hồ sơ quản trị chưa có bản thay thế. Xoá nhầm hồ sơ quản trị cuối
+                cùng là tự khoá mình ra ngoài, nên chỗ này để anh/chị tự xử lý.
+              </li>
             )}
           </ul>
           <button

@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { isLegacyBulkId, planLegacyMigration } from '@/Edu-task/lib/legacyProfileMigration';
+import { isAdminPlaceholderId, isLegacyBulkId, isPlaceholderId, planLegacyMigration } from '@/Edu-task/lib/legacyProfileMigration';
 import { User } from '@/Edu-task/types/user';
 
 /**
@@ -37,8 +37,10 @@ describe('nhan dien ma tu che', () => {
     expect(isLegacyBulkId('XEqwLysO6TP2ymixymfbsQVvBD32')).toBe(false);
   });
 
-  it('khong nham tai khoan quan tri seed tay', () => {
+  it('phan biet ho so quan tri seed tay voi ma nhap hang loat', () => {
     expect(isLegacyBulkId('USR_ADMIN')).toBe(false);
+    expect(isAdminPlaceholderId('USR_ADMIN')).toBe(true);
+    expect(isPlaceholderId('USR_ADMIN')).toBe(true);
   });
 });
 
@@ -116,13 +118,52 @@ describe('truong hop can nguoi xem lai', () => {
 
 describe('khong dung toi ho so binh thuong', () => {
   it('bo qua moi ho so mang ma dang nhap that', () => {
+    // USR_ADMIN co doi rieng o nhom test duoi: no KHONG phai ma dang nhap that,
+    // nen khong thuoc ve day.
     const plan = planLegacyMigration([
       user({ id: 'uid_a', email: 'a@truong.edu.vn' }),
       user({ id: 'uid_b', email: 'b@truong.edu.vn' }),
-      user({ id: 'USR_ADMIN', email: 'admin@gmail.com' }),
+      user({ id: 'XEqwLysO6TP2ymixymfbsQVvBD32', email: 'c@truong.edu.vn' }),
     ], NOW);
     expect(plan.toInvite).toHaveLength(0);
     expect(plan.toMerge).toHaveLength(0);
     expect(plan.needsReview).toHaveLength(0);
+  });
+});
+
+describe('ho so quan tri USR_ADMIN', () => {
+  it('DA dang nhap: chuyen vai tro sang ho so that roi xoa ban cu', () => {
+    const plan = planLegacyMigration([
+      user({ id: 'USR_ADMIN', email: 'admin@gmail.com',
+             roles: ['ADMIN', 'PRINCIPAL', 'TEACHER'], activeRole: 'ADMIN' }),
+      user({ id: 'XEqwLysO6TP2ymixymfbsQVvBD32', email: 'admin@gmail.com',
+             roles: ['ADMIN', 'PRINCIPAL'], activeRole: 'ADMIN' }),
+    ], NOW);
+
+    expect(plan.toInvite).toHaveLength(0);
+    expect(plan.needsReview).toHaveLength(0);
+    expect(plan.toMerge).toHaveLength(1);
+    expect(plan.toMerge[0].realUserId).toBe('XEqwLysO6TP2ymixymfbsQVvBD32');
+    expect(plan.toMerge[0].deleteUserId).toBe('USR_ADMIN');
+  });
+
+  it('CHUA dang nhap: khong xoa, khong moi, chi bao de nguoi ta tu quyet', () => {
+    // Day co the la ho so quan tri duy nhat cua truong. Xoa di ma khong co ban
+    // thay the la tu khoa minh ra ngoai phan quan tri.
+    const plan = planLegacyMigration([
+      user({ id: 'USR_ADMIN', email: 'admin@gmail.com', roles: ['ADMIN'], activeRole: 'ADMIN' }),
+    ], NOW);
+
+    expect(plan.toMerge).toHaveLength(0);
+    expect(plan.toInvite).toHaveLength(0);
+    expect(plan.needsReview.map(u => u.id)).toEqual(['USR_ADMIN']);
+  });
+
+  it('KHONG BAO GIO chuyen ho so quan tri thanh thu moi', () => {
+    const plan = planLegacyMigration([
+      user({ id: 'USR_ADMIN', email: 'admin@gmail.com', roles: ['ADMIN'], activeRole: 'ADMIN' }),
+      user({ id: 'USR_BULK_1_0', email: 'gv@truong.edu.vn' }),
+    ], NOW);
+    expect(plan.toInvite.map(i => i.deleteUserId)).toEqual(['USR_BULK_1_0']);
   });
 });
