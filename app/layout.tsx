@@ -25,7 +25,8 @@ export const metadata: Metadata = {
 };
 
 export const viewport: Viewport = {
-  themeColor: '#50b042',
+  // Khớp theme_color trong manifest — navy của vành huy hiệu.
+  themeColor: '#232570',
   // Installed app should fill the device, including the notch area.
   viewportFit: 'cover',
   width: 'device-width',

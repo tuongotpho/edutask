@@ -66,7 +66,7 @@ jobs:
           # site âm thầm đổi thành "Trường học" mà build vẫn xanh.
           #
           # >>> ĐÂY LÀ CHỖ ĐỔI KHI TRIỂN KHAI CHO TRƯỜNG KHÁC. <<<
-          NEXT_PUBLIC_SCHOOL_NAME: THPT Chuyên Nguyễn Trãi
+          NEXT_PUBLIC_SCHOOL_NAME: THPT Nguyễn Trãi - Ba Đình
           # Web Push certificate (VAPID public key). Written inline rather than
           # kept as a secret because it is genuinely public — it ships inside
           # the client bundle by design, so hiding it here would protect

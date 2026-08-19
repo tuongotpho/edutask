@@ -14,7 +14,10 @@ export default function manifest(): MetadataRoute.Manifest {
     display: 'standalone',
     orientation: 'portrait',
     background_color: '#0f172a',
-    theme_color: '#50b042',
+    // Navy của vành huy hiệu. Đây là màu thanh trình duyệt trên điện thoại và
+    // màu viền màn hình chờ khi mở từ màn hình chính — để nguyên xanh lá của
+    // logo cũ thì chỏi hẳn với huy hiệu navy/vàng ngay khi app khởi động.
+    theme_color: '#232570',
     lang: 'vi',
     dir: 'ltr',
     categories: ['education', 'productivity'],
