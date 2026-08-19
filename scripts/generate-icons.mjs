@@ -12,55 +12,65 @@ import path from 'node:path';
 
 const SOURCE = path.join(process.cwd(), 'assets', 'icon-source.png');
 const ICON_DIR = path.join(process.cwd(), 'public', 'icons');
+const PUBLIC_DIR = path.join(process.cwd(), 'public');
 const APP_DIR = path.join(process.cwd(), 'app');
 
-export const BRAND = '#50b042';
+/**
+ * The navy of the crest's outer ring, sampled from the artwork itself.
+ *
+ * Used as the full-bleed ground for the icons that need one. The ring then
+ * disappears into that ground and what reads at launcher size is the gold disc
+ * and its emblem — which is the strongest, most recognisable part of the mark.
+ * The alternative, white, keeps the ring visible but goes soft against the pale
+ * backgrounds most launchers use.
+ */
+export const BRAND = '#232570';
 
 /**
- * The source is a green rounded square centred on an opaque white card. Only
- * the square is wanted, so everything is cropped to it.
+ * The crest, squared up.
+ *
+ * The source is a circular crest on an opaque white card, and it is not quite
+ * centred: measuring the non-white pixels gives x 7–494 against y 1–495. These
+ * numbers are that measurement, not a guess — a centred crop would shave one
+ * edge of the ring.
  */
-const CROP = { left: 44, top: 44, width: 168, height: 168 };
-
-/** Corner radius of the square in the source, as a fraction of its width. */
-const RADIUS_RATIO = 0.125;
+const CROP = { left: 3, top: 0, width: 495, height: 495 };
 
 /**
- * The crop edge carries an anti-aliased white fringe from the card behind it.
- * Rendering slightly larger than the target and trimming back pushes that
- * fringe out of frame — without it the maskable icons show a white halo where
- * the rounded mask and the artwork's own corner fail to line up exactly.
+ * The mask is drawn a whisker inside the frame.
+ *
+ * The crest was saved as JPEG, so its edge is anti-aliased against the white
+ * card behind it. A mask cut exactly at the circumference keeps that pale
+ * fringe, which shows up as a dirty halo on any dark background. Cutting just
+ * inside removes it; the sliver of ring lost is invisible at every size used.
  */
-const BLEED_RATIO = 0.012;
+const INSET_RATIO = 0.012;
 
-function roundedMask(size) {
-  const r = Math.round(size * RADIUS_RATIO);
+function circleMask(size) {
+  const inset = Math.max(1, Math.round(size * INSET_RATIO));
+  const r = size / 2 - inset;
   return Buffer.from(
     `<svg xmlns="http://www.w3.org/2000/svg" width="${size}" height="${size}">` +
-      `<rect width="${size}" height="${size}" rx="${r}" ry="${r}" fill="#fff"/>` +
+      `<circle cx="${size / 2}" cy="${size / 2}" r="${r}" fill="#fff"/>` +
       `</svg>`
   );
 }
 
-/** The artwork at `size` px, corners rounded, everything outside transparent. */
-async function tile(size) {
-  const bleed = Math.max(1, Math.ceil(size * BLEED_RATIO));
-  const oversized = size + bleed * 2;
-
-  const trimmed = await sharp(SOURCE)
+/** The crest at `size` px, circular, everything outside it transparent. */
+async function crest(size) {
+  const squared = await sharp(SOURCE)
     .extract(CROP)
-    .resize(oversized, oversized, { fit: 'fill' })
-    .extract({ left: bleed, top: bleed, width: size, height: size })
+    .resize(size, size, { fit: 'fill' })
     .png()
     .toBuffer();
 
-  return sharp(trimmed)
-    .composite([{ input: roundedMask(size), blend: 'dest-in' }])
+  return sharp(squared)
+    .composite([{ input: circleMask(size), blend: 'dest-in' }])
     .png()
     .toBuffer();
 }
 
-/** Full-bleed brand green behind the artwork, scaled to `scale` of the canvas. */
+/** Full-bleed brand navy behind the crest, scaled to `scale` of the canvas. */
 async function onBrand(size, scale) {
   const inner = Math.round(size * scale);
   const offset = Math.round((size - inner) / 2);
@@ -68,30 +78,53 @@ async function onBrand(size, scale) {
   return sharp({
     create: { width: size, height: size, channels: 4, background: BRAND },
   })
-    .composite([{ input: await tile(inner), left: offset, top: offset }])
+    .composite([{ input: await crest(inner), left: offset, top: offset }])
     .png()
     .toBuffer();
 }
 
 const targets = [
-  // Transparent outside the tile: browsers and launchers place these on their
+  // The logo the app itself shows, in the navbar and above the sign-in form.
+  // Transparent outside the circle so it sits correctly on both the dark
+  // sign-in page and the white navbar. 256 px, not 512: it is displayed at
+  // 56 px at most, so this still covers a 3x screen with room to spare, and the
+  // sign-in page loads it with `priority`.
+  { dir: PUBLIC_DIR, file: 'brand-logo.png', render: () => crest(256) },
+
+  // Transparent outside the crest: browsers and launchers place these on their
   // own background.
-  { dir: ICON_DIR, file: 'icon-192.png', render: () => tile(192) },
-  { dir: ICON_DIR, file: 'icon-512.png', render: () => tile(512) },
+  { dir: ICON_DIR, file: 'icon-192.png', render: () => crest(192) },
+  { dir: ICON_DIR, file: 'icon-512.png', render: () => crest(512) },
+
   // Android crops maskable icons to the launcher shape, so the artwork stays
-  // inside the safe zone (the middle 80%) with green running to the edges.
+  // inside the safe zone (the middle 80%) with brand navy running to the edges.
   { dir: ICON_DIR, file: 'icon-maskable-192.png', render: () => onBrand(192, 0.8) },
   { dir: ICON_DIR, file: 'icon-maskable-512.png', render: () => onBrand(512, 0.8) },
+
   // iOS composites transparency onto black and applies its own mask, so this
   // one is filled edge to edge instead.
-  { dir: ICON_DIR, file: 'apple-touch-icon.png', render: () => onBrand(180, 1) },
-  // Picked up by Next as the favicon.
-  { dir: APP_DIR, file: 'icon.png', render: () => tile(32) },
+  { dir: ICON_DIR, file: 'apple-touch-icon.png', render: () => onBrand(180, 0.92) },
+
+  // Picked up by Next as the favicon. Filled rather than transparent: at 32 px
+  // a transparent crest on a browser's own dark tab strip loses its ring.
+  { dir: APP_DIR, file: 'icon.png', render: () => onBrand(32, 0.94) },
 ];
 
 await mkdir(ICON_DIR, { recursive: true });
 
+/**
+ * Palette-encoded, not 24-bit.
+ *
+ * The crest is flat colour — navy, gold, white — but it arrived as a JPEG, so
+ * every region carries compression noise that a lossless 24-bit PNG then
+ * preserves faithfully and expensively: the 512 px render came to 372 KB, a
+ * file the sign-in page loads with `priority` and therefore blocks on.
+ * Quantising to a palette throws away noise nobody can see and takes it under
+ * 40 KB. Anything genuinely photographic would be the wrong candidate for this.
+ */
 for (const { dir, file, render } of targets) {
-  await sharp(await render()).toFile(path.join(dir, file));
+  await sharp(await render())
+    .png({ palette: true, quality: 90, effort: 9 })
+    .toFile(path.join(dir, file));
   console.log(`generated ${path.relative(process.cwd(), path.join(dir, file))}`);
 }

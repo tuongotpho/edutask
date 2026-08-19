@@ -103,7 +103,7 @@ export function LoginPage() {
             width={56}
             height={56}
             priority
-            className="w-14 h-14 rounded-2xl shadow-lg shadow-slate-900/40"
+            className="w-14 h-14 rounded-full shadow-lg shadow-slate-900/40"
           />
         </div>
         <h2 className="text-center text-2xl font-extrabold text-white tracking-tight">

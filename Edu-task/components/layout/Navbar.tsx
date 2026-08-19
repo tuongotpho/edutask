@@ -110,7 +110,7 @@ export function Navbar({
             width={36}
             height={36}
             priority
-            className="w-8 h-8 sm:w-9 sm:h-9 rounded-xl shadow-sm"
+            className="w-8 h-8 sm:w-9 sm:h-9 rounded-full shadow-sm"
           />
           <div>
             <div className="flex items-center gap-1.5 sm:gap-2">
