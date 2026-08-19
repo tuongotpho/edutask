@@ -403,7 +403,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (!match) {
           match = (await firebaseAuthService.getUserProfile(fbUser.uid)) || undefined;
           if (!match) {
-             match = await firebaseAuthService.seedAdminUserProfile();
+             match = await firebaseAuthService.seedAdminUserProfile(fbUser.uid, userEmail || '');
           }
         }
         
@@ -418,6 +418,35 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
 
       if (cancelled) return;
+
+      /**
+       * Hồ sơ tìm được phải mang ĐÚNG mã đăng nhập, nếu không tài khoản này
+       * hỏng một nửa.
+       *
+       * Hồ sơ được tìm theo EMAIL, nên nó có thể mang một mã khác hẳn mã đăng
+       * nhập Firebase — hồ sơ nhập hàng loạt cho người chưa từng đăng nhập, hay
+       * hồ sơ quản trị seed sẵn ở `USR_ADMIN`, đều rơi vào đây. Rules thì chỉ
+       * biết `request.auth.uid`.
+       *
+       * Trạng thái đó rất khó nhận ra vì app trông vẫn chạy: mọi luật chỉ cần
+       * đăng nhập, hay có cửa thoát hiểm theo email, đều qua. Chỉ những luật so
+       * thẳng với `request.auth.uid` mới từ chối — `notifications` là chỗ đầu
+       * tiên lộ ra, và một mình nó thì không đủ để ai đoán ra nguyên nhân.
+       *
+       * Không tự ý sửa dữ liệu ở đây: đổi mã hồ sơ sẽ bỏ rơi mọi tham chiếu tới
+       * mã cũ trong đơn nghỉ, công việc và thông báo. Việc của chỗ này là NÓI RA
+       * cho đủ rõ để người quản trị quyết định.
+       */
+      if (match && match.id !== fbUser.uid) {
+        console.error(
+          `[Danh tính] Hồ sơ của tài khoản này mang mã khác mã đăng nhập.
+  mã hồ sơ Firestore : ${match.id}
+  mã đăng nhập (uid) : ${fbUser.uid}
+  Hệ quả: thông báo không tải được, và mọi quyền theo vai trò bị từ chối.
+  Cách sửa: trong Firestore, chuyển tài liệu users/${match.id}
+  sang users/${fbUser.uid}, và đặt trường id thành ${fbUser.uid}.`
+        );
+      }
 
       if (match) {
         setCurrentUser(match);

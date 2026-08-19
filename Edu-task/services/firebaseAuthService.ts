@@ -139,13 +139,29 @@ export const firebaseAuthService = {
     return null;
   },
 
-  // Seed default admin user into Firestore if needed
-  async seedAdminUserProfile(): Promise<User> {
-    const adminDoc = await getDoc(doc(db, 'users', 'USR_ADMIN'));
+  /**
+   * Tạo hồ sơ cho tài khoản quản trị đầu tiên, ĐẶT THEO MÃ ĐĂNG NHẬP.
+   *
+   * Trước đây hàm này ghi vào `users/USR_ADMIN` với `id: 'USR_ADMIN'` — một mã
+   * tự đặt, không liên quan gì tới mã đăng nhập Firebase của người đó. Hai cách
+   * nhận diện từ đó lệch nhau vĩnh viễn:
+   *
+   *   - Giao diện tìm hồ sơ theo EMAIL, nên nó nhận `USR_ADMIN` làm danh tính
+   *   - Rules chỉ biết `request.auth.uid`, và tra hồ sơ ở `users/{auth.uid}`
+   *
+   * Hậu quả là tài khoản hỏng một nửa, rất khó thấy: mọi luật chỉ cần đăng nhập
+   * hoặc có cửa thoát hiểm theo email vẫn chạy, nên app trông vẫn bình thường —
+   * còn `notifications`, luật duy nhất so thẳng với `request.auth.uid` và không
+   * có cửa thoát hiểm nào, thì từ chối. Người dùng thấy đúng một chỗ hỏng và
+   * không có cách nào đoán ra vì sao.
+   *
+   * tests/rules/identityMismatch.test.ts dựng lại nguyên trạng thái đó.
+   */
+  async seedAdminUserProfile(uid: string, email: string): Promise<User> {
     const adminUser: User = {
-      id: 'USR_ADMIN',
+      id: uid,
       fullName: 'Quản trị viên Hệ thống (Admin)',
-      email: process.env.NEXT_PUBLIC_ADMIN_EMAILS?.split(',')[0]?.trim() || 'admin@gmail.com',
+      email,
       phone: '0900 000 999',
       departmentId: 'DEPT_BGH',
       departmentName: 'Ban Giám Hiệu',
@@ -156,8 +172,9 @@ export const firebaseAuthService = {
       status: 'ACTIVE',
     };
 
-    if (!adminDoc.exists()) {
-      await setDoc(doc(db, 'users', 'USR_ADMIN'), sanitizeForFirestore(adminUser));
+    const existing = await getDoc(doc(db, 'users', uid));
+    if (!existing.exists()) {
+      await setDoc(doc(db, 'users', uid), sanitizeForFirestore(adminUser));
     }
     return adminUser;
   }
