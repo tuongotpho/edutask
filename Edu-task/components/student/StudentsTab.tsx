@@ -164,7 +164,7 @@ export function StudentsTab() {
         <section className="space-y-4">
           <div className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3">
-              <h3 className="text-sm font-bold text-slate-900">Tổng Hợp Nề Nếp Học Sinh</h3>
+              <h3 className="text-sm font-bold text-slate-900">Tổng Hợp Nền Nếp Học Sinh</h3>
               <input
                 type="month"
                 value={month}

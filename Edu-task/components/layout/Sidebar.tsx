@@ -125,7 +125,7 @@ export function Sidebar({
     },
     {
       id: 'attendance' as TabType,
-      label: 'Nề Nếp Chuyên Môn',
+      label: 'Nền Nếp Chuyên Môn',
       icon: ClipboardList,
       // For a teacher this counts records about them awaiting a reply; for a
       // supervisor or BGH it counts records awaiting a conclusion.

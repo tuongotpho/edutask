@@ -263,7 +263,7 @@ export function GuideTab() {
                 <div className="w-9 h-9 rounded-xl bg-violet-600 text-white flex items-center justify-center font-bold">
                   <ClipboardList className="w-5 h-5" />
                 </div>
-                <h3 className="font-bold text-slate-900 text-sm">Sổ Nề Nếp Chuyên Môn Giáo Viên</h3>
+                <h3 className="font-bold text-slate-900 text-sm">Sổ Nền Nếp Chuyên Môn Giáo Viên</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
                   Ghi nhận giáo viên chậm giờ, trống tiết. Cho phép giáo viên gửi giải trình và lãnh đạo xem xét duyệt giải trình công khai.
                 </p>
@@ -604,7 +604,7 @@ export function GuideTab() {
                 4
               </div>
               <div className="space-y-1.5 flex-1">
-                <h3 className="font-bold text-slate-900 text-sm">Điểm Danh &amp; Ghi Nề Nếp Học Sinh Hàng Ngày</h3>
+                <h3 className="font-bold text-slate-900 text-sm">Điểm Danh &amp; Ghi Nền Nếp Học Sinh Hàng Ngày</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">
                   Vào tab <strong>“Học Sinh”</strong> → Chọn Lớp chủ nhiệm/bộ môn → Bấm <strong>“Điểm Danh Lớp”</strong> để chọn trạng thái Vắng/Đi trễ → Ghi nhận vi phạm nền nếp hoặc tuyên dương học sinh có thành tích xuất sắc.
                 </p>

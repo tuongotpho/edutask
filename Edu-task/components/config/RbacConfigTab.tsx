@@ -517,7 +517,7 @@ export function RbacConfigTab() {
 }
 
 function UserAccountManager() {
-  const { users, departments, addUserProfile, approveUserProfile, rejectUserProfile, deleteUserProfile, showToast } = useApp();
+  const { users, departments, invitations, addUserProfile, approveUserProfile, rejectUserProfile, deleteUserProfile, showToast } = useApp();
 
   const [showAddModal, setShowAddModal] = useState(false);
   const [showBulkModal, setShowBulkModal] = useState(false);
@@ -653,6 +653,71 @@ function UserAccountManager() {
 
   return (
     <div className="space-y-6">
+
+      {/* Danh sách đã mời, chưa từng đăng nhập */}
+      <div className="bg-sky-50 rounded-[5px] border border-sky-200 p-6 shadow-sm space-y-4">
+        <div>
+          <h3 className="text-sm font-bold text-sky-900">
+            Đã mời, chờ đăng nhập lần đầu ({invitations.length})
+          </h3>
+          <p className="text-xs text-sky-800 mt-1 leading-relaxed max-w-3xl">
+            Danh sách nhập từ file nằm ở đây cho tới khi từng người đăng nhập lần đầu.
+            Lúc đó hệ thống mới lập hồ sơ thật cho họ, kèm đúng vai trò và tổ đã phân —
+            không cần duyệt lại. Trước đây phần mềm lập hồ sơ ngay lúc nhập file, và đó
+            chính là nguyên nhân mọi tài khoản đều phải gán quyền lại bằng tay.
+          </p>
+        </div>
+
+        {invitations.length === 0 ? (
+          <p className="text-xs text-sky-700 italic">
+            Chưa có lời mời nào đang chờ. Nhập danh sách từ file để mời hàng loạt.
+          </p>
+        ) : (
+          <div className="overflow-x-auto rounded-[5px] border border-sky-200 bg-white">
+            <table className="w-full text-left text-xs border-collapse">
+              <thead>
+                <tr className="bg-sky-100/60">
+                  <th className="px-3 py-2 font-semibold text-sky-900">Họ và tên</th>
+                  <th className="px-3 py-2 font-semibold text-sky-900">Email</th>
+                  <th className="px-3 py-2 font-semibold text-sky-900">Tổ chuyên môn</th>
+                  <th className="px-3 py-2 font-semibold text-sky-900">Vai trò sẽ cấp</th>
+                  <th className="px-3 py-2" />
+                </tr>
+              </thead>
+              <tbody>
+                {invitations.map(inv => (
+                  <tr key={inv.email} className="border-t border-sky-100">
+                    <td className="px-3 py-2 font-medium text-slate-800">{inv.fullName}</td>
+                    <td className="px-3 py-2 text-slate-600">{inv.email}</td>
+                    <td className="px-3 py-2 text-slate-600">{inv.departmentName}</td>
+                    <td className="px-3 py-2">
+                      <span className="px-2 py-0.5 rounded-[5px] bg-sky-100 text-sky-800 font-semibold">
+                        {ROLE_LABELS[inv.activeRole] ?? inv.activeRole}
+                      </span>
+                    </td>
+                    <td className="px-3 py-2 text-right">
+                      <button
+                        type="button"
+                        onClick={async () => {
+                          try {
+                            await firebaseService.deleteInvitation(inv.email);
+                            showToast('success', `Đã huỷ lời mời cho ${inv.fullName}.`);
+                          } catch {
+                            showToast('error', 'Không huỷ được lời mời. Vui lòng thử lại.');
+                          }
+                        }}
+                        className="text-rose-600 hover:text-rose-700 font-semibold focus:outline-none focus:ring-4 focus:ring-rose-500/20 rounded-[5px] px-2 py-1"
+                      >
+                        Huỷ mời
+                      </button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* Hồ sơ còn sót từ đợt nhập danh sách cũ */}
       {legacyCount > 0 && (

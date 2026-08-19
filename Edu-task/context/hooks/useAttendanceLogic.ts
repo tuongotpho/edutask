@@ -140,7 +140,7 @@ export function useAttendanceLogic({
               : data.issue === 'LEFT_EARLY'
                 ? `ra lớp sớm ${data.minutes} phút`
                 : 'ghi nhận khác'
-        }. Bạn có thể gửi giải trình trong mục Nề Nếp.`,
+        }. Bạn có thể gửi giải trình trong mục Nền Nếp.`,
         type: 'SYSTEM',
         isRead: false,
         createdAt: timestamp,

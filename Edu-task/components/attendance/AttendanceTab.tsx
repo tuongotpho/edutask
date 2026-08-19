@@ -86,7 +86,7 @@ export function AttendanceTab() {
     <div className="space-y-5">
 
       <div className="bg-white rounded-[5px] border border-slate-200 p-5 shadow-sm">
-        <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">Nề Nếp Chuyên Môn</h2>
+        <h2 className="text-lg font-extrabold text-slate-900 tracking-tight">Nền Nếp Chuyên Môn</h2>
         <p className="text-xs text-slate-500 mt-0.5">
           Giám thị ghi nhận giáo viên vào lớp muộn hoặc lớp trống giờ. Giáo viên xem được bản ghi
           về mình và gửi giải trình; Ban Giám Hiệu kết luận.

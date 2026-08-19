@@ -49,6 +49,7 @@ import { RoomBooking } from '@/Edu-task/types/booking';
 import { AttendanceRecord } from '@/Edu-task/types/attendance';
 import { PeriodSlot } from '@/Edu-task/types/schedule';
 import { canViewAllAttendance, isDeptLeader, isAdmin } from '@/Edu-task/lib/permissions';
+import { Invitation } from '@/Edu-task/types/invitation';
 
 interface AppContextType {
   currentUser: User | null;
@@ -188,6 +189,8 @@ interface AppContextType {
 
   // Bồi dưỡng Học sinh giỏi
   giftedPrograms: GiftedProgram[];
+  /** Danh sách đã mời nhưng chưa từng đăng nhập. Chỉ Ban Giám hiệu đọc được. */
+  invitations: Invitation[];
   createGiftedProgram: (data: GiftedProgramInput) => Promise<GiftedProgram | null>;
   updateGiftedProgram: (id: string, data: Partial<GiftedProgramInput>) => Promise<boolean>;
   setGiftedProgramStatus: (id: string, status: GiftedProgramStatus) => Promise<boolean>;
@@ -348,6 +351,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [studentAttendance, setStudentAttendance] = useState<ClassAttendance[]>([]);
   const [conduct, setConduct] = useState<ConductRecord[]>([]);
   const [giftedPrograms, setGiftedPrograms] = useState<GiftedProgram[]>([]);
+  const [invitations, setInvitations] = useState<Invitation[]>([]);
 
   const timersRef = useRef<ReturnType<typeof setTimeout>[]>([]);
 
@@ -488,6 +492,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   // the UI uses, bootstrap-email clause included — is what stops the next
   // narrowing from silently breaking this again.
   const canSeedConfig = isAdmin(currentUser, activeRole);
+
+  // Ai được nhìn danh sách đã mời. Soi chiếu `allow list` của `invitations`
+  // trong firestore.rules — đọc được cả danh sách là đọc được toàn bộ nhân sự
+  // sắp vào trường kèm vai trò dự kiến.
+  const canSeeInvitations = !!currentUser?.roles?.some(
+    r => r === 'ADMIN' || r === 'PRINCIPAL' || r === 'VICE_PRINCIPAL'
+  );
   // Reduced to booleans for the same reason: the subscription effect must not
   // depend on the `currentUser` object, whose identity changes every snapshot.
   const seesAllAttendance = canViewAllAttendance(currentUser, activeRole);
@@ -630,6 +641,13 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
     const unsubConduct = firebaseService.subscribeConduct(setConduct, scheduleWindowStart);
     const unsubGifted = firebaseService.subscribeGiftedPrograms(setGiftedPrograms);
 
+    // Thư mời chỉ Ban Giám hiệu đọc được — luật cho `get` từng thư theo email
+    // nhưng không cho `list`, nên người thường mà đăng ký nghe ở đây sẽ nhận
+    // permission-denied trên mỗi lần mở app.
+    const unsubInvitations = canSeeInvitations
+      ? firebaseService.subscribeInvitations(setInvitations)
+      : () => {};
+
     return () => {
       unsubUsers();
       unsubLeaves();
@@ -654,9 +672,10 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       unsubStudentAttendance();
       unsubConduct();
       unsubGifted();
+      unsubInvitations();
     };
   }, [
-    isAuthenticated, currentUserId, currentUserDeptId, canSeedConfig, activeRole,
+    isAuthenticated, currentUserId, currentUserDeptId, canSeedConfig, canSeeInvitations, activeRole,
     seesAllAttendance, leadsDepartment, seesAllMeetings,
   ]);
 
@@ -964,6 +983,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         recordConduct,
         deleteConduct,
         giftedPrograms,
+        invitations,
         createGiftedProgram,
         updateGiftedProgram,
         setGiftedProgramStatus,
